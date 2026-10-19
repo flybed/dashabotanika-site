@@ -1,6 +1,6 @@
-// Расчёт уровня и роста персонажа.
-// Уровень (сертификаты) — по условиям из коллекции levels; только растёт.
-// Рост персонажа — очки за действия по правилам growth_rules, стадия — по growth_stages.
+// Расчёт роста персонажа и уровня — это одна линия прогресса.
+// Очки роста — за действия по правилам growth_rules; уровень — по порогам min_xp из levels
+// (плюс необязательные доп. условия). Уровень только растёт: сертификаты не пропадают.
 
 function jsonOf(record, field) {
   const raw = record.get(field)
@@ -41,43 +41,37 @@ function recompute(app, userId) {
   let user
   try { user = app.findRecordById("users", userId) } catch (e) { return }
   const leaves = leavesOf(app, userId)
-  const posts = count(app, "reviews", { author: userId }) + count(app, "comments", { author: userId }) + count(app, "feedback", { author: userId })
-  const stats = { leaves: leaves, exam: user.getInt("exam_best"), game: user.getInt("game_best"), posts: posts }
 
-  // уровень
-  const levels = app.findRecordsByFilter("levels", "rank > 0", "rank", 100, 0)
-  let reached = 0
-  for (const l of levels) {
-    const ok = stats.leaves >= l.getInt("min_leaves") && stats.exam >= l.getInt("min_exam") &&
-      stats.game >= l.getInt("min_game") && stats.posts >= l.getInt("min_reviews")
-    if (!ok) break
-    reached = l.getInt("rank")
-  }
-  const current = user.getInt("level")
-  const level = Math.max(current, reached)
-
-  // рост персонажа
+  // очки роста за действия
   const done = actionsOf(app, user, leaves)
   let xp = 0
   for (const r of app.findRecordsByFilter("growth_rules", "id != ''", "", 100, 0)) {
     xp += (done[r.getString("key")] || 0) * r.getInt("points")
   }
-  let stage = 1
-  for (const s of app.findRecordsByFilter("growth_stages", "stage > 0", "stage", 100, 0)) {
-    if (xp >= s.getInt("min_xp")) stage = Math.max(stage, s.getInt("stage"))
-  }
 
-  if (level === current && user.getInt("leaves") === leaves && user.getInt("xp") === xp && user.getInt("stage") === stage) return
+  // уровень = стадия персонажа: очки роста + необязательные доп. условия
+  const posts = count(app, "reviews", { author: userId }) + count(app, "comments", { author: userId }) + count(app, "feedback", { author: userId })
+  let reached = 0
+  for (const l of app.findRecordsByFilter("levels", "rank > 0", "rank", 100, 0)) {
+    const ok = xp >= l.getInt("min_xp") && leaves >= l.getInt("min_leaves") && user.getInt("exam_best") >= l.getInt("min_exam") &&
+      user.getInt("game_best") >= l.getInt("min_game") && posts >= l.getInt("min_reviews")
+    if (!ok) break
+    reached = l.getInt("rank")
+  }
+  const current = user.getInt("level")
+  const level = Math.max(current, reached, 1)
+
+  if (level === current && user.getInt("leaves") === leaves && user.getInt("xp") === xp && user.getInt("stage") === level) return
   const history = jsonOf(user, "level_history") || []
   const now = new Date().toISOString()
-  for (let r = current + 1; r <= level; r++) {
+  for (let r = 1; r <= level; r++) {
     if (!history.some(h => h.rank === r)) history.push({ rank: r, at: now })
   }
   user.set("level", level)
+  user.set("stage", level)
   user.set("level_history", history)
   user.set("leaves", leaves)
   user.set("xp", xp)
-  user.set("stage", stage)
   app.saveNoValidate(user)
 }
 

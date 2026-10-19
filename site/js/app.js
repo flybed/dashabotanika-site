@@ -640,7 +640,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], stages:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -1027,62 +1027,74 @@ const leavesTotal = () => Object.values(HAB.log||{}).reduce((a,v)=>a+(v?v.length
 const postsCount = () => COM.reviews.filter(r=>r.author===COM.uid).length + COM.comments.filter(c=>c.author===COM.uid).length + COM.feedback.filter(f=>f.author===COM.uid).length;
 
 /* ---------- character growth ("tamagotchi") ---------- */
-function stageOf(n){ return COM.stages.find(s=>s.stage===n) || null; }
-const stageName = n => (stageOf(n) || {}).name || 'Малыш';
+/* one progress line: growth points lead the character through the levels; every level gives a certificate */
 function growthBlock(){
   const me = COM.me; if (!me) return null;
-  const cur = stageOf(me.stage), next = stageOf(me.stage+1);
-  const from = cur ? cur.min_xp : 0, to = next ? next.min_xp : from;
+  const cur = levelOf(me.level), next = levelOf(me.level+1);
+  const from = cur ? cur.min_xp||0 : 0, to = next ? next.min_xp||0 : from;
   const pct = next ? Math.max(0, Math.min(100, Math.round((me.xp-from)/((to-from)||1)*100))) : 100;
-  const ch = charOf(me.character);
+  const ch = charOf(me.character), em = ch ? ch.emoji : '🌱';
+  const have = {min_leaves:Math.max(me.leaves||0, leavesTotal()), min_exam:STATS.examBest||0, min_game:STATS.gameBest||0, min_reviews:postsCount()};
+  const extra = next ? [['min_leaves','эко-листочков в трекере'],['min_exam','баллов на эко-экзамене (из 10)'],['min_game','очков в игре «Эко-уборка»'],['min_reviews','комментариев и сообщений Даше']]
+    .filter(([k])=>(next[k]||0) > 0).map(([k,l])=>h('div',{class:'lvl-row'+(have[k]>=next[k]?' ok':'')}, h('span',null, have[k]>=next[k] ? '✓ ' : '', l), h('b',null, Math.min(have[k],next[k]),' / ',next[k]))) : [];
+  const certs = me.history.filter(x=>x.rank<=me.level).sort((a,b)=>a.rank-b.rank);
   return h('div',{class:'grow'},
-    h('div',{class:'grow-pet st-'+me.stage},
+    h('div',{class:'grow-pet st-'+me.level},
       h('div',{class:'grow-aura','aria-hidden':'true'}),
-      h('span',{class:'grow-em',role:'img','aria-label':(ch ? ch.name : 'Персонаж')+', стадия «'+stageName(me.stage)+'»'}, ch ? ch.emoji : '🌱'),
-      h('div',{class:'grow-deco','aria-hidden':'true'}, ['','','🌱','🌿','🌳','✨'][me.stage] || '')),
+      h('span',{class:'grow-em',role:'img','aria-label':(ch ? ch.name : 'Персонаж')+', уровень «'+levelName(me.level)+'»'}, em),
+      h('div',{class:'grow-deco','aria-hidden':'true'}, ['','','🌱','🌿','🌳','✨'][me.level] || '')),
     h('div',{class:'grow-info'},
       h('div',{class:'eyebrow'},'Развивайте своего персонажа'),
-      h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, (ch ? ch.name : 'Персонаж'),' — ', stageName(me.stage).toLowerCase()),
+      h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, (ch ? ch.name : 'Персонаж'),' — ', levelName(me.level)),
       cur && cur.description ? h('p',{class:'muted'}, cur.description) : null,
-      h('div',{class:'grow-steps'}, COM.stages.map(st=>h('div',{class:'grow-step'+(st.stage<=me.stage?' on':'')+(st.stage===me.stage?' now':''),title:st.name+(st.min_xp ? ' — от '+st.min_xp+' очков' : '')},
-        h('span',{style:'font-size:'+(14+st.stage*4)+'px','aria-hidden':'true'}, ch ? ch.emoji : '🌱'), h('small',null,st.name)))),
+      h('div',{class:'grow-steps'}, COM.levels.map(l=>h('div',{class:'grow-step'+(l.rank<=me.level?' on':'')+(l.rank===me.level?' now':''),title:l.name+(l.min_xp ? ' — от '+l.min_xp+' очков роста' : '')},
+        h('span',{style:'font-size:'+(14+l.rank*4)+'px','aria-hidden':'true'}, em), h('small',null,l.name)))),
       h('div',{class:'grow-bar'}, h('i',{style:'width:'+pct+'%'})),
-      h('p',{class:'hint',style:'font-weight:800'}, next ? 'Очки роста: '+me.xp+' из '+to+' до стадии «'+next.name+'»' : 'Очки роста: '+me.xp+'. Ваш персонаж достиг высшей стадии!'),
+      h('p',{class:'hint',style:'font-weight:800'}, next ? 'Очки роста: '+me.xp+' из '+to+' до уровня «'+next.name+'»' : 'Очки роста: '+me.xp+'. Это высший уровень — вы эко-эксперт!'),
+      extra.length ? h('div',{class:'lvl-next'}, h('div',{class:'hint',style:'font-weight:800'},'Ещё для уровня «',next.name,'»:'), extra) : null,
+      certs.length ? h('div',null, h('div',{class:'hint',style:'font-weight:800;margin-bottom:6px'},'Мои сертификаты'),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, certs.map(x=>h('a',{class:'chip',href:'#cert/'+COM.uid+'/'+x.rank},'🎓 ',levelName(x.rank))))) : null,
       h('details',{class:'grow-how',open:true},
         h('summary',null,'Как растёт ваш персонаж'),
         h('ul',null, COM.growthRules.filter(r=>r.points>0).map(r=>h('li',null, h('b',null,'+',r.points), ' ', r.title, r.per ? h('span',{class:'hint'},' — ',r.per) : null))),
-        h('p',{class:'hint'},'Скоро добавим новые способы расти. Чем выше стадия, тем крупнее ваш персонаж в «Счастливом мире».'))));
+        h('p',{class:'hint'},'За каждый новый уровень — именной сертификат. Скоро добавим новые способы расти; чем выше уровень, тем крупнее ваш персонаж в «Счастливом мире».'))));
+}
+
+/* admin: level names, thresholds, certificate texts and growth points — right on the site */
+function levelsAdminPanel(){
+  const save = (coll, id, data) => write(coll+'/'+id, ()=>pb.collection(coll).update(id, data)).then(()=>toast('Сохранено')).catch(writeErr);
+  const lv = COM.levels.map(l=>{
+    const name = h('input',{maxlength:'40',value:l.name,'aria-label':'Название уровня '+l.rank});
+    const xp = h('input',{type:'number',min:'0',step:'1',value:String(l.min_xp||0),'aria-label':'Очков роста для уровня '+l.rank,style:'max-width:120px'});
+    const desc = h('input',{maxlength:'500',value:l.description||'',placeholder:'Описание уровня','aria-label':'Описание уровня '+l.rank});
+    const cert = h('input',{maxlength:'300',value:l.certificate_text||'',placeholder:'Текст сертификата: «… стал(а) эко-экспертом»','aria-label':'Текст сертификата '+l.rank});
+    return h('div',{class:'li'},
+      h('div',{class:'meta'}, h('span',{class:'lvl-step on'}, l.rank), h('b',null,'Уровень ',l.rank)),
+      h('div',{class:'adm-row'}, h('label',null,'Название',name), h('label',null,'Очков роста нужно',xp)),
+      h('label',{class:'adm-full'},'Описание',desc), h('label',{class:'adm-full'},'Текст сертификата',cert),
+      h('div',null, h('button',{type:'button',class:'btn small',onclick:()=>{
+        const n = name.value.trim(); if (!n){ name.focus(); return; }
+        save('levels', l.id, {name:n.slice(0,40), min_xp:Math.max(0, parseInt(xp.value,10)||0), description:desc.value.trim(), certificate_text:cert.value.trim()});
+      }},'Сохранить уровень')));
+  });
+  const rules = COM.growthRules.map(r=>{
+    const title = h('input',{maxlength:'80',value:r.title,'aria-label':'Действие'});
+    const pts = h('input',{type:'number',min:'0',step:'1',value:String(r.points||0),'aria-label':'Очки за действие',style:'max-width:90px'});
+    const per = h('input',{maxlength:'40',value:r.per||'','aria-label':'За что','placeholder':'за статью'});
+    return h('div',{class:'adm-rule'}, pts, title, per, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
+      const t = title.value.trim(); if (!t){ title.focus(); return; }
+      save('growth_rules', r.id, {title:t.slice(0,80), points:Math.max(0, parseInt(pts.value,10)||0), per:per.value.trim().slice(0,40)});
+    }},'Сохранить'));
+  });
+  return [
+    h('p',{class:'muted'},'Здесь меняются названия уровней, сколько очков роста нужно для каждого, описания и тексты сертификатов. После сохранения уровни всех участников пересчитываются; полученные сертификаты не пропадают.'),
+    h('div',{class:'list'}, lv),
+    h('h3',{style:'font-size:20px'},'Сколько очков роста за какое действие'),
+    h('p',{class:'muted'},'Поставьте 0, чтобы действие не давало роста.'),
+    h('div',{class:'list'}, rules)];
 }
 
 /* ---------- levels & certificates ---------- */
-function levelProgress(){
-  const me = COM.me; if (!me) return null;
-  const cur = levelOf(me.level), next = levelOf(me.level+1);
-  const have = {leaves:Math.max(me.leaves||0, leavesTotal()), exam:STATS.examBest||0, game:STATS.gameBest||0, posts:postsCount()};
-  const rows = next ? [
-    ['min_leaves','эко-листочков в трекере', have.leaves],
-    ['min_exam','баллов на эко-экзамене (из 10)', have.exam],
-    ['min_game','очков в игре «Эко-уборка»', have.game],
-    ['min_reviews','комментариев и сообщений Даше', have.posts]
-  ].filter(([k])=>(next[k]||0) > 0).map(([k,l,v])=>({label:l, have:v, need:next[k], ok:v>=next[k]})) : [];
-  return {cur, next, rows};
-}
-function levelBlock(){
-  const p = levelProgress(); if (!p) return null;
-  const me = COM.me;
-  return h('div',{class:'lvl'},
-    h('div',{class:'lvl-steps'}, COM.levels.map(l=>h('span',{class:'lvl-step'+(l.rank<=me.level?' on':''),title:l.name}, l.rank))),
-    h('p',null, h('b',null,'Ваш уровень: ', p.cur ? p.cur.name : levelName(me.level)), p.cur && p.cur.description ? ' — '+p.cur.description : ''),
-    p.next ? h('div',{class:'lvl-next'},
-      h('div',{class:'hint',style:'font-weight:800'},'До уровня «',p.next.name,'»:'),
-      p.rows.map(r=>h('div',{class:'lvl-row'+(r.ok?' ok':'')},
-        h('span',null, r.ok ? '✓ ' : '', r.label), h('b',{style:'font-variant-numeric:tabular-nums'}, Math.min(r.have,r.need),' / ',r.need),
-        h('span',{class:'lvl-bar'}, h('i',{style:'width:'+Math.min(100, Math.round(r.have/(r.need||1)*100))+'%'})))))
-      : h('p',{class:'hint'},'Это высший уровень. Вы — эко-эксперт!'),
-    me.history.length ? h('div',null, h('div',{class:'hint',style:'font-weight:800;margin-bottom:6px'},'Мои сертификаты'),
-      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, me.history.slice().sort((a,b)=>a.rank-b.rank).map(x=>h('a',{class:'chip',href:'#cert/'+COM.uid+'/'+x.rank,onclick:closeModal},'🎓 ',levelName(x.rank))))) : null
-  );
-}
 async function openCert(userId, rank){
   if (!pb) return;
   let u, lv;
@@ -1164,15 +1176,15 @@ function worldSection(){
   live(()=>{
     const ids = Object.keys(COM.members).filter(id=>COM.members[id].character)
       .sort((a,b)=>(COM.members[a].role==='admin')===(COM.members[b].role==='admin') ? COM.members[a].joined-COM.members[b].joined : COM.members[a].role==='admin' ? -1 : 1);
-    const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level+'/'+COM.members[id].stage).join()+COM.characters.length+COM.stages.length+'|'+COM.uid;
+    const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level).join()+COM.characters.length+COM.levels.map(l=>l.name).join()+'|'+COM.uid;
     if (key === lastKey) return; lastKey = key;
     const n = ids.length;
     box.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
       const m = COM.members[id];
       const r = Math.sqrt(i/(n+1)), a = i*2.39996;
       const x = 50 + Math.cos(a)*r*44, y = 68 + Math.sin(a)*r*24;
-      const label = m.nick+' · '+stageName(m.stage)+' · '+levelName(m.level);
-      return h('div',{class:'dweller st-'+(m.stage||1)+(i===0?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%',title:label,'aria-label':label,tabindex:'0'},
+      const label = m.nick+' · '+levelName(m.level);
+      return h('div',{class:'dweller st-'+(m.level||1)+(i===0?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%',title:label,'aria-label':label,tabindex:'0'},
         h('span',{class:'em'}, emojiOf(id)), n <= 40 || i===0 || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null);
     }));
     count.textContent = n ? 'Жителей в мире: '+n+'. Первой поселилась Даша — слон. Каждый новый участник выбирает себе животное или растение и появляется здесь.' : 'Мир скоро оживёт: первой поселится Даша — слон.';
@@ -1297,6 +1309,12 @@ function statsRow(){
     h('div',null,h('b',null,STATS.gameBest),h('span',null,'рекорд в игре')),
     h('div',null,h('b',null,postsCount()),h('span',null,'комментариев и сообщений')));
 }
+function logout(){
+  if (!confirm('Выйти из аккаунта?')) return;
+  pb.authStore.clear();
+  try{ sessionStorage.setItem('db-welcome','Вы вышли из аккаунта. До встречи!'); }catch(e){}
+  location.href = '/';
+}
 function cabinetPage(){
   const q = new URLSearchParams(location.search);
   const tab = q.get('tab') || '', tid = q.get('t') || null;
@@ -1311,21 +1329,21 @@ function cabinetPage(){
   return [cabinetHead(), habitsSection(), cabinetTabs(tab, tid)];
 }
 function cabinetHead(){
-  const head = h('div',{class:'cab-head'}), grow = h('div'), stats = h('div'), lvl = h('div');
+  const head = h('div',{class:'cab-head'}), grow = h('div'), stats = h('div');
   live(()=>{
     const me = COM.me; if (!me) return;
     head.replaceChildren(h('div',{class:'mono cab-ava','aria-hidden':'true'}, emojiOf(COM.uid)),
-      h('div',null, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick), h('div',{class:'hint'}, stageName(me.stage),' · ', levelName(me.level),' · с нами с ', dt(me.joined))));
+      h('div',{style:'flex:1;min-width:0'}, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick), h('div',{class:'hint'}, levelName(me.level),' · с нами с ', dt(me.joined))),
+      h('button',{type:'button',class:'btn ghost small cab-logout',onclick:logout},'Выйти'));
     grow.replaceChildren(growthBlock() || '');
     stats.replaceChildren(statsRow());
-    lvl.replaceChildren(levelBlock() || '');
   });
   const verify = !COM.verified && COM.email ? h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
     h('b',null,'Подтвердите почту'),
     h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
     h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
       pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))) : null;
-  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, grow, stats, lvl));
+  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, grow, stats));
 }
 function cabinetTabs(tab, tid){
   let cur = tab || (unreadCount() ? 'chats' : 'things'), lastKey = null, openTid = tid || null, tabBtns = {};
@@ -1335,7 +1353,7 @@ function cabinetTabs(tab, tid){
   function build(){
     const me = COM.me;
     const tabs = [['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
-      .concat(COM.admin ? [['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники']] : []);
+      .concat(COM.admin ? [['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
     if (!tabs.some(([k])=>k===cur)) cur = 'things';
     tabBtns = {};
     const out = [
@@ -1357,7 +1375,7 @@ function cabinetTabs(tab, tid){
       out.push(
         h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
         h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf,
-        h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{ pb.authStore.clear(); location.href = '/'; }},'Выйти из аккаунта')));
+        h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:logout},'Выйти из аккаунта')));
     }
     if (cur==='suggest'){
       const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
@@ -1373,6 +1391,7 @@ function cabinetTabs(tab, tid){
       out.push(h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f, h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg);
     }
     if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
+    if (cur==='levels') out.push(...levelsAdminPanel());
     if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
     if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и модераторы.'), lists.inbox); }
     return out;
@@ -1409,7 +1428,7 @@ function cabinetTabs(tab, tid){
   }
   function paint(force){
     const me = COM.me || {};
-    const key = cur+'|'+COM.admin+'|'+COM.owner+'|'+(me.nick||'')+'|'+(me.character||'')+'|'+COM.characters.length+'|'+(openTid && COM.threads[openTid] ? openTid : '');
+    const key = cur+'|'+COM.admin+'|'+COM.owner+'|'+(me.nick||'')+'|'+(me.character||'')+'|'+COM.characters.length+'|'+(openTid && COM.threads[openTid] ? openTid : '')+(cur==='levels' ? '|'+COM.levels.length+'/'+COM.growthRules.length : '');
     if (force || key !== lastKey){ lastKey = key; PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build().filter(x=>x!=null)); }
     paintLists();
     const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
@@ -1715,7 +1734,6 @@ render();
   watch('characters',{sort:'sort'}, l=>{ COM.characters = l; });
   watch('levels',{sort:'rank'}, l=>{ COM.levels = l; });
   watch('growth_rules',{sort:'sort'}, l=>{ COM.growthRules = l; });
-  watch('growth_stages',{sort:'stage'}, l=>{ COM.stages = l; });
   watch('likes',{fields:'id,user,target'}, l=>{ COM.likes = l; });
   const auth = pb.authStore;
   if (auth.isValid && auth.record && auth.record.collectionName==='users'){
@@ -1732,17 +1750,16 @@ render();
   }
   COM.ready = true;
   render();
-  let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0, myStage = COM.me ? COM.me.stage : 0;
+  let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
   watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage'}, l=>{
     const m = {}; l.forEach(r=>{ m[r.id] = memberOf(r); });
     COM.members = m;
     if (COM.uid && m[COM.uid]){
       COM.me = m[COM.uid];
-      if (COM.me.level > myLevel && myLevel){ toast('Новый уровень: '+levelName(COM.me.level)+'! Сертификат — в кабинете'); }
+      if (COM.me.level > myLevel && myLevel){ toast('Ваш персонаж вырос: новый уровень «'+levelName(COM.me.level)+'»! Сертификат — в кабинете'); }
       myLevel = COM.me.level;
-      if (COM.me.stage > myStage && myStage) toast('Ваш персонаж вырос: теперь он «'+stageName(COM.me.stage)+'»!');
-      else if (COM.me.xp > myXp && myLevel) toast('+'+(COM.me.xp-myXp)+' к росту персонажа');
-      myXp = COM.me.xp; myStage = COM.me.stage;
+      if (COM.me.xp > myXp && myXp) toast('+'+(COM.me.xp-myXp)+' к росту персонажа');
+      myXp = COM.me.xp;
     }
   });
   watch('reviews',{sort:'-created'}, l=>{ COM.reviews = l.map(r=>({id:r.id, author:r.author, rating:r.rating, text:r.text, ts:tsOf(r)})); });
