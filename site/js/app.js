@@ -556,7 +556,7 @@ document.addEventListener('click', e=>{
 window.addEventListener('popstate', ()=>{ closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
-  return [hero(), worldSection(), calcSection(), examTeaser(), goodsSection(true), gameSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
+  return [hero(), calcSection(), examTeaser(), worldSection(), goodsSection(true), gameSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
