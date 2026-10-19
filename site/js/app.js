@@ -951,7 +951,7 @@ function threadView(tid, back){
   function paintMsgs(){
     msgs.replaceChildren(...(list.length ? list.map(m=>h('div',{class:'li',style:m.from===COM.uid?'background:color-mix(in srgb,var(--leaf) 16%,var(--surface));margin-left:12%':'margin-right:12%'},
       h('div',{class:'meta'}, h('b',null, m.from===COM.uid ? 'Вы' : (!t.seller && m.from!==t.buyer) ? 'Даша' : nameOf(m.from)), h('span',null,new Date(m.ts).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))),
-      h('div',{style:'white-space:pre-line'},m.text))) : [h('p',{class:'hint'},'Напишите, когда и где удобно встретиться, задайте вопросы о вещи.')]));
+      h('div',{style:'white-space:pre-line'},m.text))) : [h('p',{class:'hint'}, isDM(t) ? 'Напишите первое сообщение — познакомьтесь и поделитесь эко-привычками.' : 'Напишите, когда и где удобно встретиться, задайте вопросы о вещи.')]));
     msgs.scrollTop = msgs.scrollHeight;
   }
   const load = ()=>pb.collection('messages').getFullList({filter:pb.filter('chat = {:c}',{c:tid}), sort:'created', requestKey:null})
@@ -974,7 +974,7 @@ function threadView(tid, back){
   const iAmSeller = t.seller === COM.uid || (!t.seller && t.buyer !== COM.uid);
   return [
     h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('button',{type:'button',class:'btn ghost small',onclick:back},'← Все сообщения'),
-      h('div',{style:'min-width:0'}, h('b',null,t.title), h('div',{class:'hint'}, iAmSeller ? 'Покупатель: ' : 'Продавец: ', partnerName(t)))),
+      h('div',{style:'min-width:0'}, h('b',null,t.title), h('div',{class:'hint'}, isDM(t) ? 'Собеседник: ' : iAmSeller ? 'Покупатель: ' : 'Продавец: ', partnerName(t)))),
     actions, msgs, f,
     h('p',{class:'hint'},'Сайт не принимает оплату. Договоритесь о передаче и способе оплаты напрямую. Не отправляйте здесь паспортные и банковские данные: переписку видят модераторы.')
   ];
@@ -1076,7 +1076,7 @@ function paintThings(el){
 function paintChats(el, openThread){
   const ts = Object.entries(COM.threads).sort((a,b)=>(b[1].last_at||0)-(a[1].last_at||0));
   el.replaceChildren(...(ts.length ? ts.map(([tid,t])=>h('button',{type:'button',class:'li',style:'text-align:left;cursor:pointer;font:inherit;color:inherit',onclick:()=>openThread(tid)},
-      h('div',{class:'meta'}, isUnread(t) ? h('span',{class:'status accepted'},'Новое') : null, h('span',null, t.buyer===COM.uid ? 'Вы покупаете' : 'Вас спрашивают'), h('span',null,dt(t.last_at))),
+      h('div',{class:'meta'}, isUnread(t) ? h('span',{class:'status accepted'},'Новое') : null, h('span',null, isDM(t) ? 'Личные сообщения' : t.buyer===COM.uid ? 'Вы покупаете' : 'Вас спрашивают'), h('span',null,dt(t.last_at))),
       h('b',null,t.title), h('span',{class:'hint'},'Собеседник: ',partnerName(t)))
   ) : [h('p',{class:'hint'},'Сообщений пока нет. Нажмите «Хочу купить» или «Хочу забрать» на любой вещи в барахолке.')]));
 }
@@ -1322,34 +1322,93 @@ function routeHash(){
 }
 
 /* ---------- happy world ---------- */
-const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="none" aria-hidden="true">'+
-  '<defs><linearGradient id="wsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:color-mix(in srgb,var(--sun) 22%,var(--surface))"/><stop offset="1" style="stop-color:var(--surface)"/></linearGradient></defs>'+
+const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'+
+  '<defs>'+
+  '<linearGradient id="wsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BFDDEE"/><stop offset=".55" stop-color="#E6EEE4"/><stop offset="1" stop-color="#F3ECD9"/></linearGradient>'+
+  '<radialGradient id="wsun"><stop offset="0" stop-color="#FFE6A3"/><stop offset=".45" stop-color="#F6C85F"/><stop offset="1" stop-color="#F6C85F" stop-opacity="0"/></radialGradient>'+
+  '<linearGradient id="wwater" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9D6EA"/><stop offset="1" stop-color="#5F9FC6"/></linearGradient>'+
+  '<linearGradient id="wfall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8FC6E2"/><stop offset=".5" stop-color="#E7F5FB"/><stop offset="1" stop-color="#8FC6E2"/></linearGradient>'+
+  '<linearGradient id="wmeadow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8DB565"/><stop offset="1" stop-color="#6E9A4C"/></linearGradient>'+
+  '</defs>'+
   '<rect width="1000" height="420" fill="url(#wsky)"/>'+
-  '<circle cx="860" cy="70" r="38" style="fill:var(--sun)" opacity=".75"/>'+
-  '<path d="M0 170 Q160 110 320 160 T640 150 T1000 140 V420 H0Z" style="fill:var(--leaf)" opacity=".35"/>'+
-  '<path d="M0 210 Q220 160 460 205 T1000 190 V420 H0Z" style="fill:var(--leaf)" opacity=".55"/>'+
-  '<path d="M0 260 Q250 230 520 262 T1000 250 V420 H0Z" style="fill:var(--moss)" opacity=".35"/>'+
-  '<path d="M640 420 C600 360 700 330 650 290 S700 250 760 262" style="stroke:color-mix(in srgb,#3E78B2 55%,var(--surface));fill:none;stroke-width:26;stroke-linecap:round" opacity=".7"/>'+
-  '<g style="fill:var(--moss)" opacity=".55"><path d="M80 210 l18-48 18 48z"/><path d="M110 216 l14-38 14 38z"/><path d="M905 200 l18-50 18 50z"/><path d="M935 206 l13-34 13 34z"/></g>'+
+  '<circle cx="870" cy="72" r="70" fill="url(#wsun)"/><circle cx="870" cy="72" r="30" fill="#F7CF6B"/>'+
+  // облака плывут
+  '<g class="w-cloud" fill="#fff" opacity=".9"><ellipse cx="140" cy="62" rx="46" ry="16"/><ellipse cx="170" cy="52" rx="30" ry="18"/><ellipse cx="112" cy="56" rx="22" ry="13"/></g>'+
+  '<g class="w-cloud w-cloud2" fill="#fff" opacity=".8"><ellipse cx="560" cy="44" rx="40" ry="13"/><ellipse cx="586" cy="36" rx="24" ry="14"/></g>'+
+  '<g class="w-cloud w-cloud3" fill="#fff" opacity=".85"><ellipse cx="760" cy="110" rx="36" ry="12"/><ellipse cx="782" cy="102" rx="22" ry="12"/></g>'+
+  // горы вдали со снежными шапками
+  '<path d="M0 230 L80 168 L140 196 L230 112 L320 196 L410 150 L500 212 L590 128 L690 200 L790 118 L890 178 L1000 142 V300 H0Z" fill="#A7B8C6"/>'+
+  '<path d="M0 250 L120 200 L210 236 L300 186 L420 240 L540 198 L660 244 L760 196 L880 232 L1000 204 V310 H0Z" fill="#8FA5B5" opacity=".9"/>'+
+  '<g fill="#F7FAFC"><path d="M230 112 L252 132 L240 128 L230 138 L220 128 L208 132Z"/><path d="M590 128 L610 146 L598 143 L590 152 L582 143 L570 146Z"/><path d="M790 118 L812 138 L800 134 L790 144 L780 134 L768 138Z"/></g>'+
+  // холмы
+  '<path d="M0 262 Q150 222 300 252 T620 240 T1000 236 V420 H0Z" fill="#A9C784"/>'+
+  // скала с водопадом
+  '<path d="M240 300 L250 214 L274 190 L312 186 L336 206 L344 300Z" fill="#8C877B"/><path d="M250 214 L274 190 L312 186 L300 200 L270 206Z" fill="#A39E92"/>'+
+  '<rect x="282" y="196" width="22" height="98" fill="url(#wfall)"/>'+
+  '<g class="w-fall" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".85"><path d="M287 198 V292"/><path d="M293 198 V292"/><path d="M299 198 V292"/></g>'+
+  '<ellipse cx="293" cy="296" rx="44" ry="10" fill="#9FD0E6"/><g class="w-splash" fill="#fff" opacity=".8"><circle cx="276" cy="292" r="4"/><circle cx="312" cy="291" r="3.5"/><circle cx="293" cy="288" r="3"/></g>'+
+  // холм с мельницей
+  '<path d="M520 300 Q640 214 780 296Z" fill="#97BC70"/>'+
+  '<g transform="translate(642 270) scale(1.45) translate(-642 -270)">'+
+  '<path d="M630 268 L654 268 L648 204 L636 204Z" fill="#F2E8D5" stroke="#8B7A5E" stroke-width="2"/><path d="M630 206 L642 186 L654 206Z" fill="#B0604A"/><rect x="638" y="250" width="8" height="18" rx="3" fill="#8B7A5E"/><rect x="637" y="222" width="10" height="10" rx="2" fill="#9CC3DA" stroke="#8B7A5E"/>'+
+  '<g class="w-blades" fill="#F7F1E4" stroke="#8B7A5E" stroke-width="1.5"><path d="M642 196 L637 152 L647 152Z"/><path d="M642 196 L686 191 L686 201Z"/><path d="M642 196 L647 240 L637 240Z"/><path d="M642 196 L598 201 L598 191Z"/><circle cx="642" cy="196" r="4" fill="#8B7A5E"/></g></g>'+
+  // луг
+  '<path d="M0 300 Q200 278 420 296 T1000 290 V420 H0Z" fill="url(#wmeadow)"/>'+
+  // река от водопада
+  '<path d="M266 296 C238 322 206 342 196 368 S178 410 150 420 L262 420 C270 400 282 378 300 360 S334 322 320 296Z" fill="url(#wwater)"/>'+
+  '<path d="M290 304 C272 330 246 352 238 376" stroke="#fff" stroke-width="2" fill="none" opacity=".45" stroke-linecap="round"/>'+
+  // деревья
+  '<g fill="#3F6B37"><path d="M60 300 l16 -44 16 44z"/><path d="M64 284 l12 -32 12 32z"/><path d="M96 306 l13 -36 13 36z"/><path d="M904 296 l17 -48 17 48z"/><path d="M940 304 l13 -36 13 36z"/><path d="M420 292 l11 -30 11 30z"/></g>'+
+  '<g><rect x="503" y="282" width="6" height="18" fill="#6B4E31"/><circle cx="506" cy="274" r="16" fill="#5C8C45"/><rect x="842" y="284" width="6" height="18" fill="#6B4E31"/><circle cx="845" cy="275" r="17" fill="#5C8C45"/><circle cx="855" cy="268" r="10" fill="#6E9E52"/></g>'+
+  // цветы
+  '<g><circle cx="380" cy="352" r="3" fill="#F3D35B"/><circle cx="560" cy="378" r="3" fill="#E98AA0"/><circle cx="720" cy="340" r="3" fill="#F3D35B"/><circle cx="880" cy="370" r="3" fill="#E98AA0"/><circle cx="640" cy="400" r="3" fill="#FFFFFF"/><circle cx="460" cy="404" r="3" fill="#F3D35B"/><circle cx="960" cy="400" r="3" fill="#FFFFFF"/></g>'+
   '</svg>';
+
+const WORLD_SPOTS = [[62,80],[46,77],[78,77],[38,89],[54,91],[70,90],[87,86],[30,78],[94,78],[62,95],[46,96],[82,95]];
+
+/* private messages between members: a chat whose "seller" is the other member */
+async function openDM(userId){
+  if (accState() !== 'member'){ openAccount(); toast('Чтобы писать участникам, войдите или зарегистрируйтесь'); return; }
+  if (userId === COM.uid) return;
+  const key = 'D_'+[COM.uid, userId].sort().join('_');
+  let tid = Object.keys(COM.threads).find(id=>COM.threads[id].key===key);
+  try{
+    if (!tid){
+      let r;
+      try{ r = await pb.collection('chats').getFirstListItem(pb.filter('key = {:k}',{k:key}),{requestKey:null}); }
+      catch(e){ const now = Date.now(); r = await pb.collection('chats').create({key, title:'Личная переписка', seller:userId, buyer:COM.uid, last_from:COM.uid, last_at:now, read_by:{[COM.uid]:now}}); }
+      COM.threads[r.id] = threadOf(r); tid = r.id;
+    }
+    openAccount('chats', tid);
+  }catch(e){ writeErr(e); }
+}
+const isDM = t => String(t.key||'').startsWith('D_');
+
 function worldSection(){
   const box = h('div',{class:'world'});
   const count = h('p',{class:'muted',style:'margin-top:12px'});
   const cta = h('div',{style:'margin-top:14px'});
   let lastKey = null;
   live(()=>{
+    const isDasha = id => COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон';
     const ids = Object.keys(COM.members).filter(id=>COM.members[id].character)
-      .sort((a,b)=>(COM.members[a].role==='admin')===(COM.members[b].role==='admin') ? COM.members[a].joined-COM.members[b].joined : COM.members[a].role==='admin' ? -1 : 1);
+      .sort((a,b)=>isDasha(a)!==isDasha(b) ? (isDasha(a) ? -1 : 1) : COM.members[a].joined-COM.members[b].joined);
     const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level).join()+COM.characters.length+COM.levels.map(l=>l.name).join()+'|'+COM.uid;
     if (key === lastKey) return; lastKey = key;
     const n = ids.length;
     box.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
       const m = COM.members[id];
       const r = Math.sqrt(i/(n+1)), a = i*2.39996;
-      const x = 50 + Math.cos(a)*r*44, y = 68 + Math.sin(a)*r*24;
+      // first places are chosen spots on the meadow (Dasha in the middle), then a spiral around them
+      const spot = WORLD_SPOTS[i];
+      const x = spot ? spot[0] : 62 + Math.cos(a)*r*34, y = spot ? spot[1] : 82 + Math.sin(a)*r*11;
       const label = m.nick+' · '+levelName(m.level);
-      return h('div',{class:'dweller st-'+(m.level||1)+(i===0?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%',title:label,'aria-label':label,tabindex:'0'},
-        h('span',{class:'em'}, emojiOf(id)), n <= 40 || i===0 || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null);
+      const el = h('div',{class:'dweller st-'+(m.level||1)+(isDasha(id)?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%','aria-label':label,tabindex:'0'},
+        h('span',{class:'em'}, emojiOf(id)), n <= 40 || isDasha(id) || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null,
+        h('div',{class:'pop'}, h('b',null, emojiOf(id),' ',m.nick), h('span',{class:'hint'}, levelName(m.level)),
+          id===COM.uid ? h('span',{class:'hint'},'Это вы') : h('button',{type:'button',class:'btn small',onclick:e=>{ e.stopPropagation(); openDM(id); }},'✉ Написать')));
+      el.addEventListener('click', ()=>{ const was = el.classList.contains('open'); box.querySelectorAll('.dweller.open').forEach(d=>d.classList.remove('open')); if (!was) el.classList.add('open'); });
+      return el;
     }));
     const dashaHere = ids.some(id=>COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон');
     count.textContent = (n ? 'Жителей в мире: '+n+'. ' : '') + (dashaHere ? 'Первой поселилась Даша — слон. ' : 'Скоро здесь поселится Даша — слон. ') + 'Каждый новый участник выбирает себе животное или растение и появляется здесь.';
