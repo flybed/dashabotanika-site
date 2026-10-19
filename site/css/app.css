@@ -428,3 +428,12 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .menu a[aria-current="page"]{color:var(--moss);background:color-mix(in srgb,var(--leaf) 14%,var(--surface))}
 .menu-tail{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;display:grid;gap:2px}
 .menu-out{color:var(--clay)}
+.mail-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mail-ok{color:var(--moss);font-weight:800}
+
+/* ---------- Instagram и Telegram в шапке ---------- */
+.social{display:flex;gap:6px;flex:none}
+.soc{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--moss);border:1px solid var(--line);background:var(--surface)}
+.soc:hover{background:var(--soft)}
+.soc svg{width:22px;height:22px}
+@media (max-width:420px){.social{gap:4px}.soc{width:36px;height:36px}.soc svg{width:20px;height:20px}}
