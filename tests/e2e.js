@@ -42,12 +42,14 @@ async function register(p, email, nick, charName){
   const q = await ctx2.newPage(); watchPage(q,'liza');
   await q.goto(B+'/', {waitUntil:'networkidle'});
   await register(q, 'liza@test.local', 'Лиза', 'Лиса');
-  await q.goto(B+'/#reviews'); await q.fill('#review-text','Очень полезный сайт, спасибо!'); await q.click('button:has-text("Опубликовать отзыв")'); await q.waitForTimeout(800);
+  await q.goto(B+'/#feedback'); await q.fill('#fb-text','Добавьте, пожалуйста, тёмную тему');
+  await q.setInputFiles('#fb-photos', require('path').join(__dirname,'..','site','img','owl.webp'));
+  await q.click('button:has-text("Отправить Даше")'); await q.waitForSelector('#feedback .li:has-text("тёмную тему")');
   await q.click('.acc-btn'); await q.click('.tabs button:has-text("Мои вещи")');
   await q.fill('#mk-title','Многоразовый шопер'); await q.selectOption('#mk-kind','Отдам даром'); await q.fill('#mk-note','Почти новый');
   await q.click('button:has-text("Отправить на проверку")'); await q.waitForSelector('.toast:has-text("Отправлено")'); await q.click('.close');
   await q.click('#market button:has-text("Хочу купить")');
-  await q.waitForSelector('#chat-input'); await q.fill('#chat-input','Здравствуйте! Платье ещё в продаже?'); await q.click('button:has-text("Отправить")'); await q.waitForTimeout(800);
+  await q.waitForSelector('#chat-input'); await q.fill('#chat-input','Здравствуйте! Платье ещё в продаже?'); await q.click('.sheet button:has-text("Отправить")'); await q.waitForTimeout(800);
   await q.screenshot({path:S+'/05-liza-chat.png'}); await q.click('.close');
   await q.goto(B+'/#world'); await q.waitForTimeout(800); await q.screenshot({path:S+'/06-liza-world-mobile.png'});
   // Dasha moderates and reads chat
@@ -58,7 +60,12 @@ async function register(p, email, nick, charName){
   await p.screenshot({path:S+'/08-dasha-chat.png'});
   await p.fill('#chat-input','Да, в продаже!'); await p.click('.sheet button:has-text("Отправить")'); await p.waitForTimeout(800);
   await p.click('.tabs button:has-text("Профиль")'); await p.waitForTimeout(400); await p.screenshot({path:S+'/09-profile.png'});
+  await p.click('.tabs button:has-text("Обратная связь")'); await p.waitForSelector('.sheet .fb-photos img');
+  await p.fill('.sheet .li textarea','Спасибо! Уже делаю'); await p.click('.sheet button:has-text("Сохранить ответ")'); await p.waitForTimeout(500);
+  await p.click('.sheet button:has-text("В работе")'); await p.waitForTimeout(600); await p.screenshot({path:S+'/13-fb-admin.png'});
   await p.click('.close');
+  await q.goto(B+'/#feedback'); await q.waitForSelector('#feedback .fb-reply:has-text("Уже делаю")'); await q.waitForSelector('#feedback .status:has-text("В работе")');
+  await q.screenshot({path:S+'/14-fb-author.png'}); console.log('feedback reply visible to author');
   const pubL = await api('GET','/collections/listings/records'); console.log('public listings:', pubL.totalItems);
   // level up: exam 6 + habits leaves -> need 10 leaves for level 2; give exam_best 6 via UI-like API and many leaves
   await api('PATCH','/collections/users/records/'+dasha.id,{exam_best:6},t);

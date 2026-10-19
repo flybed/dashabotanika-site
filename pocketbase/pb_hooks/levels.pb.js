@@ -25,7 +25,7 @@ onRecordAfterUpdateSuccess((e) => {
 onRecordAfterCreateSuccess((e) => {
   e.next()
   require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("author"))
-}, "reviews", "comments")
+}, "reviews", "comments", "feedback")
 
 onRecordAfterUpdateSuccess((e) => {
   e.next()

@@ -29,7 +29,7 @@ const uid = () => Math.random().toString(36).slice(2,9);
 const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z" fill="currentColor" opacity=".9"/><path d="M5 19 13 11" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
 /* ---------- static content ---------- */
-const NAV = [['calc','Переработка'],['game','Игра'],['exam','Эко-экзамен'],['habits','Привычки'],['world','Мир'],['goods','Товары'],['fashion','Мода'],['food','Еда'],['cafes','Кафе'],['market','Барахолка'],['helper','ИИ-помощник'],['journal','Журнал'],['reviews','Отзывы'],['about','Про меня'],['contacts','Контакты']];
+const NAV = [['calc','Переработка'],['game','Игра'],['exam','Эко-экзамен'],['habits','Привычки'],['world','Мир'],['goods','Товары'],['fashion','Мода'],['food','Еда'],['cafes','Кафе'],['market','Барахолка'],['helper','ИИ-помощник'],['journal','Журнал'],['feedback','Обратная связь'],['about','Про меня'],['contacts','Контакты']];
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -151,7 +151,7 @@ function render(){
       h('nav',{class:'nav','aria-label':'Разделы'}, NAV.map(([id,t])=>h('a',{href:'#'+id},t))),
       accountButton()
     )),
-    hero(), calcSection(), gameSection(), examSection(), habitsSection(), worldSection(), goodsSection(), fashionSection(), foodSection(), cafesSection(), marketSection(), helperSection(), journalSection(), reviewsSection(), aboutSection(), contactsSection(),
+    hero(), calcSection(), gameSection(), examSection(), habitsSection(), worldSection(), goodsSection(), fashionSection(), foodSection(), cafesSection(), marketSection(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection(),
     h('footer',null, h('div',{class:'wrap'},
       h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета'),
       h('span',{id:'edit-slot'})
@@ -530,7 +530,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, reviews:[], comments:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -597,36 +597,63 @@ function commentsBlock(target){
 }
 
 function leaves(n){ n = Math.max(1, Math.min(5, n|0)); return h('span',{class:'stars','aria-label':n+' из 5'}, '❦'.repeat(n), h('span',{style:'opacity:.25'},'❦'.repeat(5-n))); }
-function reviewsSection(){
-  const listBox = h('div');
+const FB_STATUS = {'':'Новое', in_progress:'В работе', done:'Сделано', declined:'Не подошло'};
+function feedbackOf(r){ return {id:r.id, author:r.author, text:r.text, status:r.status||'', reply:r.reply||'', ts:tsOf(r), photos:(r.photos||[]).map(f=>({thumb:'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+'?thumb=300x300', full:'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)}))}; }
+function fbPhotos(fb){ return fb.photos.length ? h('div',{class:'fb-photos'}, fb.photos.map(ph=>h('a',{href:ph.full,target:'_blank',rel:'noopener'}, h('img',{src:ph.thumb,alt:'Фото к сообщению',loading:'lazy'})))) : null; }
+function fbItem(fb, admin){
+  const st = h('span',{class:'status '+(fb.status==='done'?'accepted':fb.status==='declined'?'declined':'')}, FB_STATUS[fb.status]||'Новое');
+  return h('div',{class:'li'},
+    h('div',{class:'meta'}, st, admin ? h('b',null,emojiOf(fb.author)+' '+nameOf(fb.author)) : null, h('span',null,dt(fb.ts)),
+      fb.author===COM.uid || admin ? h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить сообщение',onclick:()=>{ if (confirm('Удалить сообщение?')) delDoc('feedback',fb.id); }},'×') : null),
+    h('div',{style:'white-space:pre-line'},fb.text), fbPhotos(fb),
+    fb.reply ? h('div',{class:'fb-reply'}, h('b',null,'Ответ Даши: '), fb.reply) : null,
+    admin ? fbAdminControls(fb) : null);
+}
+function fbAdminControls(fb){
+  const reply = h('textarea',{maxlength:'2000',placeholder:'Ответ автору (увидит в своём сообщении)','aria-label':'Ответ автору',style:'min-height:60px'}); reply.value = fb.reply;
+  const set = data => write('feedback/'+fb.id, ()=>pb.collection('feedback').update(fb.id, data)).then(()=>toast('Сохранено')).catch(writeErr);
+  return h('div',{style:'display:grid;gap:8px;margin-top:6px'}, reply,
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+      h('button',{type:'button',class:'btn small',onclick:()=>set({reply:reply.value.trim()})},'Сохранить ответ'),
+      ...[['in_progress','В работе'],['done','Сделано'],['declined','Не подошло']].map(([k,l])=>h('button',{type:'button',class:'btn ghost small','aria-pressed':String(fb.status===k),onclick:()=>set({status:k})},l))));
+}
+function feedbackSection(){
   const formSlot = h('div',{style:'margin-bottom:24px'});
+  const mine = h('div');
   let lastSt = null;
   function form(){
-    let rating = 5;
-    const rate = h('div',{class:'rate',role:'radiogroup','aria-label':'Оценка'});
-    const paintRate = ()=> rate.replaceChildren(...[1,2,3,4,5].map(n=>h('button',{type:'button',class:n<=rating?'on':'',role:'radio','aria-checked':String(n===rating),'aria-label':n+' из 5',onclick:()=>{ rating=n; paintRate(); }},'❦')));
-    paintRate();
-    const ta = h('textarea',{id:'review-text',maxlength:'1500',placeholder:'Что понравилось, что стоит добавить?'});
+    const ta = h('textarea',{id:'fb-text',maxlength:'3000',placeholder:'Что неудобно, чего не хватает, что можно сделать лучше?',style:'min-height:120px'});
+    const files = h('input',{id:'fb-photos',type:'file',accept:'image/jpeg,image/png,image/webp,image/heic',multiple:''});
+    const btn = h('button',{type:'submit',class:'btn'},'Отправить Даше');
     const f = h('form',{class:'form',style:'margin-top:0;border-style:solid;border-color:var(--line)'},
-      h('h3',{style:'font-size:18px'},'Оставить отзыв'), rate, h('label',{for:'review-text'},'Ваш отзыв',ta),
-      h('div',null,h('button',{type:'submit',class:'btn'},'Опубликовать отзыв')));
-    f.addEventListener('submit',e=>{ e.preventDefault(); const t=ta.value.trim(); if(t.length<3){ ta.focus(); return; }
-      ta.value=''; pb.collection('reviews').create({author:COM.uid, rating, text:t.slice(0,1500)}).then(()=>toast('Спасибо за отзыв!'),err=>{ ta.value=t; writeErr(err); }); });
+      h('label',{for:'fb-text'},'Ваше замечание или предложение',ta),
+      h('label',{for:'fb-photos'},'Фото или скриншоты (до 5 штук, необязательно)',files),
+      h('div',null,btn));
+    f.addEventListener('submit', async e=>{ e.preventDefault();
+      const t = ta.value.trim(); if (t.length < 3){ ta.focus(); return; }
+      const fl = Array.from(files.files||[]);
+      if (fl.length > 5){ toast('Можно приложить до 5 фото'); return; }
+      if (fl.some(x=>x.size > 10*1024*1024)){ toast('Каждое фото — до 10 МБ'); return; }
+      btn.disabled = true; btn.textContent = 'Отправляю…';
+      try{
+        const fd = new FormData(); fd.append('author', COM.uid); fd.append('text', t.slice(0,3000));
+        fl.forEach(x=>fd.append('photos', x));
+        await pb.collection('feedback').create(fd);
+        f.reset(); toast('Спасибо! Даша прочитает и ответит');
+      }catch(err){ writeErr(err); }
+      btn.disabled = false; btn.textContent = 'Отправить Даше';
+    });
     return f;
   }
   live(()=>{
     const st = accState();
-    if (st !== lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? form() : h('div',{class:'card'}, joinHint('оставить отзыв'))); }
-    const r = COM.reviews;
-    listBox.replaceChildren(r.length ? h('div',{class:'rv-grid'}, r.map(rv=>h('article',{class:'card'},
-      leaves(rv.rating), h('p',{style:'white-space:pre-line'},rv.text),
-      h('div',{class:'li meta',style:'background:none;border:0;padding:0'}, h('b',null,emojiOf(rv.author)+' '+nameOf(rv.author)), h('span',null,dt(rv.ts)),
-        canDelete(rv.author) ? h('button',{type:'button',class:'x',title:'Удалить отзыв','aria-label':'Удалить отзыв',onclick:()=>delDoc('reviews',rv.id)},'×') : null)
-    ))) : h('div',{class:'empty'}, st==='loading' ? 'Загружаем отзывы…' : 'Отзывов пока нет. Станьте первым!'));
+    if (st !== lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? form() : h('div',{class:'card'}, joinHint('написать Даше'))); }
+    const my = COM.feedback.filter(x=>x.author===COM.uid);
+    mine.replaceChildren(...(st==='member' && my.length ? [h('h3',{style:'font-size:20px;margin-bottom:10px'},'Мои сообщения'), h('div',{class:'list'}, my.map(x=>fbItem(x,false)))] : []));
   });
-  return h('section',{class:'band',id:'reviews'}, h('div',{class:'wrap'},
-    sectionHead('Отзывы','Что говорят друзья DashaBotanika','Расскажите, что вам пригодилось, или подскажите, чего не хватает.'),
-    formSlot, listBox
+  return h('section',{class:'band',id:'feedback'}, h('div',{class:'wrap'},
+    sectionHead('Обратная связь','Помогите сделать сайт лучше','Помогите мне сделать сайт полезнее и удобнее: ниже вы можете написать свои замечания и предложения, а также приложить фото. Я с радостью буду улучшать свой проект. Спасибо!'),
+    formSlot, mine
   ));
 }
 
@@ -878,7 +905,7 @@ function saveStats(){
   refresh();
 }
 const leavesTotal = () => Object.values(HAB.log||{}).reduce((a,v)=>a+(v?v.length:0),0);
-const postsCount = () => COM.reviews.filter(r=>r.author===COM.uid).length + COM.comments.filter(c=>c.author===COM.uid).length;
+const postsCount = () => COM.reviews.filter(r=>r.author===COM.uid).length + COM.comments.filter(c=>c.author===COM.uid).length + COM.feedback.filter(f=>f.author===COM.uid).length;
 
 /* ---------- levels & certificates ---------- */
 function levelProgress(){
@@ -889,7 +916,7 @@ function levelProgress(){
     ['min_leaves','эко-листочков в трекере', have.leaves],
     ['min_exam','баллов на эко-экзамене (из 10)', have.exam],
     ['min_game','очков в игре «Эко-уборка»', have.game],
-    ['min_reviews','отзывов и комментариев', have.posts]
+    ['min_reviews','комментариев и сообщений Даше', have.posts]
   ].filter(([k])=>(next[k]||0) > 0).map(([k,l,v])=>({label:l, have:v, need:next[k], ok:v>=next[k]})) : [];
   return {cur, next, rows};
 }
@@ -1122,14 +1149,14 @@ function openAccount(tab, tid){
         h('div',null,h('b',null,leavesTotal()),h('span',null,'эко-листочков')),
         h('div',null,h('b',null,STATS.examBest,'/10'),h('span',null,STATS.examPassed?'экзамен сдан':'лучший экзамен')),
         h('div',null,h('b',null,STATS.gameBest),h('span',null,'рекорд в игре')),
-        h('div',null,h('b',null,postsCount()),h('span',null,'отзывов и комментариев')));
+        h('div',null,h('b',null,postsCount()),h('span',null,'комментариев и сообщений')));
     }
     function build(st){
       if (st==='loading') return [h('h2',null,'Личный кабинет'), h('p',{class:'muted'},'Загружаем…')];
       if (st==='signedout') return [h('h2',null, tab==='register' ? 'Регистрация' : 'Вход'), authForms(tab), h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен. Результаты сохранятся в этом браузере.')];
       const me = COM.me;
-      const tabs = [['profile','Профиль'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои отзывы']]
-        .concat(COM.admin ? [['moder','Модерация'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники']] : []);
+      const tabs = [['profile','Профиль'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии']]
+        .concat(COM.admin ? [['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники']] : []);
       if (!tabs.some(([k])=>k===cur)) cur = 'profile';
       tabBtns = {};
       const out = [
@@ -1181,6 +1208,7 @@ function openAccount(tab, tid){
         out.push(h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f, h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg);
       }
       if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
+      if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
       if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и модераторы.'), lists.inbox); }
       return out;
     }
@@ -1200,7 +1228,10 @@ function openAccount(tab, tid){
         const rv = COM.reviews.filter(r=>r.author===COM.uid).map(r=>({...r,kind:'Отзыв',coll:'reviews'}));
         const cm = COM.comments.filter(c=>c.author===COM.uid).map(c=>({...c,kind:'Комментарий',coll:'comments'}));
         const all = rv.concat(cm).sort((a,b)=>b.ts-a.ts);
-        lists.mine.replaceChildren(...(all.length ? all.map(x=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status'},x.kind), h('span',null,dt(x.ts)), h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить',onclick:()=>delDoc(x.coll,x.id)},'×')), h('div',{style:'white-space:pre-line'},x.text))) : [h('p',{class:'hint'},'Здесь появятся ваши отзывы и комментарии.')]));
+        lists.mine.replaceChildren(...(all.length ? all.map(x=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status'},x.kind), h('span',null,dt(x.ts)), h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить',onclick:()=>delDoc(x.coll,x.id)},'×')), h('div',{style:'white-space:pre-line'},x.text))) : [h('p',{class:'hint'},'Здесь появятся ваши комментарии.')]));
+      }
+      if (lists.fb && lists.fb.isConnected){
+        lists.fb.replaceChildren(...(COM.feedback.length ? COM.feedback.map(x=>fbItem(x,true)) : [h('p',{class:'hint'},'Сообщений пока нет.')]));
       }
       if (lists.inbox && lists.inbox.isConnected){
         const all = COM.sugg.slice();
@@ -1219,7 +1250,7 @@ function openAccount(tab, tid){
       if (force || key !== lastKey){ lastKey = key; MODAL_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); MODAL_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build(st).filter(x=>x!=null)); }
       paintLists();
       const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
-      if (st==='member'){ badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); }
+      if (st==='member'){ badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); }
     }
     mlive(()=>paint(false));
   });
@@ -1239,7 +1270,7 @@ function accountButton(){
   const b = h('button',{type:'button',class:'btn small acc-btn',onclick:()=>openAccount()});
   live(()=>{
     const st = accState();
-    if (st==='member'){ const n = unreadCount() + (COM.admin ? pendingListings().length : 0); b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean)); }
+    if (st==='member'){ const n = unreadCount() + (COM.admin ? pendingListings().length + COM.feedback.filter(f=>!f.status).length : 0); b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean)); }
     else b.replaceChildren('Войти');
   });
   return b;
@@ -1550,6 +1581,7 @@ render();
   watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); });
   if (COM.uid){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
+    watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
     watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
     try{
       const hr = await pb.collection('habits').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null});
