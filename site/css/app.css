@@ -508,3 +508,28 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 .dweller:nth-child(2n) .em{animation-delay:-1.3s}.dweller:nth-child(3n) .em{animation-delay:-2.6s}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media (prefers-reduced-motion: reduce){.grow-em,.dweller .em{animation:none}}
+
+/* ---------- живой эко-мир ---------- */
+.w-cloud{animation:drift 70s linear infinite}
+.w-cloud2{animation-duration:95s;animation-delay:-40s}
+.w-cloud3{animation-duration:120s;animation-delay:-70s}
+@keyframes drift{from{transform:translateX(-260px)}to{transform:translateX(1100px)}}
+.w-fall{stroke-dasharray:7 9;animation:fall .5s linear infinite}
+@keyframes fall{to{stroke-dashoffset:-16}}
+.w-splash{animation:splash 1.2s ease-in-out infinite}
+@keyframes splash{0%,100%{transform:translateY(0);opacity:.8}50%{transform:translateY(-4px);opacity:.4}}
+.w-blades{transform-box:fill-box;transform-origin:center;animation:mill 9s linear infinite}
+@keyframes mill{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.w-cloud,.w-fall,.w-splash,.w-blades{animation:none}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .world svg{filter:brightness(.72) saturate(.9)}}
+:root[data-theme="dark"] .world svg{filter:brightness(.72) saturate(.9)}
+.dweller .em,.dweller.st-1 .em{font-size:clamp(28px,3.6vw,42px)}
+.dweller.st-2 .em{font-size:clamp(30px,3.9vw,46px)}.dweller.st-3 .em{font-size:clamp(33px,4.3vw,50px)}
+.dweller.st-4 .em{font-size:clamp(36px,4.7vw,55px)}.dweller.st-5 .em{font-size:clamp(39px,5.1vw,60px)}
+.world .dweller.first .em{font-size:clamp(34px,4.6vw,54px)}
+.dweller{cursor:pointer;z-index:1}
+.dweller .pop{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:5;min-width:150px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;gap:4px;justify-items:center;text-align:center;
+  box-shadow:0 14px 30px -14px color-mix(in srgb,var(--ink) 55%,transparent);white-space:nowrap}
+.dweller:hover,.dweller:focus-within,.dweller.open{z-index:6}
+.dweller:hover .pop,.dweller:focus-within .pop,.dweller.open .pop{display:grid}

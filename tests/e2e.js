@@ -119,6 +119,10 @@ const T = '#cabinet-tabs ';
   await q.waitForSelector('#chat-input'); await q.fill('#chat-input','Здравствуйте! Платье ещё в продаже?'); await q.click(T+'button:has-text("Отправить")'); await q.waitForTimeout(800);
   await q.screenshot({path:S+'/05-liza-chat.png'});
   await q.goto(B+'/#world'); await q.waitForTimeout(800); await q.screenshot({path:S+'/06-liza-world-mobile.png'});
+  await q.click('.dweller:has-text("Даша")'); await q.click('.dweller:has-text("Даша") .pop button:has-text("Написать")');
+  await q.waitForURL('**/kabinet?tab=chats**'); await q.waitForSelector('#chat-input');
+  check('private message to a world dweller', (await q.textContent('#cabinet-tabs')).includes('Собеседник: Даша'));
+  await q.fill('#chat-input','Привет из эко-мира!'); await q.click(T+'button:has-text("Отправить")'); await q.waitForTimeout(600);
   // Dasha: moderation, chat, feedback, people
   await p.goto(B+'/kabinet?tab=moder', {waitUntil:'networkidle'});
   await p.click(T+'button:has-text("Опубликовать")'); await p.waitForSelector('.toast:has-text("Опубликовано")');
