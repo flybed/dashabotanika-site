@@ -271,6 +271,45 @@ function heroArt(){
   );
 }
 
+/* ---------- sorting guide: "Начать путь в экологии — ЛЕГКО" ---------- */
+const MAT_ART = {
+  paper:'<svg viewBox="0 0 64 64"><rect x="10" y="30" width="34" height="24" rx="2" fill="#C89B62"/><path d="M10 30l8-8h34l-8 8z" fill="#D8B07A"/><path d="M44 30l8-8v24l-8 8z" fill="#B3854F"/><rect x="18" y="12" width="26" height="18" rx="2" fill="#F4EEDD" transform="rotate(-8 31 21)"/><g stroke="#9A8C6C" stroke-width="2" transform="rotate(-8 31 21)"><path d="M22 18h18M22 22h18M22 26h12"/></g><path d="M22 40h14" stroke="#8E6A3D" stroke-width="2"/></svg>',
+  pet:'<svg viewBox="0 0 64 64"><rect x="27" y="6" width="10" height="6" rx="2" fill="#2F7FB0"/><path d="M26 12h12v6c6 3 8 7 8 12v24a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V30c0-5 2-9 8-12z" fill="#9FD3E6"/><rect x="18" y="32" width="28" height="10" fill="#5DB0D6"/><path d="M24 22v30" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/></svg>',
+  hdpe:'<svg viewBox="0 0 64 64"><rect x="36" y="6" width="10" height="7" rx="2" fill="#E07B39"/><path d="M14 20c0-4 3-7 7-7h18c3 0 5 1 6 3l3 4v34a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4z" fill="#F4F1EA" stroke="#C9C2B3" stroke-width="2"/><path d="M14 20h10v10H14z" fill="#E9E3D5"/><rect x="20" y="34" width="22" height="14" rx="3" fill="#8DC07A"/></svg>',
+  glass:'<svg viewBox="0 0 64 64"><rect x="18" y="8" width="28" height="8" rx="2" fill="#7C8A80"/><path d="M16 20c0-2 2-4 4-4h24c2 0 4 2 4 4v32a6 6 0 0 1-6 6H22a6 6 0 0 1-6-6z" fill="#7FBF8E" opacity=".85"/><rect x="21" y="30" width="22" height="12" rx="2" fill="#F4EEDD"/><path d="M22 22v28" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".55"/></svg>',
+  alu:'<svg viewBox="0 0 64 64"><ellipse cx="32" cy="10" rx="13" ry="4" fill="#C9CED3"/><path d="M19 10h26l-2 6v32l2 6H19l2-6V16z" fill="#D2483A"/><path d="M21 16h22v32H21z" fill="#E25B4C"/><path d="M21 26h22v8H21z" fill="#fff" opacity=".85"/><ellipse cx="32" cy="54" rx="13" ry="4" fill="#AEB4BA"/><circle cx="36" cy="10" r="2" fill="#8D959C"/></svg>',
+  tin:'<svg viewBox="0 0 64 64"><ellipse cx="32" cy="14" rx="16" ry="5" fill="#9AA3AA"/><path d="M16 14h32v36H16z" fill="#B9C0C6"/><path d="M16 22h32v20H16z" fill="#E9C46F"/><path d="M22 32h20" stroke="#8B6B2E" stroke-width="2"/><ellipse cx="32" cy="50" rx="16" ry="5" fill="#8D959C"/><path d="M16 14v36M48 14v36" stroke="#8D959C" stroke-width="1.5"/></svg>',
+  textile:'<svg viewBox="0 0 64 64"><path d="M22 8l-14 8 6 12 6-3v31h24V25l6 3 6-12-14-8c-2 4-6 6-10 6s-8-2-10-6z" fill="#86A85C"/><path d="M22 8c2 4 6 6 10 6s8-2 10-6" fill="none" stroke="#5E7F3E" stroke-width="2"/><path d="M26 34h12M26 40h12" stroke="#fff" stroke-width="2" opacity=".6"/></svg>',
+  bat:'<svg viewBox="0 0 64 64"><rect x="27" y="6" width="10" height="5" rx="1.5" fill="#B9C0C6"/><rect x="20" y="10" width="24" height="46" rx="4" fill="#2B2B2B"/><rect x="20" y="10" width="24" height="16" rx="4" fill="#D9A933"/><path d="M34 32l-6 9h5l-3 8 8-11h-5l3-6z" fill="#F3D35B"/></svg>'
+};
+const MAT_COLOR = {paper:'#C89B62', pet:'#5DB0D6', hdpe:'#8DC07A', glass:'#4F9A69', alu:'#D2483A', tin:'#9AA3AA', textile:'#86A85C', bat:'#D9A933'};
+const MAT_WHERE = {paper:'Синий контейнер «Бумага» или пункт приёма макулатуры', pet:'Жёлтый контейнер «Пластик» или фандомат', hdpe:'Контейнер «Пластик»; проверьте цифру на дне', glass:'Зелёный контейнер «Стекло»', alu:'Контейнер «Металл», «Пластик и металл» или фандомат', tin:'Контейнер «Металл»', textile:'Контейнеры для одежды, фонды и магазины с приёмом одежды', bat:'Боксы для батареек в супермаркетах и магазинах электроники'};
+function sortGuide(){
+  let cur = 'paper';
+  const ring = h('div',{class:'sg-ring'}), card = h('div',{class:'sg-card','aria-live':'polite'});
+  function paint(){
+    const m = MATERIALS.find(x=>x.k===cur);
+    ring.replaceChildren(
+      h('div',{class:'sg-center'}, h('div',{class:'sg-loop','aria-hidden':'true'}), h('span',{class:'sg-recy','aria-hidden':'true'},'♻'), h('b',null,'8 видов вторсырья'), h('small',null,'Нажмите на материал')),
+      ...MATERIALS.map((x,i)=>h('button',{type:'button',class:'sg-item'+(x.k===cur?' on':''),style:'--c:'+MAT_COLOR[x.k]+';left:'+(50+39*Math.cos((i*45-90)*Math.PI/180)).toFixed(2)+'%;top:'+(50+39*Math.sin((i*45-90)*Math.PI/180)).toFixed(2)+'%','aria-pressed':String(x.k===cur),onclick:()=>{ cur = x.k; paint(); if (window.innerWidth < 860) card.scrollIntoView({behavior:'smooth',block:'nearest'}); }},
+        h('span',{class:'sg-ic',html:MAT_ART[x.k]}), h('span',{class:'sg-name'},x.name), h('span',{class:'sg-mark'},x.mark))));
+    card.replaceChildren(
+      h('div',{class:'sg-card-head'}, h('span',{class:'sg-big',style:'--c:'+MAT_COLOR[m.k],html:MAT_ART[m.k]}),
+        h('div',null, h('div',{class:'eyebrow'}, m.special ? 'Опасные отходы' : 'Вторсырьё'), h('h3',{style:'font-size:26px'},m.name), h('span',{class:'tag'},m.mark))),
+      h('div',{class:'sg-where'}, h('span',{'aria-hidden':'true'},'📍'), h('span',null, h('b',null,'Куда сдавать: '), MAT_WHERE[m.k])),
+      h('h4',null,'Как подготовить'),
+      h('ol',{class:'sg-tips'}, m.tips.map(t=>h('li',null,t))));
+  }
+  paint();
+  const steps = [['🧺','Соберите','Поставьте рядом с обычным ведром второе — для сухого вторсырья.'],['🚿','Подготовьте','Ополосните, сплющите, разберите коробки. Две минуты в день.'],['♻️','Сдайте','В цветной контейнер во дворе или в пункт приёма раз в неделю.']];
+  return h('section',{class:'band alt',id:'sort'}, h('div',{class:'wrap'},
+    h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},'Сортировка за 3 шага'), h('h2',null,'Начать путь в экологии — ',h('span',{class:'sg-easy'},'ЛЕГКО')),
+      h('p',{class:'lead'},'Не нужно пяти вёдер и идеальной кухни. Три простых шага — и выберите, что сдавать: у каждого материала своя маркировка и свои правила.')),
+    h('div',{class:'sg-steps'}, steps.flatMap(([ic,t,d],i)=>[h('div',{class:'sg-step'}, h('span',{class:'sg-num'},i+1), h('span',{class:'sg-step-ic','aria-hidden':'true'},ic), h('b',null,t), h('p',{class:'muted'},d)), i<2 ? h('span',{class:'sg-arrow','aria-hidden':'true'},'→') : null])),
+    h('div',{class:'sg-main'}, ring, card)
+  ));
+}
+
 /* ---------- calculator ---------- */
 const calcVals = Object.fromEntries(MATERIALS.map(m=>[m.k,m.def]));
 function calcSection(){
@@ -309,10 +348,6 @@ function calcSection(){
   return h('section',{class:'band',id:'calc'}, h('div',{class:'wrap'},
     sectionHead('Калькулятор переработки','Сколько пользы в вашем мусорном ведре?','Укажите, сколько отходов вы сдаёте на переработку, и посмотрите, что это даёт планете за год. Ниже коротко о том, как сдавать каждый вид вторсырья.'),
     h('div',{class:'calc'}, h('div',null,presets,list), res),
-    h('div',{class:'howto'},
-      h('h3',{style:'margin-bottom:14px'},'Как это делать'),
-      MATERIALS.map(m=>h('details',{class:'how'}, h('summary',null, h('span',null,m.name, h('span',{class:'mark'},m.mark))), h('ul',null,m.tips.map(t=>h('li',null,t)))))
-    ),
     h('p',{class:'note'},'Цифры ориентировочные: усреднённые оценки экономии выбросов и энергии при переработке по сравнению с производством из первичного сырья. Реальная польза зависит от региона и того, как устроена переработка. Маркировку ищите на упаковке: треугольник из стрелок с цифрой или буквенный код.')
   ));
 }
@@ -665,7 +700,7 @@ document.addEventListener('click', e=>{
 window.addEventListener('popstate', ()=>{ closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
-  return [hero(), calcSection(), examTeaser(), worldSection(), goodsSection(true), gameSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
+  return [hero(), calcSection(), sortGuide(), examTeaser(), worldSection(), goodsSection(true), gameSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
@@ -1814,7 +1849,7 @@ function gameSection(){
     } else {
       over.replaceChildren(h('div',null, h('div',{class:'eyebrow'}, rec ? 'Новый рекорд!' : 'Время вышло'), h('div',{class:'big'},G.score),
         h('p',null,'Верно рассортировано: ',G.ok,'. Ошибок: ',G.bad,'.'),
-        h('p',{class:'hint'}, G.ok >= 15 ? 'Вы настоящий эко-герой!' : G.bad > G.ok ? 'Подсказка: загляните в памятку «Как это делать» в калькуляторе.' : 'Неплохо! Попробуйте побить рекорд.'),
+        h('p',{class:'hint'}, G.ok >= 15 ? 'Вы настоящий эко-герой!' : G.bad > G.ok ? 'Подсказка: загляните в схему «Начать путь в экологии — легко».' : 'Неплохо! Попробуйте побить рекорд.'),
         h('button',{type:'button',class:'btn',onclick:start},'Ещё раз')));
     }
   }

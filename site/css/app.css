@@ -533,3 +533,44 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
   box-shadow:0 14px 30px -14px color-mix(in srgb,var(--ink) 55%,transparent);white-space:nowrap}
 .dweller:hover,.dweller:focus-within,.dweller.open{z-index:6}
 .dweller:hover .pop,.dweller:focus-within .pop,.dweller.open .pop{display:grid}
+
+/* ---------- «Начать путь в экологии — ЛЕГКО» ---------- */
+.sg-easy{color:var(--moss);font-family:var(--font-hand);font-size:1.15em;letter-spacing:.04em}
+.sg-steps{display:flex;align-items:stretch;gap:12px;margin-bottom:34px}
+.sg-step{flex:1;display:grid;gap:6px;justify-items:start;position:relative;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px}
+.sg-num{position:absolute;top:-12px;left:16px;width:28px;height:28px;border-radius:50%;background:var(--moss);color:var(--on-moss);display:grid;place-items:center;font-weight:800;font-size:14px}
+.sg-step-ic{font-size:34px}
+.sg-step b{font-family:var(--font-display);font-size:22px}
+.sg-step p{font-size:15px}
+.sg-arrow{align-self:center;font-size:28px;color:var(--sun);font-weight:800}
+.sg-main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:28px;align-items:center}
+.sg-ring{position:relative;width:min(560px,100%);aspect-ratio:1;justify-self:center}
+.sg-center{position:absolute;inset:31%;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-content:center;justify-items:center;text-align:center;gap:2px;padding:10px}
+.sg-loop{position:absolute;inset:-14%;border-radius:50%;border:2px dashed color-mix(in srgb,var(--leaf) 70%,transparent);animation:mill 40s linear infinite}
+.sg-recy{font-size:clamp(34px,5vw,52px);color:var(--moss);line-height:1}
+.sg-center b{font-family:var(--font-display);font-size:clamp(14px,1.6vw,18px)}
+.sg-center small{color:var(--muted);font-size:12px}
+.sg-item{position:absolute;width:22%;transform:translate(-50%,-50%);
+  display:grid;justify-items:center;gap:2px;background:none;border:0;cursor:pointer;font:inherit;color:inherit;padding:0}
+.sg-ic{width:clamp(56px,8vw,86px);aspect-ratio:1;border-radius:50%;background:var(--surface);border:3px solid color-mix(in srgb,var(--c) 45%,var(--line));display:grid;place-items:center;transition:transform .2s,box-shadow .2s}
+.sg-ic svg{width:66%;height:66%}
+.sg-item:hover .sg-ic{transform:scale(1.08)}
+.sg-item.on .sg-ic{border-color:var(--c);box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 22%,transparent);transform:scale(1.1)}
+.sg-name{font-weight:800;font-size:13px;line-height:1.2;text-align:center}
+.sg-mark{font-size:11px;font-weight:800;color:var(--clay)}
+.sg-card{background:var(--surface) var(--grain);border:2px solid var(--moss);border-radius:22px;padding:22px;display:grid;gap:12px;align-content:start}
+.sg-card-head{display:flex;gap:16px;align-items:center}
+.sg-big{flex:none;width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 18%,var(--paper));border:3px solid var(--c)}
+.sg-big svg{width:66%;height:66%}
+.sg-where{display:flex;gap:8px;align-items:flex-start;background:color-mix(in srgb,var(--leaf) 14%,var(--paper));border-radius:12px;padding:10px 12px;font-size:15px}
+.sg-card h4{margin:0;font-family:var(--font-display);font-size:19px}
+.sg-tips{margin:0;padding-left:20px;display:grid;gap:6px}
+@media (max-width:860px){
+  .sg-steps{flex-direction:column}.sg-arrow{transform:rotate(90deg);align-self:center;margin:-4px 0}
+  .sg-main{grid-template-columns:1fr}
+  .sg-ring{aspect-ratio:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 6px;width:100%}
+  .sg-center{display:none}
+  .sg-item{position:static;transform:none;width:auto}
+  .sg-ic{width:clamp(54px,18vw,72px)}
+}
+@media (prefers-reduced-motion: reduce){.sg-loop{animation:none}}
