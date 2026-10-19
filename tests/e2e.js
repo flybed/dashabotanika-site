@@ -28,7 +28,7 @@ const T = '#cabinet-tabs ';
   const p = await (await b.newContext({viewport:{width:1280,height:900}})).newPage(); watchPage(p,'dasha');
   await p.goto(B+'/', {waitUntil:'networkidle'});
   const order = await p.$$eval('main > section', s=>s.map(x=>x.id));
-  check('home order: world right after hero, game after goods', order[1]==='world' && order.indexOf('game') > order.indexOf('goods') && !order.includes('habits'));
+  check('home order: calc, exam, world, goods, game', order.slice(1,6).join()==='calc,exam,world,goods,game' && !order.includes('habits'));
   check('home shows 4 products and "Смотреть больше"', (await p.$$('#goods .product')).length===4 && !!(await p.$('#goods a[href="/tovary"]')));
   await p.screenshot({path:S+'/01-home.png'});
   await p.click('#goods a:has-text("Смотреть больше")'); await p.waitForURL('**/tovary');
