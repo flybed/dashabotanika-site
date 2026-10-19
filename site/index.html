@@ -22,8 +22,72 @@
 <link rel="stylesheet" href="/css/app.css?v=10">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "@id": "https://dashabotanika.ru/#website", "url": "https://dashabotanika.ru/", "name": "DashaBotanika", "inLanguage": "ru", "description": "DashaBotanika — эко-блог Даши: экологичная еда, быт и мода без занудства. Калькулятор пользы от переработки, эко-игра, эко-экзамен, трекер привычек, барахолка и «Счастливый мир» участников."}, {"@type": "Organization", "@id": "https://dashabotanika.ru/#org", "name": "DashaBotanika", "url": "https://dashabotanika.ru/", "logo": "https://dashabotanika.ru/img/hero.webp", "sameAs": ["https://t.me/dashabotanikarecipes", "https://instagram.com/dashabotanika"]}]}</script>
+<script>try{if(sessionStorage.getItem('db-splash'))document.documentElement.classList.add('no-splash')}catch(e){}</script>
+<style>
+#splash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;align-content:center;gap:18px;padding:24px;text-align:center;
+  background:var(--paper,#EDE6D6) var(--grain,none);color:var(--ink,#232A1E);transition:opacity .45s ease,visibility .45s;cursor:pointer}
+.no-splash #splash{display:none}
+#splash.done{opacity:0;visibility:hidden}
+#splash .globe{width:min(46vw,220px);aspect-ratio:1;filter:drop-shadow(0 18px 30px rgba(35,42,30,.25))}
+#splash .land{animation:spin 4s linear infinite}
+@keyframes spin{from{transform:translateX(0)}to{transform:translateX(-200px)}}
+#splash .ttl{font-family:var(--font-display,Georgia,serif);font-weight:800;font-size:clamp(26px,5vw,40px);line-height:1.15;opacity:0;animation:rise .8s .2s ease forwards}
+#splash .sig{font-family:var(--font-hand,cursive);font-weight:700;font-size:clamp(30px,6vw,46px);color:var(--moss,#3A6234);line-height:1;opacity:0;animation:rise .8s .55s ease forwards}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+#splash .bar{width:min(70vw,320px);height:8px;border-radius:999px;background:var(--soft,#E3DAC5);overflow:hidden}
+#splash .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--leaf,#86A85C),var(--moss,#3A6234))}
+#splash .pct{font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted,#61655A);font-size:15px}
+@media (prefers-reduced-motion: reduce){#splash .land{animation:none}#splash .ttl,#splash .sig{animation:none;opacity:1}}
+</style>
 </head>
 <body>
+<div id="splash" role="status" aria-label="Загрузка сайта DashaBotanika">
+<svg class="globe" viewBox="0 0 200 200" aria-hidden="true">
+<defs><clipPath id="gclip"><circle cx="100" cy="100" r="84"/></clipPath>
+<radialGradient id="gsea" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#8FC3D6"/><stop offset="1" stop-color="#3E78B2"/></radialGradient>
+<radialGradient id="gshade" cx="35%" cy="30%" r="80%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
+<circle cx="100" cy="100" r="96" fill="#86A85C" opacity=".18"/>
+<circle cx="100" cy="100" r="84" fill="url(#gsea)"/>
+<g clip-path="url(#gclip)"><g class="land" fill="#5E8F4A">
+<path d="M30 60c14-12 34-10 44 2s4 26-10 30-14 18-30 16-18-14-20-24 4-16 16-24Z"/><path d="M96 40c18-6 40 0 46 14s-8 20-22 22-14 16-26 12-12-20-6-30 0-12 8-18Z"/>
+<path d="M60 118c16-6 32 2 34 16s-10 28-22 30-22-6-24-18 0-22 12-28Z"/><path d="M140 104c14-4 26 4 28 16s-8 20-18 22-18-8-18-18 0-16 8-20Z"/>
+<path d="M18 150c10-4 20 2 22 10s-6 14-14 14-14-6-14-12 0-10 6-12Z"/>
+<g transform="translate(200 0)"><path d="M30 60c14-12 34-10 44 2s4 26-10 30-14 18-30 16-18-14-20-24 4-16 16-24Z"/><path d="M96 40c18-6 40 0 46 14s-8 20-22 22-14 16-26 12-12-20-6-30 0-12 8-18Z"/>
+<path d="M60 118c16-6 32 2 34 16s-10 28-22 30-22-6-24-18 0-22 12-28Z"/><path d="M140 104c14-4 26 4 28 16s-8 20-18 22-18-8-18-18 0-16 8-20Z"/>
+<path d="M18 150c10-4 20 2 22 10s-6 14-14 14-14-6-14-12 0-10 6-12Z"/></g>
+<g transform="translate(400 0)"><path d="M30 60c14-12 34-10 44 2s4 26-10 30-14 18-30 16-18-14-20-24 4-16 16-24Z"/><path d="M96 40c18-6 40 0 46 14s-8 20-22 22-14 16-26 12-12-20-6-30 0-12 8-18Z"/>
+<path d="M60 118c16-6 32 2 34 16s-10 28-22 30-22-6-24-18 0-22 12-28Z"/><path d="M140 104c14-4 26 4 28 16s-8 20-18 22-18-8-18-18 0-16 8-20Z"/>
+<path d="M18 150c10-4 20 2 22 10s-6 14-14 14-14-6-14-12 0-10 6-12Z"/></g>
+</g></g>
+<circle cx="100" cy="100" r="84" fill="url(#gshade)"/>
+<path d="M100 16c0-8 1-12 0-14" stroke="#3A6234" stroke-width="3" stroke-linecap="round"/>
+<path d="M101 8c6-8 16-9 22-7-2 8-12 13-22 7Z" fill="#86A85C"/><path d="M99 12c-5-7-14-8-20-6 2 7 10 11 20 6Z" fill="#3A6234"/>
+</svg>
+<div class="ttl">Добро пожаловать в ЭкоМир</div>
+<div class="bar"><i></i></div>
+<div class="pct">0%</div>
+<div class="sig">DashaBotanika</div>
+</div>
+<script>
+(function(){
+  var el = document.getElementById('splash');
+  if (!el || document.documentElement.classList.contains('no-splash')) { if (el) el.remove(); return; }
+  try{ sessionStorage.setItem('db-splash','1'); }catch(e){}
+  var bar = el.querySelector('.bar i'), pct = el.querySelector('.pct');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var dur = reduce ? 600 : 2000, t0 = null, closed = false;
+  function close(){ if (closed) return; closed = true; el.classList.add('done'); setTimeout(function(){ el.remove(); }, 500); }
+  function step(t){
+    if (closed) return;
+    if (t0 === null) t0 = t;
+    var k = Math.min(1, (t - t0) / dur), v = Math.round(100 * (k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2));
+    bar.style.width = v + '%'; pct.textContent = v + '%';
+    if (k < 1) requestAnimationFrame(step); else setTimeout(close, 250);
+  }
+  el.addEventListener('click', close);
+  requestAnimationFrame(step);
+})();
+</script>
 <div id="app">
 <noscript>
 <h1>DashaBotanika — эко: еда, быт, мода, образ жизни</h1>
