@@ -470,3 +470,20 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 .ch-tag{text-transform:none;letter-spacing:0;font-size:14px;padding:6px 10px}
 .chs .addrow{flex-wrap:wrap}
 .chs .addrow input{flex:1 1 220px;min-width:0}
+
+/* ---------- эко-тест ---------- */
+#exam .qbox{min-height:0}
+.ex-start{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(220px,.8fr);gap:28px;align-items:center}
+.ex-title{font-size:clamp(28px,4.4vw,40px)}
+.ex-perks{display:flex;gap:8px;flex-wrap:wrap}
+.ex-perk{display:inline-flex;gap:6px;align-items:center;padding:7px 12px;border-radius:999px;background:color-mix(in srgb,var(--leaf) 16%,var(--surface));border:1px solid var(--line);font-weight:800;font-size:14px}
+.ex-best{font-weight:800;color:var(--moss)}
+.ex-go{font-size:18px;padding:14px 28px}
+.ex-cert{transform:rotate(2deg);box-shadow:0 22px 40px -24px color-mix(in srgb,var(--ink) 60%,transparent)}
+.ex-lessons{display:grid;gap:10px;margin-top:28px}
+.ex-result{position:relative;display:grid;gap:14px;justify-items:center;text-align:center}
+.ex-result .ex-cert{transform:none;width:min(420px,100%)}
+.ex-confetti{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.ex-confetti span{position:absolute;top:30%;left:calc(8% + var(--i) * 13%);font-size:28px;animation:pop 1.6s ease-out calc(var(--i) * .08s) both}
+@keyframes pop{0%{transform:translateY(40px) scale(.4);opacity:0}30%{opacity:1}100%{transform:translateY(-120px) scale(1.1) rotate(25deg);opacity:0}}
+@media (max-width:760px){.ex-start{grid-template-columns:1fr}.ex-cert{transform:none}}

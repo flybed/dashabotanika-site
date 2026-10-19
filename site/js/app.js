@@ -1,6 +1,9 @@
 
 (function(){
 "use strict";
+// Many views pass optional parts as `cond ? el : null`; skip empty values instead of printing "null".
+const _replaceChildren = Element.prototype.replaceChildren;
+Element.prototype.replaceChildren = function(...kids){ return _replaceChildren.apply(this, kids.flat().filter(k=>k!=null && k!==false)); };
 const DATA_EL = document.getElementById('site-data');
 let STATE = JSON.parse(DATA_EL.textContent);
 let EDIT = { on:false, dirty:false, can:false };
@@ -755,7 +758,7 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
 function emojiOf(memberId){ const m = COM.members[memberId]; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
@@ -1783,51 +1786,66 @@ function shuffle(a){ a = a.slice(); for (let i=a.length-1;i>0;i--){ const j = Ma
 function examSection(){
   const box = h('div',{class:'qbox','aria-live':'polite'});
   let S = null;
-  function start(){ S = {qs:shuffle(QUESTIONS).slice(0,10).map(q=>Object.assign({}, q, {order:shuffle(q.o.map((_,i)=>i))})), i:0, score:0, picked:null}; paint(); }
+  function start(){ S = {qs:shuffle(QUESTIONS).slice(0,10).map(q=>Object.assign({}, q, {order:shuffle(q.o.map((_,i)=>i))})), i:0, score:0, picked:null}; paint(); box.scrollIntoView({block:'start'}); }
   function finish(){
     if (S.score > (STATS.examBest||0)) STATS.examBest = S.score;
     if (S.score >= 8 && !STATS.examPassed) STATS.examPassed = Date.now();
     saveStats();
   }
+  const examPoints = () => ((COM.growthRules.find(r=>r.key==='exam_passed')||{}).points) || 30;
+  function certPreview(score){
+    const who = COM.me ? COM.me.nick : 'Ваше имя';
+    return h('div',{class:'cert ex-cert'},
+      h('div',{class:'seal'}, score ? score+'/10' : '8+'), h('div',{class:'eyebrow'},'Сертификат DashaBotanika'),
+      h('h3',{style:'font-size:26px'},'Эко-знаток'),
+      h('p',{class:'hand',style:'font-size:30px;line-height:1;color:var(--moss)'}, who),
+      h('p',{class:'muted',style:'font-size:14px'}, score ? 'Экзамен сдан '+new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}) : 'выдаётся за 8 верных ответов из 10'));
+  }
   function paint(){
     if (!S){
-      box.replaceChildren(h('div',{class:'eyebrow'},'10 вопросов'), h('h3',{style:'font-size:28px'},'Проверьте себя'),
-        h('p',{class:'muted'},'Вопросы о переработке, маркировке и экологичном быте. Экзамен сдан, если верных ответов 8 и больше. После каждого ответа будет короткое объяснение, так что это ещё и обучение.'),
-        STATS.examBest ? h('p',{style:'font-weight:700'},'Ваш лучший результат: ',STATS.examBest,' из 10', STATS.examPassed ? ', экзамен сдан' : '') : null,
-        h('div',null,h('button',{type:'button',class:'btn',onclick:start}, STATS.examBest ? 'Пройти ещё раз' : 'Начать экзамен')));
+      const passed = Object.values(COM.members).filter(m=>(m.examBest||0) >= 8).length;
+      box.replaceChildren(h('div',{class:'ex-start'},
+        h('div',{style:'display:grid;gap:14px'},
+          h('div',{class:'eyebrow'},'Эко-тест · 3 минуты'),
+          h('h3',{class:'ex-title'},'Насколько вы эко? Проверьте себя!'),
+          h('p',{class:'muted'},'10 коротких вопросов о переработке, маркировке и экологичном быте. После каждого ответа — объяснение, так что вы точно узнаете что-то новое, даже если ошибётесь.'),
+          h('div',{class:'ex-perks'},
+            [['⏱','3 минуты'],['❓','10 вопросов'],['🎓','Именной сертификат'],['🌱','+'+examPoints()+' очков роста']].map(([ic,t])=>h('span',{class:'ex-perk'}, h('span',{'aria-hidden':'true'},ic), t))),
+          STATS.examBest ? h('p',{class:'ex-best'}, STATS.examPassed ? '🎓 Вы уже эко-знаток: ' : 'Ваш лучший результат: ', STATS.examBest,' из 10', STATS.examPassed ? '. Попробуйте ответить на все 10!' : '. До сертификата совсем немного!') : null,
+          passed ? h('p',{class:'hint'},'Уже ', passed,' ', plural(passed,'участник получил','участника получили','участников получили'),' сертификат') : null,
+          h('div',null, h('button',{type:'button',class:'btn ex-go',onclick:start}, STATS.examBest ? 'Пройти ещё раз →' : 'Начать тест →'))),
+        certPreview(0)));
       return;
     }
     if (S.i >= S.qs.length){
       const pass = S.score >= 8;
-      const who = COM.me ? COM.me.nick : '';
-      box.replaceChildren(pass ? h('div',{class:'cert'},
-          h('div',{class:'seal'},S.score+'/10'), h('div',{class:'eyebrow'},'Сертификат DashaBotanika'),
-          h('h3',{style:'font-size:28px'},'Эко-знаток'),
-          who ? h('p',{style:'font-weight:800;font-size:18px'},who) : null,
-          h('p',{class:'muted'},'Экзамен по экологии и переработке сдан ', new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}),'.'))
-        : h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'Почти получилось'), h('h3',{style:'font-size:28px'},S.score,' из 10'),
-          h('p',{class:'muted'},'Для сертификата нужно 8 верных ответов. Загляните в уроки справа и попробуйте снова: вопросы каждый раз немного другие.')),
-        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'button',class:'btn',onclick:start},'Пройти ещё раз'),
-          accState()==='signedout' ? h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Сохранить результат в кабинете') : null));
+      box.replaceChildren(pass
+        ? h('div',{class:'ex-result'}, h('div',{class:'ex-confetti','aria-hidden':'true'}, ['🎉','🌿','✨','🌍','🎉','🌱','✨'].map((c,i)=>h('span',{style:'--i:'+i},c))),
+            h('div',{class:'eyebrow'},'Поздравляем! Экзамен сдан'), certPreview(S.score),
+            h('p',{style:'font-weight:700'}, accState()==='member' ? 'Сертификат и +'+examPoints()+' очков роста — уже в вашем кабинете.' : 'Зарегистрируйтесь, чтобы сохранить сертификат и получить +'+examPoints()+' очков роста.'))
+        : h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'Почти получилось!'), h('h3',{class:'ex-title'},S.score,' из 10'),
+            h('p',{class:'muted'},'Для сертификата нужно 8 верных ответов. Загляните в короткие уроки и попробуйте снова — вопросы каждый раз немного другие.')),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'+(pass ? ';justify-content:center' : '')}, h('button',{type:'button',class:'btn',onclick:start},'Пройти ещё раз'),
+          accState()==='signedout' ? h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Сохранить результат в кабинете') : h('a',{class:'btn ghost',href:'/kabinet'},'В кабинет')));
       return;
     }
-    const q = S.qs[S.i], done = S.picked !== null;
+    const q = S.qs[S.i], done = S.picked !== null, right = done && S.picked===q.a;
     box.replaceChildren(
       h('div',{style:'display:flex;justify-content:space-between;gap:12px;font-weight:800;font-size:14px;color:var(--muted)'}, h('span',null,'Вопрос ',S.i+1,' из ',S.qs.length), h('span',null,'Верно: ',S.score)),
       h('div',{class:'prog'}, h('i',{style:'width:'+((S.i+(done?1:0))/S.qs.length*100)+'%'})),
       h('h3',{style:'font-size:22px'},q.q),
       h('div',{class:'opts'}, q.order.map(oi=>h('button',{type:'button',class:'opt'+(done ? (oi===q.a?' right':oi===S.picked?' wrong':'') : ''),disabled:done,onclick:()=>{ S.picked = oi; if (oi===q.a) S.score++; paint(); }}, q.o[oi]))),
-      done ? h('p',{class:'explain'}, h('b',null, S.picked===q.a ? 'Верно! ' : 'Не совсем. '), q.ex) : null,
-      done ? h('div',null,h('button',{type:'button',class:'btn',onclick:()=>{ S.i++; S.picked=null; if (S.i>=S.qs.length) finish(); paint(); }}, S.i+1>=S.qs.length ? 'Узнать результат' : 'Следующий вопрос')) : null
+      done ? h('p',{class:'explain'}, h('b',null, right ? '🌿 Верно! ' : '🤔 Не совсем. '), q.ex) : null,
+      done ? h('div',null,h('button',{type:'button',class:'btn',onclick:()=>{ S.i++; S.picked=null; if (S.i>=S.qs.length) finish(); paint(); }}, S.i+1>=S.qs.length ? 'Узнать результат' : 'Следующий вопрос →')) : null
     );
   }
   paint();
   live(()=>{ if (!S) paint(); });
   return h('section',{class:'band',id:'exam'}, h('div',{class:'wrap'},
-    sectionHead('Эко-экзамен','Обучение и тест по экологии','Сначала пробегитесь по коротким урокам, потом сдайте экзамен и получите сертификат эко-знатока.'),
-    h('div',{class:'exam'}, box,
-      h('div',{style:'display:grid;gap:8px'}, h('h3',{style:'font-size:20px;margin-bottom:6px'},'Уроки'),
-        LESSONS.map(([t,pts],i)=>h('details',{class:'how',open:i===0}, h('summary',null,'Урок ',i+1,'. ',t), h('ul',null,pts.map(x=>h('li',null,x)))))))
+    sectionHead('Эко-экзамен','Тест по экологии с сертификатом','Проверьте, как хорошо вы разбираетесь в переработке и экологичном быте, и получите именной сертификат эко-знатока.'),
+    box,
+    h('div',{class:'ex-lessons'}, h('h3',{style:'font-size:20px'},'Хотите подготовиться? Три коротких урока'), h('p',{class:'hint'},'Необязательно, но так сертификат точно ваш. Каждый урок — полминуты чтения.'),
+      h('div',{class:'grid g3'}, LESSONS.map(([t,pts],i)=>h('details',{class:'how'}, h('summary',null,'Урок ',i+1,'. ',t), h('ul',null,pts.map(x=>h('li',null,x)))))))
   ));
 }
 
@@ -1897,7 +1915,7 @@ render();
   COM.ready = true;
   render();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage'}, l=>{
+  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage,exam_best'}, l=>{
     const m = {}; l.forEach(r=>{ m[r.id] = memberOf(r); });
     COM.members = m;
     if (COM.uid && m[COM.uid]){
