@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /_/
+Disallow: /kabinet
 
 Sitemap: https://dashabotanika.ru/sitemap.xml

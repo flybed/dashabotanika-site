@@ -1,5 +1,6 @@
-// Расчёт уровня участника по условиям из коллекции levels (их задаёт Даша в админке).
-// Уровень только растёт: однажды полученный сертификат не пропадает.
+// Расчёт уровня и роста персонажа.
+// Уровень (сертификаты) — по условиям из коллекции levels; только растёт.
+// Рост персонажа — очки за действия по правилам growth_rules, стадия — по growth_stages.
 
 function jsonOf(record, field) {
   const raw = record.get(field)
@@ -17,17 +18,33 @@ function leavesOf(app, userId) {
   return n
 }
 
+const count = (app, coll, where) => app.countRecords(coll, $dbx.hashExp(where))
+
+// Сколько раз участник выполнил каждое действие из growth_rules.
+function actionsOf(app, user, leaves) {
+  const id = user.id
+  return {
+    signup: 1,
+    leaf: leaves,
+    exam_passed: user.getInt("exam_best") >= 8 ? 1 : 0,
+    game: Math.floor(user.getInt("game_best") / 10),
+    article_read: count(app, "reads", { user: id }),
+    like: count(app, "likes", { user: id }),
+    comment: count(app, "comments", { author: id }),
+    feedback: count(app, "feedback", { author: id }),
+    listing_approved: count(app, "listings", { seller: id, moderation: "approved" }),
+    deal_done: count(app, "listings", { seller: id, status: "gone" }),
+  }
+}
+
 function recompute(app, userId) {
   let user
   try { user = app.findRecordById("users", userId) } catch (e) { return }
-  const posts = app.countRecords("reviews", $dbx.hashExp({ author: userId })) + app.countRecords("comments", $dbx.hashExp({ author: userId })) +
-    app.countRecords("feedback", $dbx.hashExp({ author: userId }))
-  const stats = {
-    leaves: leavesOf(app, userId),
-    exam: user.getInt("exam_best"),
-    game: user.getInt("game_best"),
-    posts: posts,
-  }
+  const leaves = leavesOf(app, userId)
+  const posts = count(app, "reviews", { author: userId }) + count(app, "comments", { author: userId }) + count(app, "feedback", { author: userId })
+  const stats = { leaves: leaves, exam: user.getInt("exam_best"), game: user.getInt("game_best"), posts: posts }
+
+  // уровень
   const levels = app.findRecordsByFilter("levels", "rank > 0", "rank", 100, 0)
   let reached = 0
   for (const l of levels) {
@@ -38,7 +55,19 @@ function recompute(app, userId) {
   }
   const current = user.getInt("level")
   const level = Math.max(current, reached)
-  if (level === current && user.getInt("leaves") === stats.leaves) return
+
+  // рост персонажа
+  const done = actionsOf(app, user, leaves)
+  let xp = 0
+  for (const r of app.findRecordsByFilter("growth_rules", "id != ''", "", 100, 0)) {
+    xp += (done[r.getString("key")] || 0) * r.getInt("points")
+  }
+  let stage = 1
+  for (const s of app.findRecordsByFilter("growth_stages", "stage > 0", "stage", 100, 0)) {
+    if (xp >= s.getInt("min_xp")) stage = Math.max(stage, s.getInt("stage"))
+  }
+
+  if (level === current && user.getInt("leaves") === leaves && user.getInt("xp") === xp && user.getInt("stage") === stage) return
   const history = jsonOf(user, "level_history") || []
   const now = new Date().toISOString()
   for (let r = current + 1; r <= level; r++) {
@@ -46,7 +75,9 @@ function recompute(app, userId) {
   }
   user.set("level", level)
   user.set("level_history", history)
-  user.set("leaves", stats.leaves)
+  user.set("leaves", leaves)
+  user.set("xp", xp)
+  user.set("stage", stage)
   app.saveNoValidate(user)
 }
 

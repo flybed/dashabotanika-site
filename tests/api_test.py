@@ -78,4 +78,23 @@ st,l = req('GET','/collections/feedback/records'); check('feedback hidden from p
 st,l = req('GET','/collections/feedback/records',None,tb); check('moderator sees feedback', l.get('totalItems')==1, l)
 st,_ = req('PATCH','/collections/feedback/records/'+fb['id'],{'reply':'Сделаю','status':'in_progress'},ta); check('author cannot reply', st>=400, st)
 st,_ = req('PATCH','/collections/feedback/records/'+fb['id'],{'reply':'Сделаю','status':'in_progress'},tb); check('moderator replies', st==200, st)
+# growth ("tamagotchi"): points from growth_rules, computed by the server
+time.sleep(3.1)
+st,c = req('POST','/collections/users/records',{'email':'c@t.local','password':'secret1234','passwordConfirm':'secret1234','name':'Вера','character':chars[2]['id']})
+time.sleep(3.1)
+tc = req('POST','/collections/users/auth-with-password',{'identity':'c@t.local','password':'secret1234'})[1]['token']
+xp = lambda: req('GET','/collections/users/records/'+c['id'])[1]
+check('signup gives 10 growth points, stage 1', xp()['xp']==10 and xp()['stage']==1, xp())
+st,_ = req('PATCH','/collections/users/records/'+c['id'],{'xp':999},tc); check('cannot set own growth points', st>=400, st)
+req('POST','/collections/reads/records',{'user':c['id'],'article':'a1'},tc)
+st,_ = req('POST','/collections/reads/records',{'user':c['id'],'article':'a1'},tc); check('same article counted once', st>=400, st)
+st,lk = req('POST','/collections/likes/records',{'user':c['id'],'target':'articles:a1'},tc)
+check('read +5 and like +1', xp()['xp']==16, xp())
+req('DELETE','/collections/likes/records/'+lk['id'],None,tc)
+req('PATCH','/collections/users/records/'+c['id'],{'exam_best':8},tc)
+check('unlike -1, exam passed +30', xp()['xp']==45, xp())
+st,l = req('GET','/collections/reads/records',None,ta); check('reads are private', l.get('totalItems')==0, l)
+log={f'2026-09-{d:02d}':['h1','h2','h3'] for d in range(1,11)}
+req('POST','/collections/habits/records',{'owner':c['id'],'data':{'habits':[],'log':log}},tc)
+check('30 leaves +60 -> stage 2', xp()['xp']==105 and xp()['stage']==2, xp())
 print('ALL OK' if ok else 'SOME FAILED')
