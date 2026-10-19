@@ -574,3 +574,22 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
   .sg-ic{width:clamp(54px,18vw,72px)}
 }
 @media (prefers-reduced-motion: reduce){.sg-loop{animation:none}}
+
+/* ---------- лестница эко-жизни ---------- */
+.ladder{list-style:none;margin:0 0 10px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:end}
+.rung{display:grid;gap:8px;align-content:start;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;position:relative;
+  min-height:calc(300px - var(--n) * 26px);border-top:6px solid color-mix(in srgb,var(--moss) calc(100% - var(--n) * 22%),var(--leaf))}
+.rung-top{display:flex;align-items:center;gap:10px}
+.rung-num{width:30px;height:30px;border-radius:50%;background:var(--moss);color:var(--on-moss);display:grid;place-items:center;font-weight:800}
+.rung-ic{font-size:32px}
+.rung h3{font-size:21px}
+.rung p{font-size:14px}
+.rung-ex{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.rung-ex li{font-size:12.5px;font-weight:700;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--leaf) 15%,var(--paper))}
+.rung .btn{justify-self:start;margin-top:auto}
+.ladder-note{font-family:var(--font-hand);font-size:26px;color:var(--clay);margin:6px 0 30px}
+.sg-sub{font-size:clamp(24px,3.4vw,32px);margin-bottom:22px;scroll-margin-top:80px}
+.sg-reuse{border-top:1px dashed var(--line);padding-top:10px;display:grid;gap:6px}
+.sg-reuse ul{margin:0;padding-left:20px;display:grid;gap:4px}
+@media (max-width:860px){.ladder{grid-template-columns:1fr 1fr}.rung{min-height:0}}
+@media (max-width:520px){.ladder{grid-template-columns:1fr}}
