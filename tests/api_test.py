@@ -71,4 +71,11 @@ st,_ = req('PATCH','/collections/suggestions/records/'+sg['id'],{'status':'accep
 c = req('GET','/collections/content/records?filter=key%3D%22site%22')[1]['items'][0]
 st,_ = req('PATCH','/collections/content/records/'+c['id'],{'data':c['data']},ta); check('member cannot edit content', st>=400, st)
 st,_ = req('PATCH','/collections/content/records/'+c['id'],{'data':c['data']},tb); check('moderator edits content', st==200, st)
+# feedback: private to author and moderators
+st,fb = req('POST','/collections/feedback/records',{'author':a['id'],'text':'Сделайте тёмную тему'},ta); check('feedback ok', st==200, fb)
+st,_ = req('POST','/collections/feedback/records',{'author':a['id'],'text':'x','status':'done'},ta); check('author cannot set status', st>=400, st)
+st,l = req('GET','/collections/feedback/records'); check('feedback hidden from public', l.get('totalItems')==0, l)
+st,l = req('GET','/collections/feedback/records',None,tb); check('moderator sees feedback', l.get('totalItems')==1, l)
+st,_ = req('PATCH','/collections/feedback/records/'+fb['id'],{'reply':'Сделаю','status':'in_progress'},ta); check('author cannot reply', st>=400, st)
+st,_ = req('PATCH','/collections/feedback/records/'+fb['id'],{'reply':'Сделаю','status':'in_progress'},tb); check('moderator replies', st==200, st)
 print('ALL OK' if ok else 'SOME FAILED')

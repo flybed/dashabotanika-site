@@ -199,7 +199,7 @@ body.editing .edit-only.flex{display:flex!important}
 body.editing{padding-bottom:84px}
 .form{background:var(--surface);border:1.5px dashed var(--moss);border-radius:var(--r);padding:18px;display:grid;gap:10px;margin-top:16px}
 .form label{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--muted)}
-.form input,.form textarea,.form select{border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--paper);font-weight:400;font-size:16px;color:var(--ink)}
+.form input,.form textarea,.form select,.li textarea{border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--paper);font-weight:400;font-size:16px;color:var(--ink)}
 .form textarea{min-height:90px;resize:vertical}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .del{position:absolute;top:10px;right:10px}
@@ -352,3 +352,9 @@ body.editing .ex{display:none}
   .cert-sheet{position:absolute;inset:0;box-shadow:none;max-height:none}
   .no-print{display:none!important}
 }
+
+/* ---------- обратная связь ---------- */
+.fb-photos{display:flex;gap:8px;flex-wrap:wrap}
+.fb-photos img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+.fb-reply{background:color-mix(in srgb,var(--leaf) 14%,var(--surface));border-radius:10px;padding:8px 12px;font-size:15px;white-space:pre-line}
+.btn[aria-pressed="true"]{background:var(--moss);color:var(--on-moss);border-color:var(--moss)}

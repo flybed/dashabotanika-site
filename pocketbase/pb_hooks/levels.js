@@ -20,7 +20,8 @@ function leavesOf(app, userId) {
 function recompute(app, userId) {
   let user
   try { user = app.findRecordById("users", userId) } catch (e) { return }
-  const posts = app.countRecords("reviews", $dbx.hashExp({ author: userId })) + app.countRecords("comments", $dbx.hashExp({ author: userId }))
+  const posts = app.countRecords("reviews", $dbx.hashExp({ author: userId })) + app.countRecords("comments", $dbx.hashExp({ author: userId })) +
+    app.countRecords("feedback", $dbx.hashExp({ author: userId }))
   const stats = {
     leaves: leavesOf(app, userId),
     exam: user.getInt("exam_best"),
