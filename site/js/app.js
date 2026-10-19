@@ -937,7 +937,35 @@ async function openCert(userId, rank){
     ));
   });
 }
+/* links from emails: #verify/<token>, #reset/<token>, #email/<token> */
+function clearHash(){ history.replaceState(null,'',location.pathname); }
+function mailLink(kind, token){
+  clearHash();
+  if (kind==='verify'){
+    pb.collection('users').confirmVerification(token)
+      .then(()=>{ toast('Почта подтверждена, спасибо!'); if (COM.uid) pb.collection('users').authRefresh().then(()=>{ COM.verified = true; refresh(); }).catch(()=>{}); },
+            ()=>toast('Ссылка устарела или уже использована'));
+    return;
+  }
+  openModal(sheet=>{
+    const pass = h('input',{id:'np-pass',type:'password',autocomplete:kind==='reset'?'new-password':'current-password',minlength:'8',required:''});
+    const btn = h('button',{type:'submit',class:'btn'}, kind==='reset' ? 'Сохранить пароль' : 'Подтвердить');
+    const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+      h('label',{for:'np-pass'}, kind==='reset' ? 'Новый пароль (от 8 символов)' : 'Ваш пароль', pass), h('div',null,btn));
+    f.addEventListener('submit', async e=>{ e.preventDefault();
+      if (kind==='reset' && pass.value.length < 8){ toast('Пароль — минимум 8 символов'); return; }
+      btn.disabled = true;
+      try{
+        if (kind==='reset'){ await pb.collection('users').confirmPasswordReset(token, pass.value, pass.value); closeModal(); toast('Пароль изменён, теперь можно войти'); if (!COM.uid) openAccount(); }
+        else { await pb.collection('users').confirmEmailChange(token, pass.value); pb.authStore.clear(); try{ sessionStorage.setItem('db-welcome','Почта изменена. Войдите с новой почтой'); }catch(e){} location.reload(); }
+      }catch(err){ btn.disabled = false; toast(err && err.status===400 ? 'Ссылка устарела или пароль неверный' : 'Не получилось, попробуйте ещё раз'); }
+    });
+    sheet.append(h('h2',null, kind==='reset' ? 'Новый пароль' : 'Подтверждение новой почты'), f);
+  });
+}
 function routeHash(){
+  const mail = /^#(verify|reset|email)\/([A-Za-z0-9._-]{20,})$/.exec(location.hash);
+  if (mail && pb){ mailLink(mail[1], mail[2]); return; }
   const m = /^#cert\/([a-z0-9]{15})\/([1-9])$/.exec(location.hash);
   if (m) openCert(m[1], +m[2]);
   else if (MODAL && MODAL.querySelector('.cert-sheet')) closeModal();
@@ -1124,6 +1152,11 @@ function openAccount(tab, tid){
         cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value || pick.value===me.character) return;
           pb.collection('users').update(COM.uid,{character:pick.value}).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
         lists.stats = h('div'); lists.level = h('div');
+        if (!COM.verified && COM.email) out.push(h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
+          h('b',null,'Подтвердите почту'),
+          h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
+          h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ e.target.disabled = true;
+            pb.collection('users').requestVerification(COM.email).then(()=>toast('Письмо отправлено, проверьте почту и папку «Спам»'),()=>{ e.target.disabled = false; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))));
         out.push(lists.stats, lists.level,
           h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
             h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('habits')},'Мои привычки'),
@@ -1493,7 +1526,7 @@ render();
   }
   const rec = auth.isValid && auth.record && auth.record.collectionName==='users' ? auth.record : null;
   if (rec){
-    COM.uid = rec.id; COM.me = memberOf(rec);
+    COM.uid = rec.id; COM.me = memberOf(rec); COM.verified = !!rec.verified; COM.email = rec.email || '';
     COM.admin = MOD_ROLES.includes(rec.role); COM.owner = rec.role==='admin'; EDIT.can = COM.admin;
     STATS.examBest = Math.max(STATS.examBest||0, rec.exam_best||0);
     STATS.gameBest = Math.max(STATS.gameBest||0, rec.game_best||0);
