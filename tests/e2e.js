@@ -25,7 +25,16 @@ async function register(p, email, nick, charName){
 const T = '#cabinet-tabs ';
 (async()=>{
   const b = await chromium.launch(process.env.CHROMIUM ? {executablePath:process.env.CHROMIUM} : {});
-  const p = await (await b.newContext({viewport:{width:1280,height:900}})).newPage(); watchPage(p,'dasha');
+  // splash screen: shown on the first visit, counts to 100% and goes away
+  const z = await (await b.newContext({viewport:{width:390,height:844}})).newPage(); watchPage(z,'splash');
+  await z.goto(B+'/'); await z.waitForTimeout(700);
+  check('splash shows planet, greeting and progress', !!(await z.$('#splash .globe')) && (await z.textContent('#splash')).includes('Добро пожаловать в ЭкоМир'));
+  await z.screenshot({path:S+'/00-splash.png'});
+  await z.waitForSelector('#splash', {state:'detached', timeout:5000});
+  await z.reload(); check('splash only once per visit', !(await z.$('#splash')));
+  const skipSplash = ctx => ctx.addInitScript(()=>{ try{ sessionStorage.setItem('db-splash','1'); }catch(e){} });
+  const c1 = await b.newContext({viewport:{width:1280,height:900}}); await skipSplash(c1);
+  const p = await c1.newPage(); watchPage(p,'dasha');
   await p.goto(B+'/', {waitUntil:'networkidle'});
   const order = await p.$$eval('main > section', s=>s.map(x=>x.id));
   check('home order: calc, exam, world, goods, game', order.slice(1,6).join()==='calc,exam,world,goods,game' && !order.includes('habits'));
@@ -57,7 +66,8 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/');
   await p.click('#edit-slot button'); await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
   // second user, mobile
-  const q = await (await b.newContext({viewport:{width:390,height:844}})).newPage(); watchPage(q,'liza');
+  const c2 = await b.newContext({viewport:{width:390,height:844}}); await skipSplash(c2);
+  const q = await c2.newPage(); watchPage(q,'liza');
   await q.goto(B+'/', {waitUntil:'networkidle'});
   await register(q, 'liza@test.local', 'Лиза', 'Лиса');
   await q.goto(B+'/#feedback'); await q.fill('#fb-text','Добавьте, пожалуйста, тёмную тему');
