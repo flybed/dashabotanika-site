@@ -8,24 +8,57 @@ function jsonOf(record, field) {
   try { return JSON.parse(toString(raw)) } catch (e) { return null }
 }
 
-function leavesOf(app, userId) {
+// Отметки: старый трекер недели (data.log) + все челленджи (data.challenges[].log).
+// Челлендж пройден, если наступил его последний день и отмечено ≥ CH_PASS всех клеточек.
+const CH_PASS = 0.7
+
+function addDays(isoDate, n) {
+  const d = new Date(isoDate + "T00:00:00Z")
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+function challengeStats(ch, today) {
+  const ids = (ch.habits || []).map((h) => h.id)
+  const days = Math.max(1, Math.min(60, ch.days | 0))
+  const end = addDays(ch.start, days - 1)
+  let checks = 0
+  for (const day in (ch.log || {})) {
+    if (day < ch.start || day > end) continue
+    const arr = ch.log[day]
+    if (Array.isArray(arr)) checks += arr.filter((id) => ids.indexOf(id) >= 0).length
+  }
+  const total = days * Math.max(1, ids.length)
+  const passed = !!ch.start && today >= end && checks / total >= CH_PASS
+  return { checks, total, passed }
+}
+
+function habitsOf(app, userId) {
   let rec
-  try { rec = app.findFirstRecordByFilter("habits", "owner = {:id}", { id: userId }) } catch (e) { return 0 }
+  try { rec = app.findFirstRecordByFilter("habits", "owner = {:id}", { id: userId }) } catch (e) { return { leaves: 0, challenges: 0 } }
   const data = jsonOf(rec, "data") || {}
+  const today = new Date().toISOString().slice(0, 10)
+  let leaves = 0, challenges = 0
   const log = data.log || {}
-  let n = 0
-  for (const day in log) n += Array.isArray(log[day]) ? log[day].length : 0
-  return n
+  for (const day in log) leaves += Array.isArray(log[day]) ? log[day].length : 0
+  for (const ch of (Array.isArray(data.challenges) ? data.challenges : [])) {
+    if (!ch || !ch.start) continue
+    const st = challengeStats(ch, today)
+    leaves += st.checks
+    if (st.passed) challenges++
+  }
+  return { leaves, challenges }
 }
 
 const count = (app, coll, where) => app.countRecords(coll, $dbx.hashExp(where))
 
 // Сколько раз участник выполнил каждое действие из growth_rules.
-function actionsOf(app, user, leaves) {
+function actionsOf(app, user, hb) {
   const id = user.id
   return {
     signup: 1,
-    leaf: leaves,
+    leaf: hb.leaves,
+    challenge_done: hb.challenges,
     exam_passed: user.getInt("exam_best") >= 8 ? 1 : 0,
     game: Math.floor(user.getInt("game_best") / 10),
     article_read: count(app, "reads", { user: id }),
@@ -40,10 +73,11 @@ function actionsOf(app, user, leaves) {
 function recompute(app, userId) {
   let user
   try { user = app.findRecordById("users", userId) } catch (e) { return }
-  const leaves = leavesOf(app, userId)
+  const hb = habitsOf(app, userId)
+  const leaves = hb.leaves
 
   // очки роста за действия
-  const done = actionsOf(app, user, leaves)
+  const done = actionsOf(app, user, hb)
   let xp = 0
   for (const r of app.findRecordsByFilter("growth_rules", "id != ''", "", 100, 0)) {
     xp += (done[r.getString("key")] || 0) * r.getInt("points")

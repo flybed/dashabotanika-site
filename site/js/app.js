@@ -202,7 +202,7 @@ function hero(){
       h('h1',{html:'Эко: еда, быт, <em>мода</em>, образ жизни!'}),
       h('div',{class:'slogan',html:'Разумный человек — счастливая планета<svg viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9c60-6 130-8 294-2" stroke="var(--sun)" stroke-width="4" fill="none" stroke-linecap="round"/></svg>'}),
       h('p',{class:'hero-intro'},'Без занудства и чувства вины, о простых шагах, которые делают жизнь вкуснее, красивее и чище. Посчитайте пользу от переработки, сыграйте в эко-уборку, сдайте эко-экзамен и загляните на барахолку.'),
-      h('div',{class:'chips'}, [['/#game','Сыграть в эко-уборку'],['/eko-test','Сдать эко-экзамен'],['/#calc','Посчитать пользу'],['/kabinet','Мой эко-челлендж']].map(([href,t])=>h('a',{class:'chip',href},t)))
+      h('div',{class:'chips'}, [['/#game','Сыграть в эко-уборку'],['/eko-test','Сдать эко-экзамен'],['/#calc','Посчитать пользу'],['/kabinet#challenges','Начать эко-челлендж']].map(([href,t])=>h('a',{class:'chip',href},t)))
     ),
     heroArt()
   ));
@@ -314,56 +314,133 @@ function calcSection(){
   ));
 }
 
-/* ---------- habits ---------- */
-function habitsSection(){
-  const box = h('div',{class:'habits'});
+/* ---------- eco challenges: own goal, own habits, own term; passed at 70% of the checks ---------- */
+const CH_PASS = 0.7;
+const CH_GOALS = [
+  {k:'eco', l:'Экология', d:'меньше мусора и пластика', ic:'🌍', habits:['Шопер вместо пакета','Своя кружка или бутылка','Рассортировал(а) отходы','Пешком, на велосипеде или транспорте','Без доставки еды','Без одноразового пластика']},
+  {k:'health', l:'Здоровье', d:'больше сил и хорошего самочувствия', ic:'💚', habits:['8 стаканов воды','30 минут прогулки','Сон 7–8 часов','Овощи в каждом приёме пищи','Зарядка утром','Без сладких напитков']},
+  {k:'slim', l:'Похудение', d:'лёгкость без жёстких диет', ic:'🥗', habits:['Без сладкого','10 000 шагов','Ужин до 19:00','Вода вместо соков и газировки','Порция овощей к каждому блюду','Без фастфуда']},
+  {k:'good', l:'Польза', d:'осознанные покупки и еда', ic:'🌿', habits:['День без мяса','Готовлю дома','Сезонные продукты','Без лишних покупок','Душ до 5 минут','20 минут читаю об экологии']}
+];
+const CH_DAYS = [7,14,21,30];
+const goalOf = k => CH_GOALS.find(g=>g.k===k) || CH_GOALS[0];
+const addDays = (s, n) => { const d = new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return iso(d); };
+const fmtDay = s => new Date(s+'T00:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'});
+function chStats(ch){
+  const today = iso(new Date()), ids = ch.habits.map(x=>x.id), end = addDays(ch.start, ch.days-1);
+  let checks = 0;
+  for (const day in (ch.log||{})){ if (day < ch.start || day > end) continue; checks += (ch.log[day]||[]).filter(id=>ids.includes(id)).length; }
+  const total = ch.days * Math.max(1, ids.length);
+  const dayNo = today < ch.start ? 0 : Math.min(ch.days, Math.round((new Date(today+'T00:00:00') - new Date(ch.start+'T00:00:00'))/86400000) + 1);
+  let streak = 0; let c = today > end ? end : today;
+  if (!((ch.log||{})[c]||[]).length) c = addDays(c, -1);
+  while (c >= ch.start && ((ch.log||{})[c]||[]).length){ streak++; c = addDays(c, -1); }
+  const ratio = checks/total, finished = today >= end;
+  return {today, end, checks, total, ratio, dayNo, streak, finished, over: today > end, passed: finished && ratio >= CH_PASS};
+}
+const challenges = () => (HAB.challenges = Array.isArray(HAB.challenges) ? HAB.challenges : []);
+const chPoints = () => ((COM.growthRules.find(r=>r.key==='challenge_done')||{}).points) || 50;
+
+function challengesSection(){
+  const box = h('div',{class:'chs'});
+  let wizard = null, pages = {};
   function paint(){
-    const days = [...Array(7)].map((_,i)=>{ const d=new Date(weekStart); d.setDate(d.getDate()+i); return d; });
-    const today = iso(new Date());
-    let weekTotal = 0;
-    days.forEach(d=>{ weekTotal += (HAB.log[iso(d)]||[]).length; });
-    let streak = 0; const c = new Date(); c.setHours(0,0,0,0);
-    if (!(HAB.log[iso(c)]||[]).length) c.setDate(c.getDate()-1);
-    while ((HAB.log[iso(c)]||[]).length){ streak++; c.setDate(c.getDate()-1); }
-    const max = HAB.habits.length*7 || 1;
-    const fmtD = d => d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
-    const nameInput = h('input',{id:'habit-new',placeholder:'Своя привычка, например «Без доставки на этой неделе»',maxlength:'60'});
-    const add = ()=>{ const v=nameInput.value.trim(); if(!v) return; HAB.habits.push({id:'u'+uid(),name:v,custom:true}); saveHabits(); paint(); };
-    nameInput.addEventListener('keydown',e=>{ if(e.key==='Enter') add(); });
-    box.replaceChildren(
-      h('div',{class:'hbar'},
-        h('div',{class:'stats'},
-          h('div',null,h('b',null,weekTotal),h('span',null,'листочков за неделю')),
-          h('div',null,h('b',null,Math.round(weekTotal/max*100),'%'),h('span',null,'от максимума')),
-          h('div',null,h('b',null,streak),h('span',null,'дней подряд'))
-        ),
-        h('div',{class:'weeknav'},
-          h('button',{type:'button',class:'btn ghost small','aria-label':'Предыдущая неделя',onclick:()=>{weekStart.setDate(weekStart.getDate()-7);paint();}},'←'),
-          h('span',{style:'font-variant-numeric:tabular-nums'},fmtD(days[0]),' — ',fmtD(days[6])),
-          h('button',{type:'button',class:'btn ghost small','aria-label':'Следующая неделя',onclick:()=>{weekStart.setDate(weekStart.getDate()+7);paint();}},'→')
-        )
-      ),
-      h('table',{class:'hgrid'},
-        h('thead',null,h('tr',null,h('th',{style:'text-align:left'},'Привычка'), days.map((d,i)=>h('th',{class:iso(d)===today?'today':null},DOW[i],h('br'),d.getDate())))),
-        h('tbody',null, HAB.habits.map(hb=>h('tr',null,
-          h('td',null, hb.name, hb.custom ? h('button',{type:'button',class:'x',title:'Удалить привычку','aria-label':'Удалить «'+hb.name+'»',onclick:()=>{ HAB.habits=HAB.habits.filter(x=>x.id!==hb.id); saveHabits(); paint(); }},'×') : null),
-          days.map(d=>{ const k=iso(d), on=(HAB.log[k]||[]).includes(hb.id);
-            return h('td',null,h('button',{type:'button',class:'cell'+(on?' on':''),'aria-pressed':on?'true':'false','aria-label':hb.name+', '+DOW[(d.getDay()+6)%7]+' '+d.getDate(),html:on?LEAF:'',style:on?'color:var(--moss)':null,onclick:()=>{
-              const arr = new Set(HAB.log[k]||[]); arr.has(hb.id)?arr.delete(hb.id):arr.add(hb.id);
-              if (arr.size) HAB.log[k]=[...arr]; else delete HAB.log[k];
-              saveHabits(); paint();
-            }})); })
-        )))
-      ),
-      h('div',{class:'addrow'}, nameInput, h('button',{type:'button',class:'btn',onclick:add},'Добавить привычку'))
-    );
+    const list = challenges();
+    const active = list.filter(ch=>!chStats(ch).over), past = list.filter(ch=>chStats(ch).over).reverse();
+    box.replaceChildren(...[
+      wizard ? wizardView() : h('div',{class:'ch-new'},
+        h('button',{type:'button',class:'btn',onclick:()=>{ wizard = {step:1, goal:null, days:14, startToday:true, habits:[], custom:''}; paint(); }},'+ Создать челлендж'),
+        h('p',{class:'hint'},'Выберите цель, срок и привычки. Отмечайте каждый день — и за пройденный челлендж получите +', chPoints(),' очков роста.')),
+      ...(active.length ? active.map(card) : (wizard ? [] : [h('div',{class:'empty'},'У вас пока нет челленджей. Создайте первый — например, 14 дней без пластиковых пакетов.')])),
+      past.length ? h('div',null, h('h3',{style:'font-size:20px;margin:10px 0'},'Завершённые'), h('div',{class:'list'}, past.map(pastItem))) : null].filter(Boolean));
+  }
+  function save(){ saveHabits(); paint(); refresh(); }
+  function wizardView(){
+    const w = wizard, g = w.goal && goalOf(w.goal);
+    const steps = h('div',{class:'ch-steps'}, ['Цель','Срок','Привычки'].map((t,i)=>h('span',{class:i+1===w.step?'on':i+1<w.step?'done':''}, (i+1)+'. '+t)));
+    let body;
+    if (w.step===1){
+      body = [h('h3',null,'Зачем вам этот челлендж?'),
+        h('div',{class:'ch-goals'}, CH_GOALS.map(x=>h('button',{type:'button',class:'ch-goal'+(w.goal===x.k?' on':''),onclick:()=>{ w.goal = x.k; w.habits = x.habits.slice(0,4).map(n=>({id:'h'+uid(), name:n})); w.step = 2; paint(); }},
+          h('span',{class:'ic','aria-hidden':'true'},x.ic), h('b',null,x.l), h('small',null,x.d))))];
+    } else if (w.step===2){
+      body = [h('h3',null,'Сколько дней?'),
+        h('div',{class:'ch-days'}, CH_DAYS.map(n=>h('button',{type:'button',class:'chip'+(w.days===n?' on':''),onclick:()=>{ w.days = n; paint(); }}, n+' дней'))),
+        h('div',{class:'ch-days'}, [[true,'Начать сегодня'],[false,'Начать завтра']].map(([v,t])=>h('button',{type:'button',class:'chip'+(w.startToday===v?' on':''),onclick:()=>{ w.startToday = v; paint(); }},t))),
+        h('p',{class:'hint'}, fmtDay(w.startToday ? iso(new Date()) : addDays(iso(new Date()),1)),' — ', fmtDay(addDays(w.startToday ? iso(new Date()) : addDays(iso(new Date()),1), w.days-1))),
+        h('div',{class:'ch-nav'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>{ w.step = 1; paint(); }},'← Назад'), h('button',{type:'button',class:'btn small',onclick:()=>{ w.step = 3; paint(); }},'Дальше →'))];
+    } else {
+      const chosen = new Set(w.habits.map(x=>x.name));
+      const inp = h('input',{maxlength:'60',placeholder:'Своя привычка, например «Без доставки на этой неделе»','aria-label':'Своя привычка'});
+      const addCustom = ()=>{ const v = inp.value.trim(); if (!v) return; if (!chosen.has(v)) w.habits.push({id:'h'+uid(), name:v.slice(0,60)}); paint(); };
+      inp.addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); addCustom(); } });
+      body = [h('h3',null,'Привычки челленджа'),
+        h('p',{class:'hint'},'Мы подобрали привычки под цель «',g.l,'». Уберите лишние, добавьте из подсказок или свои. Лучше 3–5 привычек, которые реально выполнять.'),
+        h('div',{class:'ch-chosen'}, w.habits.length ? w.habits.map(x=>h('span',{class:'tag ch-tag'}, x.name, h('button',{type:'button',class:'x','aria-label':'Убрать «'+x.name+'»',onclick:()=>{ w.habits = w.habits.filter(y=>y.id!==x.id); paint(); }},'×'))) : h('span',{class:'hint'},'Пока пусто — добавьте хотя бы одну привычку.')),
+        h('div',{class:'ch-sugg'}, g.habits.filter(n=>!chosen.has(n)).map(n=>h('button',{type:'button',class:'chip',onclick:()=>{ w.habits.push({id:'h'+uid(), name:n}); paint(); }},'+ ',n))),
+        h('div',{class:'addrow'}, inp, h('button',{type:'button',class:'btn ghost',onclick:addCustom},'Добавить свою')),
+        h('div',{class:'ch-nav'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>{ w.step = 2; paint(); }},'← Назад'),
+          h('button',{type:'button',class:'btn',onclick:()=>{
+            if (!w.habits.length){ toast('Добавьте хотя бы одну привычку'); return; }
+            const start = w.startToday ? iso(new Date()) : addDays(iso(new Date()),1);
+            challenges().push({id:'c'+uid(), goal:w.goal, title:'Челлендж «'+g.l+'» на '+w.days+' дней', start, days:w.days, habits:w.habits, log:{}, created:Date.now()});
+            wizard = null; save(); toast('Челлендж начат! Отмечайте привычки каждый день');
+          }},'Начать челлендж'))];
+    }
+    return h('div',{class:'ch-wizard card'}, h('div',{style:'display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap'}, steps,
+      h('button',{type:'button',class:'btn ghost small',onclick:()=>{ wizard = null; paint(); }},'Отмена')), ...body);
+  }
+  function card(ch){
+    const st = chStats(ch), g = goalOf(ch.goal);
+    const weeks = Math.ceil(ch.days/7);
+    let page = pages[ch.id];
+    if (page === undefined) page = pages[ch.id] = Math.max(0, Math.min(weeks-1, Math.floor(Math.max(0, st.dayNo-1)/7)));
+    const days = [...Array(Math.min(7, ch.days - page*7))].map((_,i)=>addDays(ch.start, page*7+i));
+    const cell = (hb, d)=>{ const on = ((ch.log||{})[d]||[]).includes(hb.id), future = d > st.today;
+      return h('td',null, h('button',{type:'button',class:'cell'+(on?' on':''),disabled:future?'':null,'aria-pressed':String(on),'aria-label':hb.name+', '+fmtDay(d),html:on?LEAF:'',style:on?'color:var(--moss)':null,onclick:()=>{
+        const set = new Set((ch.log||{})[d]||[]); set.has(hb.id) ? set.delete(hb.id) : set.add(hb.id);
+        ch.log = ch.log || {}; if (set.size) ch.log[d] = [...set]; else delete ch.log[d]; save();
+      }})); };
+    const pct = Math.round(st.ratio*100), need = Math.round(CH_PASS*100);
+    const status = st.passed ? h('span',{class:'status accepted'},'Пройден! +',chPoints(),' очков') : st.dayNo===0 ? h('span',{class:'status'},'Начнётся ',fmtDay(ch.start)) : h('span',{class:'status'},'День ',st.dayNo,' из ',ch.days);
+    return h('article',{class:'ch-card'},
+      h('div',{class:'ch-head'},
+        h('div',null, h('div',{class:'eyebrow'}, g.ic,' ',g.l), h('h3',{style:'font-size:22px'},ch.title), h('div',{class:'hint'}, fmtDay(ch.start),' — ',fmtDay(st.end))),
+        h('div',{style:'display:flex;gap:8px;align-items:center;flex-wrap:wrap'}, status,
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Удалить челлендж «'+ch.title+'»? Отметки пропадут.')){ HAB.challenges = challenges().filter(x=>x.id!==ch.id); save(); } }},'Удалить'))),
+      h('div',{class:'stats'},
+        h('div',null,h('b',null,pct,'%'),h('span',null,'выполнено (нужно ',need,'%)')),
+        h('div',null,h('b',null,st.checks),h('span',null,'отметок из ',st.total)),
+        h('div',null,h('b',null,st.streak),h('span',null,'дней подряд'))),
+      h('div',{class:'ch-bar'}, h('i',{style:'width:'+pct+'%'}), h('span',{class:'ch-goalmark',style:'left:'+need+'%',title:'Нужно для прохождения'})),
+      weeks > 1 ? h('div',{class:'weeknav'},
+        h('button',{type:'button',class:'btn ghost small','aria-label':'Предыдущая неделя',disabled:page===0?'':null,onclick:()=>{ pages[ch.id] = page-1; paint(); }},'←'),
+        h('span',{style:'font-variant-numeric:tabular-nums'},'Неделя ',page+1,' из ',weeks,': ',fmtDay(days[0]),' — ',fmtDay(days[days.length-1])),
+        h('button',{type:'button',class:'btn ghost small','aria-label':'Следующая неделя',disabled:page===weeks-1?'':null,onclick:()=>{ pages[ch.id] = page+1; paint(); }},'→')) : null,
+      h('div',{class:'ch-grid'}, h('table',{class:'hgrid'},
+        h('thead',null,h('tr',null,h('th',{style:'text-align:left'},'Привычка'), days.map(d=>{ const dd = new Date(d+'T00:00:00'); return h('th',{class:d===st.today?'today':null}, DOW[(dd.getDay()+6)%7],h('br'),dd.getDate()); }))),
+        h('tbody',null, ch.habits.map(hb=>h('tr',null,
+          h('td',null, hb.name, ch.habits.length > 1 ? h('button',{type:'button',class:'x',title:'Убрать привычку','aria-label':'Убрать «'+hb.name+'»',onclick:()=>{ if (confirm('Убрать привычку «'+hb.name+'» из челленджа?')){ ch.habits = ch.habits.filter(x=>x.id!==hb.id); save(); } }},'×') : null),
+          days.map(d=>cell(hb,d))))))),
+      addHabitRow(ch));
+  }
+  function addHabitRow(ch){
+    const inp = h('input',{maxlength:'60',placeholder:'Добавить привычку в этот челлендж','aria-label':'Новая привычка для челленджа'});
+    const add = ()=>{ const v = inp.value.trim(); if (!v) return; ch.habits.push({id:'h'+uid(), name:v.slice(0,60)}); save(); };
+    inp.addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); add(); } });
+    return h('div',{class:'addrow'}, inp, h('button',{type:'button',class:'btn ghost',onclick:add},'Добавить'));
+  }
+  function pastItem(ch){
+    const st = chStats(ch), g = goalOf(ch.goal);
+    return h('div',{class:'li'},
+      h('div',{class:'meta'}, st.passed ? h('span',{class:'status accepted'},'✓ Пройден · +',chPoints()) : h('span',{class:'status declined'},'Не пройден'), h('span',null,g.ic,' ',g.l), h('span',null,fmtDay(ch.start),' — ',fmtDay(st.end))),
+      h('b',null,ch.title), h('span',{class:'hint'},'Выполнено ',Math.round(st.ratio*100),'% (',st.checks,' из ',st.total,' отметок)'));
   }
   paint();
-  habitsSection.repaint = paint;
-  return h('section',{class:'band alt',id:'habits'}, h('div',{class:'wrap'},
-    sectionHead('Образ жизни','Эко-челлендж недели','Отмечайте листочком каждый день, когда получилось. Отметки видите только вы, они сохраняются в этом браузере, а после входа — в личном кабинете и считаются для вашего эко-уровня.'),
-    box
-  ));
+  challengesSection.repaint = paint;
+  return h('section',{class:'band alt',id:'challenges'}, h('div',{class:'wrap'},
+    sectionHead('Образ жизни','Мои эко-челленджи','Поставьте себе цель на 7–30 дней, выберите привычки и отмечайте каждый день. Пройдёте — получите очки роста для своего персонажа.'),
+    box));
 }
 
 /* ---------- editable collections ---------- */
@@ -1052,7 +1129,7 @@ function saveStats(){
   }
   refresh();
 }
-const leavesTotal = () => Object.values(HAB.log||{}).reduce((a,v)=>a+(v?v.length:0),0);
+const leavesTotal = () => Object.values(HAB.log||{}).reduce((a,v)=>a+(v?v.length:0),0) + (Array.isArray(HAB.challenges) ? HAB.challenges.reduce((a,ch)=>a+chStats(ch).checks,0) : 0);
 const postsCount = () => COM.reviews.filter(r=>r.author===COM.uid).length + COM.comments.filter(c=>c.author===COM.uid).length + COM.feedback.filter(f=>f.author===COM.uid).length;
 
 /* ---------- character growth ("tamagotchi") ---------- */
@@ -1387,7 +1464,7 @@ function cabinetPage(){
     h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи на барахолке и переписка. А ещё вы появитесь в «Счастливом мире».'),
     authForms(tab),
     h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
-  return [cabinetHead(), habitsSection(), cabinetTabs(tab, tid)];
+  return [cabinetHead(), challengesSection(), cabinetTabs(tab, tid)];
 }
 function cabinetHead(){
   const head = h('div',{class:'cab-head'}), grow = h('div'), stats = h('div');
@@ -1772,7 +1849,7 @@ function mountEditButton(){
   if (!slot || !EDIT.can || EDIT.on) return;
   slot.replaceChildren(h('button',{type:'button',class:'btn ghost small',onclick:()=>{ setEditing(true); render(); }},'Редактировать сайт'));
 }
-function toast(msg){ const t=h('div',{class:'toast',role:'status'},msg); document.body.append(t); setTimeout(()=>t.remove(),2600); }
+function toast(msg){ const n = document.querySelectorAll('.toast').length; const t=h('div',{class:'toast',role:'status',style:n ? 'margin-bottom:'+(n*54)+'px' : null},msg); document.body.append(t); setTimeout(()=>t.remove(),2600); }
 async function saveSite(){
   const btn = document.getElementById('save-btn');
   if (!EDIT.can || !CONTENT.id){ toast('Сохранять может только редактор сайта'); return; }
@@ -1845,7 +1922,7 @@ render();
       const hr = await pb.collection('habits').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null});
       habRec = hr.id;
       const d = hr.data;
-      if (d && Array.isArray(d.habits)){ HAB = JSON.parse(JSON.stringify(d)); lsWrite(); habitsSection.repaint && habitsSection.repaint(); }
+      if (d && Array.isArray(d.habits)){ HAB = JSON.parse(JSON.stringify(d)); lsWrite(); challengesSection.repaint && challengesSection.repaint(); }
     }catch(e){ habReady = true; if (e && e.status===404 && stored) saveHabits(); }
     habReady = true;
   }

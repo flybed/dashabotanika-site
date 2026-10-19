@@ -439,3 +439,34 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 @media (max-width:420px){.social{gap:4px}.soc{width:36px;height:36px}.soc svg{width:20px;height:20px}}
 @media (max-width:640px){.g-over{padding:16px}.g-over h3{font-size:26px!important}.g-over p{font-size:15px}}
 .grow-step small.grow-xp{font-weight:700;color:var(--muted);font-size:10px}
+
+/* ---------- эко-челленджи ---------- */
+.chs{display:grid;gap:18px}
+.ch-new{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.ch-wizard{display:grid;gap:14px}
+.ch-steps{display:flex;gap:6px;flex-wrap:wrap}
+.ch-steps span{font-size:13px;font-weight:800;padding:4px 10px;border-radius:999px;color:var(--muted);background:var(--soft)}
+.ch-steps span.on{background:var(--moss);color:var(--on-moss)}
+.ch-steps span.done{color:var(--moss)}
+.ch-goals{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.ch-goal{display:grid;gap:4px;justify-items:start;text-align:left;padding:14px;border:1.5px solid var(--line);border-radius:14px;background:var(--paper);cursor:pointer;font:inherit;color:inherit}
+.ch-goal:hover,.ch-goal.on{border-color:var(--moss)}
+.ch-goal .ic{font-size:30px}
+.ch-goal small{color:var(--muted)}
+.ch-days,.ch-sugg,.ch-chosen{display:flex;gap:8px;flex-wrap:wrap}
+.chip.on{background:var(--moss);color:var(--on-moss);border-color:var(--moss)}
+button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
+.ch-tag{display:inline-flex;gap:6px;align-items:center;font-size:14px}
+.ch-nav{display:flex;justify-content:space-between;gap:10px}
+.ch-card{display:grid;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px}
+.ch-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.ch-bar{position:relative;height:12px;border-radius:999px;background:var(--soft)}
+.ch-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--leaf),var(--moss))}
+.ch-goalmark{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;background:var(--sun)}
+.ch-grid{overflow-x:auto}
+.cell[disabled]{opacity:.35;cursor:not-allowed}
+.ch-grid td:first-child,.ch-grid th:first-child{text-align:left}
+.ch-grid td:first-child{font-weight:700}
+.ch-tag{text-transform:none;letter-spacing:0;font-size:14px;padding:6px 10px}
+.chs .addrow{flex-wrap:wrap}
+.chs .addrow input{flex:1 1 220px;min-width:0}
