@@ -1498,13 +1498,15 @@ function accountButton(){
 const BINS = [{k:'plastic',l:'Пластик',c:'#E0AE36'},{k:'paper',l:'Бумага',c:'#3E78B2'},{k:'glass',l:'Стекло',c:'#3B8F55'},{k:'metal',l:'Металл',c:'#858D95'},{k:'battery',l:'Батарейки',c:'#C0533D'}];
 const LITTER = [['plastic','Бутылка ПЭТ'],['plastic','Флакон от шампуня'],['paper','Газета'],['paper','Картонная коробка'],['glass','Стеклянная банка'],['glass','Бутылка из стекла'],['metal','Банка из-под газировки'],['metal','Консервная банка'],['battery','Батарейка']];
 function gameSection(){
-  const W = 760, H = 440;
+  // on phones the park is portrait: the start screen fits and items are bigger under the finger
+  const narrow = window.innerWidth < 640;
+  const W = narrow ? 480 : 760, H = narrow ? 640 : 440;
   const cv = h('canvas',{width:W,height:H,tabindex:'0','aria-label':'Игровое поле: собирайте мусор и относите в контейнеры'});
   const ctx = cv.getContext('2d');
   const over = h('div',{class:'g-over'});
   const hud = h('div',{class:'stats',style:'margin-bottom:12px'});
   let G = null, raf = 0, last = 0, keys = {}, C = null;
-  const bw = 124, gap = (W - bw*5)/6;
+  const bw = narrow ? 84 : 124, gap = (W - bw*5)/6;
   const bins = BINS.map((b,i)=>Object.assign({}, b, {x:gap+i*(bw+gap), y:12, w:bw, h:74}));
   function tok(){ const cs = getComputedStyle(document.documentElement); const g = (n,f)=>cs.getPropertyValue(n).trim()||f;
     return {sand:g('--sand-deep','#D9CBAE'), soft:g('--soft','#E3DAC5'), ink:g('--ink','#232A1E'), moss:g('--moss','#3A6234'), leaf:g('--leaf','#86A85C'), stone:g('--stone','#8D9187'), stoneHi:g('--stone-hi','#C9CCC2'), paper:g('--paper','#EDE6D6'), clay:g('--clay','#AD5E39'), sun:g('--sun','#C9932E')}; }
@@ -1577,7 +1579,7 @@ function gameSection(){
       ctx.fillStyle = b.c; rr(b.x,b.y,b.w,b.h,12); ctx.fill();
       ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(b.x,b.y,b.w,16,[12,12,0,0]); ctx.fill();
       if (hot){ ctx.strokeStyle = C.ink; ctx.lineWidth = 3; rr(b.x-2,b.y-2,b.w+4,b.h+4,14); ctx.stroke(); }
-      ctx.fillStyle = '#fff'; ctx.font = '800 15px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.l, b.x+b.w/2, b.y+b.h/2+6);
+      ctx.fillStyle = '#fff'; ctx.font = (narrow ? '800 13px' : '800 15px')+' Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.l, b.x+b.w/2, b.y+b.h/2+6);
     });
     if (!G) return;
     G.items.forEach(it=>{ ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(it.x,it.y+12,12,4,0,0,Math.PI*2); ctx.fill(); drawItem(it,it.x,it.y,it.r); });
@@ -1595,7 +1597,7 @@ function gameSection(){
     ctx.fillStyle='#2C2A27'; ctx.beginPath(); ctx.arc(p.x+p.face*4.5,p.y-50,1.6,0,Math.PI*2); ctx.fill();
     if (p.carry) drawItem(p.carry, p.x, p.y-76, 0);
     G.fx.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life); ctx.fillStyle=f.c; ctx.font='800 22px Nunito, system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; });
-    if (G.msg){ ctx.font='700 16px Nunito, system-ui, sans-serif'; const tw = ctx.measureText(G.msg).width+28; ctx.fillStyle=C.paper; rr(W/2-tw/2,H-46,tw,32,16); ctx.fill(); ctx.fillStyle=C.clay; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(G.msg,W/2,H-30); }
+    if (G.msg){ ctx.font=(narrow ? '700 14px' : '700 16px')+' Nunito, system-ui, sans-serif'; const tw = ctx.measureText(G.msg).width+28; ctx.fillStyle=C.paper; rr(W/2-tw/2,H-46,tw,32,16); ctx.fill(); ctx.fillStyle=C.clay; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(G.msg,W/2,H-30); }
     else if (p.carry){ ctx.font='700 14px Nunito, system-ui, sans-serif'; ctx.fillStyle=C.ink; ctx.globalAlpha=.75; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('Несёте: '+p.carry.n, W/2, H-24); ctx.globalAlpha=1; }
   }
   let hudKey = '';

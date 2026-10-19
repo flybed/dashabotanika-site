@@ -437,3 +437,4 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .soc:hover{background:var(--soft)}
 .soc svg{width:22px;height:22px}
 @media (max-width:420px){.social{gap:4px}.soc{width:36px;height:36px}.soc svg{width:20px;height:20px}}
+@media (max-width:640px){.g-over{padding:16px}.g-over h3{font-size:26px!important}.g-over p{font-size:15px}}
