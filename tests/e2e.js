@@ -61,15 +61,30 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/#world', {waitUntil:'networkidle'}); await p.waitForTimeout(500);
   check('world says Dasha settled first once she is admin with the elephant', (await p.textContent('#world')).includes('Первой поселилась Даша'));
   await p.goto(B+'/kabinet', {waitUntil:'networkidle'});
-  check('cabinet page: name, level, habits tracker', !!(await p.$('h1.cab-name:has-text("Даша")')) && !!(await p.$('.grow-steps')) && !!(await p.$('#habits .cell')));
+  check('cabinet page: name, level, challenges', !!(await p.$('h1.cab-name:has-text("Даша")')) && !!(await p.$('.grow-steps')) && !!(await p.$('#challenges button:has-text("Создать челлендж")')));
   await p.click('.tabs button:has-text("Настройки")');
   check('settings show email and its status', (await p.textContent('.mail-row')).includes('dasha@test.local') && (await p.textContent('.mail-row')).includes('не подтверждена'));
   await api('PATCH','/collections/users/records/'+dasha.id,{verified:true},t);
   await p.reload({waitUntil:'networkidle'}); await p.click('.tabs button:has-text("Настройки")');
   check('verified email shown as confirmed', (await p.textContent('.mail-row')).includes('✓ подтверждена') && !!(await p.$('.mail-ok')));
   check('growth block with rules', !!(await p.$('.grow .grow-em')) && (await p.$$('.grow-how li')).length >= 8);
-  for (let i=0;i<4;i++) await p.locator('#habits .cell').nth(i*8).click();
+  // challenge wizard: goal -> term -> habits
+  await p.click('#challenges button:has-text("Создать челлендж")');
+  await p.click('.ch-goal:has-text("Экология")');
+  await p.click('.ch-days button:has-text("7 дней")'); await p.click('.ch-nav button:has-text("Дальше")');
+  check('wizard suggests habits for the goal', (await p.$$('.ch-chosen .ch-tag')).length===4);
+  await p.click('.ch-chosen .ch-tag:has-text("Без доставки еды") .x').catch(()=>{});
+  await p.locator('.ch-chosen .ch-tag .x').first().click();
+  await p.locator('.ch-sugg .chip').first().click();
+  await p.fill('.ch-wizard input','Пью воду из многоразовой бутылки'); await p.click('.ch-wizard button:has-text("Добавить свою")');
+  await p.click('.ch-wizard button:has-text("Начать челлендж")');
+  await p.waitForSelector('.ch-card');
+  check('challenge card with dates and year', /2\d{3}/.test(await p.textContent('.ch-card .hint')) && (await p.$$('.ch-card tbody tr')).length===5);
+  check('future days cannot be checked', (await p.$$('.ch-card .cell[disabled]')).length > 0);
+  const todayCells = p.locator('.ch-card td:has(.cell:not([disabled]))');
+  for (let i=0;i<4;i++){ await p.locator('.ch-card tbody tr').nth(i).locator('.cell:not([disabled])').last().click(); }
   await p.waitForTimeout(1500);
+  await p.screenshot({path:S+'/03-challenge.png', fullPage:false});
   check('habits saved to account', (await api('GET','/collections/habits/records',null,t)).totalItems===1);
   await p.screenshot({path:S+'/02-cabinet.png', fullPage:true});
   await p.goto(B+'/#journal'); await p.waitForTimeout(400);
@@ -77,6 +92,14 @@ const T = '#cabinet-tabs ';
   await p.locator('#journal .like').first().click(); await p.waitForTimeout(1200);
   check('like counted on article', (await p.locator('#journal .like').first().textContent()).includes('1'));
   check('read + like grew the character', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1);
+  // a finished challenge with all checks gives +50 (server decides)
+  const hr0 = (await api('GET','/collections/habits/records',null,t)).items[0];
+  const iso = d => d.toISOString().slice(0,10), st0 = new Date(Date.now()-6*86400000);
+  const done = {id:'cdone', goal:'eco', title:'Тест', start:iso(st0), days:7, habits:[{id:'x1',name:'А'}], log:{}};
+  for (let i=0;i<7;i++) done.log[iso(new Date(st0.getTime()+i*86400000))] = ['x1'];
+  await api('PATCH','/collections/habits/records/'+hr0.id,{data:Object.assign({}, hr0.data, {challenges:(hr0.data.challenges||[]).concat([done])})},t);
+  await p.waitForTimeout(800);
+  check('passed challenge gives +50 and 7 checks', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1 + 7*2 + 50);
   await p.goto(B+'/');
   await p.click('#edit-slot button'); await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
   // second user, mobile
