@@ -487,3 +487,24 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 .ex-confetti span{position:absolute;top:30%;left:calc(8% + var(--i) * 13%);font-size:28px;animation:pop 1.6s ease-out calc(var(--i) * .08s) both}
 @keyframes pop{0%{transform:translateY(40px) scale(.4);opacity:0}30%{opacity:1}100%{transform:translateY(-120px) scale(1.1) rotate(25deg);opacity:0}}
 @media (max-width:760px){.ex-start{grid-template-columns:1fr}.ex-cert{transform:none}}
+
+/* ---------- «Растить персонажа» и живой персонаж ---------- */
+.grow-pet{display:grid;place-items:center}
+.grow-em{animation:idle 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes idle{0%,100%{transform:translateY(0) rotate(0)}20%{transform:translateY(-6px) rotate(-4deg)}40%{transform:translateY(0) rotate(0)}60%{transform:translateY(-4px) rotate(4deg)}80%{transform:translateY(0) rotate(0) scale(1.04)}}
+.grow-pet:hover .grow-em{animation:hop .6s ease-in-out 2}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px) rotate(-6deg)}}
+.grow-cta{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);white-space:nowrap;z-index:1}
+.grow-pet{padding-bottom:40px}
+.grow-ways{order:3;grid-column:1/-1;display:grid;gap:10px;border-top:1px dashed var(--line);padding-top:16px}
+.ways{display:grid;gap:8px}
+.way{display:grid;grid-template-columns:40px 1fr auto auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}
+.way.ok{opacity:.75}
+.way-ic{font-size:26px;text-align:center}
+.way-t{display:grid;gap:2px}
+.way-pts{font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--moss)}
+@media (max-width:640px){.way{grid-template-columns:32px 1fr auto}.way .btn,.way .status{grid-column:2/-1;justify-self:start}}
+.dweller .em{animation:bob 4s ease-in-out infinite}
+.dweller:nth-child(2n) .em{animation-delay:-1.3s}.dweller:nth-child(3n) .em{animation-delay:-2.6s}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media (prefers-reduced-motion: reduce){.grow-em,.dweller .em{animation:none}}
