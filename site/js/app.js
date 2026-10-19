@@ -1154,7 +1154,9 @@ function growthBlock(){
     h('div',{class:'grow-pet st-'+me.level},
       h('div',{class:'grow-aura','aria-hidden':'true'}),
       h('span',{class:'grow-em',role:'img','aria-label':(ch ? ch.name : 'Персонаж')+', уровень «'+levelName(me.level)+'»'}, em),
-      h('div',{class:'grow-deco','aria-hidden':'true'}, ['','','🌱','🌿','🌳','✨'][me.level] || '')),
+      h('div',{class:'grow-deco','aria-hidden':'true'}, ['','','🌱','🌿','🌳','✨'][me.level] || ''),
+      h('button',{type:'button',class:'btn grow-cta','aria-expanded':String(GROW_OPEN),'aria-controls':'grow-ways',onclick:()=>{ GROW_OPEN = !GROW_OPEN; refresh(); if (GROW_OPEN) setTimeout(()=>{ const w = document.getElementById('grow-ways'); if (w) w.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50); }}, GROW_OPEN ? 'Свернуть' : '🌱 Растить персонажа')),
+    GROW_OPEN ? growWays() : null,
     h('div',{class:'grow-info'},
       h('div',{class:'eyebrow'},'Развивайте своего персонажа'),
       h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, (ch ? ch.name : 'Персонаж'),' — ', levelName(me.level)),
@@ -1167,10 +1169,32 @@ function growthBlock(){
       extra.length ? h('div',{class:'lvl-next'}, h('div',{class:'hint',style:'font-weight:800'},'Ещё для уровня «',next.name,'»:'), extra) : null,
       certs.length ? h('div',null, h('div',{class:'hint',style:'font-weight:800;margin-bottom:6px'},'Мои сертификаты'),
         h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, certs.map(x=>h('a',{class:'chip',href:'#cert/'+COM.uid+'/'+x.rank},'🎓 ',levelName(x.rank))))) : null,
-      h('details',{class:'grow-how',open:true},
-        h('summary',null,'Как растёт ваш персонаж'),
-        h('ul',null, COM.growthRules.filter(r=>r.points>0).map(r=>h('li',null, h('b',null,'+',r.points), ' ', r.title, r.per ? h('span',{class:'hint'},' — ',r.per) : null))),
-        h('p',{class:'hint'},'За каждый новый уровень — именной сертификат. Скоро добавим новые способы расти; чем выше уровень, тем крупнее ваш персонаж в «Счастливом мире».'))));
+      h('p',{class:'hint'},'За каждый новый уровень — именной сертификат. Чем выше уровень, тем крупнее ваш персонаж в «Счастливом мире». Как расти — кнопка «Растить персонажа».')));
+}
+
+/* "Растить персонажа": every way to grow with a link straight to it */
+let GROW_OPEN = false;
+const GROW_WAYS = {
+  challenge_done:['🏁','/kabinet#challenges','Создать челлендж'], leaf:['🍃','/kabinet#challenges','Отметить привычки'],
+  exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/#game','Играть'], article_read:['📖','/#journal','Читать журнал'],
+  like:['♥','/#journal','К статьям'], comment:['💬','/#journal','Обсудить'], feedback:['💡','/#feedback','Написать Даше'],
+  listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/baraholka','В барахолку'], signup:['✅',null,null]
+};
+function growWays(){
+  const done = {signup:true, exam_passed:!!STATS.examPassed || (STATS.examBest||0) >= 8};
+  const rows = COM.growthRules.filter(r=>r.points>0).map(r=>{
+    const [ic, href, cta] = GROW_WAYS[r.key] || ['🌱',null,null];
+    const ok = done[r.key];
+    return h('div',{class:'way'+(ok?' ok':'')},
+      h('span',{class:'way-ic','aria-hidden':'true'},ic),
+      h('div',{class:'way-t'}, h('b',null,r.title), r.per ? h('span',{class:'hint'}, r.per) : null),
+      h('span',{class:'way-pts'},'+',r.points),
+      ok ? h('span',{class:'status accepted'},'✓ сделано') : href ? h('a',{class:'btn small',href},cta) : null);
+  });
+  return h('div',{class:'grow-ways',id:'grow-ways'},
+    h('h3',{style:'font-size:22px'},'Как растить персонажа'),
+    h('p',{class:'hint'},'Выбирайте, что по душе: за каждое действие персонаж получает очки роста, а с ними — новые уровни и сертификаты.'),
+    h('div',{class:'ways'}, rows));
 }
 
 /* where the growth points come from — the same formula as on the server */
