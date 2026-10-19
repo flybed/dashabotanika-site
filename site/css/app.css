@@ -358,3 +358,47 @@ body.editing .ex{display:none}
 .fb-photos img{width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
 .fb-reply{background:color-mix(in srgb,var(--leaf) 14%,var(--surface));border-radius:10px;padding:8px 12px;font-size:15px;white-space:pre-line}
 .btn[aria-pressed="true"]{background:var(--moss);color:var(--on-moss);border-color:var(--moss)}
+
+/* ---------- страницы ---------- */
+.nav a[aria-current="page"]{color:var(--moss);text-decoration:underline;text-underline-offset:6px}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.more-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px}
+.teaser{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;border:2px solid var(--moss);border-radius:20px;padding:28px;background:var(--surface) var(--grain)}
+.teaser > div{flex:1 1 420px}
+.prod-ic{font-size:44px;line-height:1}
+.prod-img{border-radius:12px;overflow:hidden;aspect-ratio:4/3}
+.prod-img img{width:100%;height:100%;object-fit:cover;display:block}
+.cab-head{display:flex;gap:18px;align-items:center}
+.cab-ava{width:96px;height:96px;font-size:54px;flex:none}
+.cab-name{font-size:clamp(30px,5vw,44px)}
+.cab-auth{display:grid;gap:14px;max-width:640px}
+.people-sum{grid-template-columns:repeat(3,minmax(0,1fr))}
+.online-dot{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+.online-dot.on{background:#3FA34D;box-shadow:0 0 0 3px color-mix(in srgb,#3FA34D 25%,transparent)}
+
+/* ---------- рост персонажа ---------- */
+.grow{display:grid;grid-template-columns:minmax(160px,220px) 1fr;gap:22px;align-items:center;border:2px solid var(--moss);border-radius:22px;padding:22px;background:var(--surface) var(--grain)}
+.grow-pet{position:relative;aspect-ratio:1;display:grid;place-items:center}
+.grow-aura{position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--leaf) 45%,transparent),transparent 70%)}
+.grow-em{position:relative;line-height:1;filter:drop-shadow(0 6px 8px rgba(0,0,0,.18));animation:breathe 3.5s ease-in-out infinite}
+.grow-deco{position:absolute;right:6%;bottom:6%;font-size:34px}
+.grow-pet.st-1 .grow-em{font-size:56px}.grow-pet.st-2 .grow-em{font-size:74px}.grow-pet.st-3 .grow-em{font-size:92px}
+.grow-pet.st-4 .grow-em{font-size:108px}.grow-pet.st-5 .grow-em{font-size:122px}
+.grow-pet.st-5 .grow-aura{background:radial-gradient(circle,color-mix(in srgb,var(--sun) 55%,transparent),transparent 70%)}
+.grow-info{display:grid;gap:10px}
+.grow-bar{height:12px;border-radius:999px;background:var(--soft);overflow:hidden}
+.grow-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--leaf),var(--moss))}
+.grow-how summary{cursor:pointer;font-weight:800}
+.grow-how ul{margin:8px 0;padding-left:20px;display:grid;gap:4px;font-size:15px}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@media (max-width:640px){.grow{grid-template-columns:1fr}.grow-pet{max-width:200px;justify-self:center;width:100%}}
+.dweller.st-2 .em{font-size:clamp(26px,3.9vw,40px)}.dweller.st-3 .em{font-size:clamp(30px,4.4vw,46px)}
+.dweller.st-4 .em{font-size:clamp(34px,5vw,52px)}.dweller.st-5 .em{font-size:clamp(38px,5.6vw,58px)}
+.like{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;font-weight:800;color:var(--clay);cursor:pointer}
+.like[aria-pressed="true"]{background:color-mix(in srgb,var(--clay) 14%,var(--surface));border-color:var(--clay)}
+.world .dweller.first .em{font-size:clamp(40px,6.2vw,66px)}
+.grow-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:end}
+.grow-step{display:grid;justify-items:center;gap:2px;opacity:.38;filter:grayscale(1)}
+.grow-step.on{opacity:1;filter:none}
+.grow-step small{font-size:11px;font-weight:800;text-align:center}
+.grow-step.now small{color:var(--moss);text-decoration:underline;text-underline-offset:3px}

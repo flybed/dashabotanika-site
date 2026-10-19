@@ -29,7 +29,7 @@ const uid = () => Math.random().toString(36).slice(2,9);
 const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z" fill="currentColor" opacity=".9"/><path d="M5 19 13 11" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
 /* ---------- static content ---------- */
-const NAV = [['calc','Переработка'],['game','Игра'],['exam','Эко-экзамен'],['habits','Привычки'],['world','Мир'],['goods','Товары'],['fashion','Мода'],['food','Еда'],['cafes','Кафе'],['market','Барахолка'],['helper','ИИ-помощник'],['journal','Журнал'],['feedback','Обратная связь'],['about','Про меня'],['contacts','Контакты']];
+const NAV = [['/#world','Мир'],['/#calc','Переработка'],['/eko-test','Эко-тест'],['/tovary','Товары'],['/#fashion','Мода'],['/#food','Еда'],['/#cafes','Кафе'],['/baraholka','Барахолка'],['/#journal','Журнал'],['/#feedback','Обратная связь']];
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -140,18 +140,23 @@ function planetSVG(){
 const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="18" r="12" fill="var(--leaf)" opacity=".35"/><circle cx="16" cy="18" r="12" fill="none" stroke="var(--moss)" stroke-width="2"/><path d="M16 12c0-5 3-8 9-8-1 6-4 8-9 8Z" fill="var(--moss)"/></svg>';
 
 function sectionHead(eyebrow, title, lead){
-  return h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},eyebrow), h('h2',null,title), lead ? h('p',{class:'lead'},lead) : null);
+  const tag = SEC_H1 ? 'h1' : 'h2'; SEC_H1 = false;
+  return h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},eyebrow), h(tag,null,title), lead ? h('p',{class:'lead'},lead) : null);
 }
 
 function render(){
   LIVE = [];
+  PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = [];
+  const path = currentPath(), page = PAGES[path];
+  document.title = page.title;
+  SEC_H1 = false;
   app.replaceChildren(
     h('header',{class:'top'}, h('div',{class:'wrap'},
-      h('a',{class:'logo',href:'#top',html:LOGO+'<span>DashaBotanika</span>'}),
-      h('nav',{class:'nav','aria-label':'Разделы'}, NAV.map(([id,t])=>h('a',{href:'#'+id},t))),
+      h('a',{class:'logo',href:'/',html:LOGO+'<span>DashaBotanika</span>'}),
+      h('nav',{class:'nav','aria-label':'Разделы'}, NAV.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t))),
       accountButton()
     )),
-    hero(), calcSection(), gameSection(), examSection(), habitsSection(), worldSection(), goodsSection(), fashionSection(), foodSection(), cafesSection(), marketSection(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection(),
+    h('main',null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'},
       h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета'),
       h('span',{id:'edit-slot'})
@@ -168,7 +173,7 @@ function hero(){
       h('h1',{html:'Эко: еда, быт, <em>мода</em>, образ жизни!'}),
       h('div',{class:'slogan',html:'Разумный человек — счастливая планета<svg viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9c60-6 130-8 294-2" stroke="var(--sun)" stroke-width="4" fill="none" stroke-linecap="round"/></svg>'}),
       h('p',{class:'hero-intro'},'Без занудства и чувства вины, о простых шагах, которые делают жизнь вкуснее, красивее и чище. Посчитайте пользу от переработки, сыграйте в эко-уборку, сдайте эко-экзамен и загляните на барахолку.'),
-      h('div',{class:'chips'}, [['game','Сыграть в эко-уборку'],['exam','Сдать эко-экзамен'],['calc','Посчитать пользу'],['habits','Мой эко-челлендж']].map(([id,t])=>h('a',{class:'chip',href:'#'+id},t)))
+      h('div',{class:'chips'}, [['/#game','Сыграть в эко-уборку'],['/eko-test','Сдать эко-экзамен'],['/#calc','Посчитать пользу'],['/kabinet','Мой эко-челлендж']].map(([href,t])=>h('a',{class:'chip',href},t)))
     ),
     heroArt()
   ));
@@ -376,22 +381,6 @@ function photoFig(key, alt, cls, caption){
   );
 }
 
-function goodsSection(){
-  const items = STATE.products;
-  return h('section',{class:'band',id:'goods'}, h('div',{class:'wrap'},
-    sectionHead('Быт','Товары, которые делают мир чище','Вещи, которые один раз покупаешь и годами не производишь мусор. Главное правило: сначала донашивайте то, что уже есть.'),
-    items.length ? h('div',{class:'grid g4'}, items.map(it=>h('article',{class:'card'},
-      delBtn('products',it.id),
-      h('span',{class:'tag'},it.cat||'Полезное'),
-      h('h3',{style:'font-size:20px'},it.title),
-      it.replaces ? h('p',{class:'muted',style:'font-size:14px;font-weight:700'},'Вместо: ',it.replaces) : null,
-      h('p',{style:'font-size:15px;flex:1'},it.why),
-      commentsBlock('products:'+it.id)
-    ))) : h('div',{class:'empty'},'Здесь пока пусто.'),
-    addForm('products','Новый товар')
-  ));
-}
-
 function fashionSection(){
   return h('section',{class:'band alt',id:'fashion'}, h('div',{class:'wrap'},
     sectionHead('Модная экология','Одежда и аксессуары','Самая экологичная вещь та, что уже висит в вашем шкафу. А когда хочется нового, вот что помогает выбирать с умом.'),
@@ -444,6 +433,25 @@ function cafesSection(){
   ));
 }
 
+function markRead(articleId){
+  if (!pb || !COM.uid || COM.reads[articleId]) return;
+  COM.reads[articleId] = true;
+  pb.collection('reads').create({user:COM.uid, article:articleId}).catch(()=>{});
+}
+function likeBtn(target){
+  const b = h('button',{type:'button',class:'like'});
+  live(()=>{
+    const all = COM.likes.filter(l=>l.target===target), mine = all.find(l=>l.user===COM.uid);
+    b.replaceChildren(mine ? '♥' : '♡', ' ', all.length || '');
+    b.setAttribute('aria-pressed', String(!!mine));
+    b.setAttribute('aria-label', (mine ? 'Убрать лайк' : 'Нравится')+(all.length ? ', лайков: '+all.length : ''));
+    b.onclick = ()=>{
+      if (accState()!=='member'){ toast('Лайки ставят участники — войдите или зарегистрируйтесь'); return; }
+      (mine ? pb.collection('likes').delete(mine.id) : pb.collection('likes').create({user:COM.uid, target})).catch(writeErr);
+    };
+  });
+  return b;
+}
 function journalSection(){
   const items = STATE.articles;
   const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
@@ -454,14 +462,14 @@ function journalSection(){
       let open = false;
       const body = h('div',{class:'art-body',hidden:true}, it.body);
       const more = h('button',{type:'button',class:'linkish',style:'justify-self:start','aria-expanded':'false'},'Читать полностью');
-      more.addEventListener('click',()=>{ open=!open; body.hidden=!open; more.textContent=open?'Свернуть':'Читать полностью'; more.setAttribute('aria-expanded',String(open)); });
+      more.addEventListener('click',()=>{ open=!open; body.hidden=!open; more.textContent=open?'Свернуть':'Читать полностью'; more.setAttribute('aria-expanded',String(open)); if (open) markRead(it.id); });
       return h('article',{class:'card'},
         delBtn('articles',it.id),
         h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
         h('h3',{style:'font-size:22px'},it.title),
         h('p',{class:'muted',style:'font-size:15px'},it.lead),
         it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
-        body, more,
+        body, h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, more, likeBtn('articles:'+it.id)),
         commentsBlock('articles:'+it.id)
       );
     })) : h('div',{class:'empty'},'Статьи скоро появятся.'),
@@ -514,6 +522,108 @@ function contactsSection(){
   ));
 }
 
+/* ---------- pages: real addresses for every page, no reloads between them ---------- */
+const PAGES = {
+  '/': {title:'DashaBotanika — эко: еда, быт, мода, образ жизни', render:()=>homePage()},
+  '/kabinet': {title:'Личный кабинет — DashaBotanika', render:()=>cabinetPage()},
+  '/tovary': {title:'Товары, которые делают мир чище — DashaBotanika', render:()=>{ SEC_H1 = true; return [goodsSection(false)]; }},
+  '/baraholka': {title:'Барахолка: отдать, обменять, продать — DashaBotanika', render:()=>{ SEC_H1 = true; return [marketSection()]; }},
+  '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
+};
+let SEC_H1 = false, PAGE_UNSUBS = [];
+function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] ? p : '/'; }
+function scrollToHash(hash){
+  const el = hash && hash.length > 1 && !/^#(cert|verify|reset|email)\//.test(hash) ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
+  if (el) el.scrollIntoView(); else window.scrollTo(0,0);
+}
+function go(url){
+  const u = new URL(url, location.origin);
+  const changed = (u.pathname.replace(/\/+$/,'') || '/') !== currentPath() || u.search !== location.search;
+  closeModal();
+  history.pushState(null,'',u.pathname+u.search+u.hash);
+  if (changed) render();
+  scrollToHash(u.hash);
+}
+function goTo(id){ go('/#'+id); }
+document.addEventListener('click', e=>{
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || a.target) return;
+  const href = a.getAttribute('href');
+  if (!href.startsWith('/') || href.startsWith('//') || /^\/(api|_|img|css|js)\//.test(href)) return;
+  e.preventDefault(); go(href);
+});
+window.addEventListener('popstate', ()=>{ closeModal(); render(); scrollToHash(location.hash); });
+
+function homePage(){
+  return [hero(), worldSection(), calcSection(), examTeaser(), goodsSection(true), gameSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
+}
+const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
+
+function examTeaser(){
+  const best = h('p',{style:'font-weight:700'});
+  live(()=>{ best.textContent = STATS.examBest ? 'Ваш лучший результат: '+STATS.examBest+' из 10'+(STATS.examPassed ? ' — сертификат получен!' : '') : ''; });
+  return h('section',{class:'band alt',id:'exam'}, h('div',{class:'wrap'}, h('div',{class:'teaser'},
+    h('div',{style:'display:grid;gap:10px'},
+      h('div',{class:'eyebrow'},'Эко-экзамен'),
+      h('h2',null,'Пройдите тест по экологии и получите сертификат'),
+      h('p',{class:'lead'},'10 вопросов о переработке, еде и быте. Ответьте верно хотя бы на 8 — и получите именной сертификат «Эко-знаток». Результат засчитается для вашего эко-уровня.'),
+      best),
+    h('a',{class:'btn',href:'/eko-test'},'Пройти тест'))));
+}
+
+function marketTeaser(){
+  const items = STATE.market.slice(0,3);
+  const extra = h('p',{class:'muted'});
+  live(()=>{ const n = publicListings().length; extra.textContent = n ? 'И ещё '+n+' '+plural(n,'вещь','вещи','вещей')+' от участников.' : 'Выставить свою вещь может любой участник — Даша проверит объявление.'; });
+  return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
+    sectionHead('Вторая жизнь вещей','Барахолка','Отдавайте, меняйте и продавайте то, что ещё послужит другим.'),
+    items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
+      h('span',{class:'tag',style:kindStyle(it.kind)},it.kind||'Продам'),
+      h('h3',{style:'font-size:20px'},it.title),
+      h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it))))) : null,
+    h('div',{class:'more-row'}, extra, h('a',{class:'btn',href:'/baraholka'},'Перейти в барахолку'))
+  ));
+}
+
+function productCard(it){
+  return h('article',{class:'card product'},
+    delBtn('products',it.id),
+    it.photo ? h('div',{class:'prod-img'}, photoImg(it.photo, it.title)) : it.icon ? h('div',{class:'prod-ic','aria-hidden':'true'}, it.icon) : null,
+    uploadBtn(it.photo ? 'Заменить фото' : 'Добавить фото', nid=>{ it.photo = nid; }),
+    h('span',{class:'tag'},it.cat||'Полезное'),
+    h('h3',{style:'font-size:20px'},it.title),
+    it.replaces ? h('p',{class:'muted',style:'font-size:14px;font-weight:700'},'Вместо: ',it.replaces) : null,
+    h('p',{style:'font-size:15px;flex:1'},it.why),
+    commentsBlock('products:'+it.id));
+}
+function goodsSection(preview){
+  const items = preview ? STATE.products.slice(0,4) : STATE.products;
+  return h('section',{class:'band',id:'goods'}, h('div',{class:'wrap'},
+    sectionHead('Быт','Товары, которые делают мир чище','Вещи, которые один раз покупаешь и годами не производишь мусор. Главное правило — сначала доносить то, что уже есть дома.'),
+    items.length ? h('div',{class:'grid g4'}, items.map(productCard)) : h('div',{class:'empty'},'Здесь пока пусто.'),
+    preview ? h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/tovary'},'Смотреть больше')) : addForm('products','Новый товар')
+  ));
+}
+
+/* ---------- presence: who is online (only admins see it) ---------- */
+function startPresence(){
+  if (!pb || !COM.uid) return;
+  const ping = ()=>{ if (document.visibilityState === 'visible') pb.send('/api/db/ping',{method:'POST', requestKey:null}).catch(()=>{}); };
+  ping();
+  setInterval(ping, 120000);
+  document.addEventListener('visibilitychange', ping);
+}
+const ONLINE_MS = 5*60*1000, ACTIVE_MS = 30*24*3600*1000;
+function seenLabel(ts){
+  if (!ts) return 'ещё не заходил(а) после обновления';
+  const d = Date.now() - ts;
+  if (d < ONLINE_MS) return 'онлайн';
+  if (d < 3600000) return 'был(а) '+Math.round(d/60000)+' мин назад';
+  if (d < 86400000) return 'был(а) '+Math.round(d/3600000)+' ч назад';
+  return 'был(а) '+new Date(ts).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+}
+
 /* ---------- backend: PocketBase ---------- */
 const pb = window.PocketBase ? new PocketBase(location.origin) : null;
 const MOD_ROLES = ['moderator','admin'];
@@ -530,7 +640,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], stages:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -539,7 +649,7 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
 function emojiOf(memberId){ const m = COM.members[memberId]; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
@@ -740,7 +850,7 @@ function threadView(tid, back){
   load();
   let stop = null;
   pb.collection('messages').subscribe('*', e=>{ if (e.record && e.record.chat===tid) load(); }).then(u=>{ stop = u; }).catch(()=>{});
-  MODAL_UNSUBS.push(()=>{ if (stop) stop(); });
+  PAGE_UNSUBS.push(()=>{ if (stop) stop(); });
   f.addEventListener('submit',e=>{ e.preventDefault(); const x = inp.value.trim(); if (!x) return; inp.value = '';
     const now = Date.now();
     pb.collection('messages').create({chat:tid, from:COM.uid, text:x.slice(0,2000)})
@@ -878,17 +988,26 @@ function paintModeration(el){
   }) : [h('p',{class:'hint'},'Новых объявлений на проверку нет.')]));
 }
 function paintPeople(el){
-  const ids = Object.keys(COM.members).sort((a,b)=>(COM.members[b].joined||0)-(COM.members[a].joined||0));
-  el.replaceChildren(...(ids.length ? ids.map(id=>{
-    const m = COM.members[id], isMod = m.role==='moderator';
-    return h('div',{class:'li'},
-      h('div',{class:'meta'}, h('span',{'aria-hidden':'true'},emojiOf(id)), h('b',null,m.nick), id===COM.uid ? h('span',{class:'status'},'Это вы') : null,
-        m.role==='admin' ? h('span',{class:'status accepted'},'Администратор') : isMod ? h('span',{class:'status accepted'},'Модератор') : null,
-        h('span',null,levelName(m.level)), h('span',null,'с ',dt(m.joined))),
-      id!==COM.uid && m.role!=='admin' ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
-        pb.collection('users').update(id,{role: isMod ? 'member' : 'moderator'}).then(()=>toast(isMod ? 'Модератор снят' : 'Назначен модератором')).catch(writeErr);
-      }}, isMod ? 'Снять модератора' : 'Сделать модератором')) : null);
-  }) : [h('p',{class:'hint'},'Пока никто не зарегистрировался.')]));
+  const now = Date.now();
+  const seen = id => COM.presence[id] || 0;
+  const ids = Object.keys(COM.members).sort((a,b)=>(seen(b)-seen(a)) || ((COM.members[b].joined||0)-(COM.members[a].joined||0)));
+  const online = ids.filter(id=>now-seen(id) < ONLINE_MS).length, active = ids.filter(id=>now-seen(id) < ACTIVE_MS).length;
+  el.replaceChildren(
+    h('div',{class:'kv people-sum'},
+      h('div',null,h('b',null,ids.length),h('span',null,plural(ids.length,'участник','участника','участников')+' всего')),
+      h('div',null,h('b',null,online),h('span',null,'онлайн сейчас')),
+      h('div',null,h('b',null,active),h('span',null,'активных за месяц'))),
+    ...(ids.length ? ids.map(id=>{
+      const m = COM.members[id], isMod = m.role==='moderator', on = now-seen(id) < ONLINE_MS;
+      return h('div',{class:'li'},
+        h('div',{class:'meta'}, h('span',{class:'online-dot'+(on?' on':''),'aria-hidden':'true'}), h('span',{'aria-hidden':'true'},emojiOf(id)), h('b',null,m.nick), id===COM.uid ? h('span',{class:'status'},'Это вы') : null,
+          m.role==='admin' ? h('span',{class:'status accepted'},'Администратор') : isMod ? h('span',{class:'status accepted'},'Модератор') : null,
+          h('span',null,levelName(m.level))),
+        h('div',{class:'hint'}, seenLabel(seen(id)), ' · с нами с ', dt(m.joined)),
+        id!==COM.uid && m.role!=='admin' ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
+          pb.collection('users').update(id,{role: isMod ? 'member' : 'moderator'}).then(()=>toast(isMod ? 'Модератор снят' : 'Назначен модератором')).catch(writeErr);
+        }}, isMod ? 'Снять модератора' : 'Сделать модератором')) : null);
+    }) : [h('p',{class:'hint'},'Пока никто не зарегистрировался.')]));
 }
 
 /* ---------- personal stats ---------- */
@@ -906,6 +1025,34 @@ function saveStats(){
 }
 const leavesTotal = () => Object.values(HAB.log||{}).reduce((a,v)=>a+(v?v.length:0),0);
 const postsCount = () => COM.reviews.filter(r=>r.author===COM.uid).length + COM.comments.filter(c=>c.author===COM.uid).length + COM.feedback.filter(f=>f.author===COM.uid).length;
+
+/* ---------- character growth ("tamagotchi") ---------- */
+function stageOf(n){ return COM.stages.find(s=>s.stage===n) || null; }
+const stageName = n => (stageOf(n) || {}).name || 'Малыш';
+function growthBlock(){
+  const me = COM.me; if (!me) return null;
+  const cur = stageOf(me.stage), next = stageOf(me.stage+1);
+  const from = cur ? cur.min_xp : 0, to = next ? next.min_xp : from;
+  const pct = next ? Math.max(0, Math.min(100, Math.round((me.xp-from)/((to-from)||1)*100))) : 100;
+  const ch = charOf(me.character);
+  return h('div',{class:'grow'},
+    h('div',{class:'grow-pet st-'+me.stage},
+      h('div',{class:'grow-aura','aria-hidden':'true'}),
+      h('span',{class:'grow-em',role:'img','aria-label':(ch ? ch.name : 'Персонаж')+', стадия «'+stageName(me.stage)+'»'}, ch ? ch.emoji : '🌱'),
+      h('div',{class:'grow-deco','aria-hidden':'true'}, ['','','🌱','🌿','🌳','✨'][me.stage] || '')),
+    h('div',{class:'grow-info'},
+      h('div',{class:'eyebrow'},'Развивайте своего персонажа'),
+      h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, (ch ? ch.name : 'Персонаж'),' — ', stageName(me.stage).toLowerCase()),
+      cur && cur.description ? h('p',{class:'muted'}, cur.description) : null,
+      h('div',{class:'grow-steps'}, COM.stages.map(st=>h('div',{class:'grow-step'+(st.stage<=me.stage?' on':'')+(st.stage===me.stage?' now':''),title:st.name+(st.min_xp ? ' — от '+st.min_xp+' очков' : '')},
+        h('span',{style:'font-size:'+(14+st.stage*4)+'px','aria-hidden':'true'}, ch ? ch.emoji : '🌱'), h('small',null,st.name)))),
+      h('div',{class:'grow-bar'}, h('i',{style:'width:'+pct+'%'})),
+      h('p',{class:'hint',style:'font-weight:800'}, next ? 'Очки роста: '+me.xp+' из '+to+' до стадии «'+next.name+'»' : 'Очки роста: '+me.xp+'. Ваш персонаж достиг высшей стадии!'),
+      h('details',{class:'grow-how',open:true},
+        h('summary',null,'Как растёт ваш персонаж'),
+        h('ul',null, COM.growthRules.filter(r=>r.points>0).map(r=>h('li',null, h('b',null,'+',r.points), ' ', r.title, r.per ? h('span',{class:'hint'},' — ',r.per) : null))),
+        h('p',{class:'hint'},'Скоро добавим новые способы расти. Чем выше стадия, тем крупнее ваш персонаж в «Счастливом мире».'))));
+}
 
 /* ---------- levels & certificates ---------- */
 function levelProgress(){
@@ -965,7 +1112,7 @@ async function openCert(userId, rank){
   });
 }
 /* links from emails: #verify/<token>, #reset/<token>, #email/<token> */
-function clearHash(){ history.replaceState(null,'',location.pathname); }
+function clearHash(){ history.replaceState(null,'',location.pathname+location.search); }
 function mailLink(kind, token){
   clearHash();
   if (kind==='verify'){
@@ -1017,15 +1164,15 @@ function worldSection(){
   live(()=>{
     const ids = Object.keys(COM.members).filter(id=>COM.members[id].character)
       .sort((a,b)=>(COM.members[a].role==='admin')===(COM.members[b].role==='admin') ? COM.members[a].joined-COM.members[b].joined : COM.members[a].role==='admin' ? -1 : 1);
-    const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level).join()+COM.characters.length+'|'+COM.uid;
+    const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level+'/'+COM.members[id].stage).join()+COM.characters.length+COM.stages.length+'|'+COM.uid;
     if (key === lastKey) return; lastKey = key;
     const n = ids.length;
     box.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
       const m = COM.members[id];
       const r = Math.sqrt(i/(n+1)), a = i*2.39996;
       const x = 50 + Math.cos(a)*r*44, y = 68 + Math.sin(a)*r*24;
-      const label = m.nick+' · '+levelName(m.level);
-      return h('div',{class:'dweller'+(i===0?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%',title:label,'aria-label':label,tabindex:'0'},
+      const label = m.nick+' · '+stageName(m.stage)+' · '+levelName(m.level);
+      return h('div',{class:'dweller st-'+(m.stage||1)+(i===0?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%',title:label,'aria-label':label,tabindex:'0'},
         h('span',{class:'em'}, emojiOf(id)), n <= 40 || i===0 || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null);
     }));
     count.textContent = n ? 'Жителей в мире: '+n+'. Первой поселилась Даша — слон. Каждый новый участник выбирает себе животное или растение и появляется здесь.' : 'Мир скоро оживёт: первой поселится Даша — слон.';
@@ -1056,7 +1203,7 @@ function helperSection(){
 
 /* ---------- modal & personal account ---------- */
 let MODAL = null;
-function closeModal(){ if (MODAL){ MODAL.remove(); MODAL = null; MODAL_LIVE = []; MODAL_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); MODAL_UNSUBS = []; document.removeEventListener('keydown', escClose); if (/^#cert\//.test(location.hash)) history.replaceState(null,'',location.pathname); } }
+function closeModal(){ if (MODAL){ MODAL.remove(); MODAL = null; MODAL_LIVE = []; MODAL_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); MODAL_UNSUBS = []; document.removeEventListener('keydown', escClose); if (/^#cert\//.test(location.hash)) history.replaceState(null,'',location.pathname+location.search); } }
 function escClose(e){ if (e.key==='Escape') closeModal(); }
 function openModal(build){
   closeModal();
@@ -1068,7 +1215,6 @@ function openModal(build){
   build(sheet);
   const f = sheet.querySelector('input,textarea,button:not(.close)'); if (f) f.focus();
 }
-function goTo(id){ closeModal(); location.hash = id; }
 
 function characterPicker(name, selected){
   const box = h('div',{class:'chars',role:'radiogroup','aria-label':'Ваш персонаж'});
@@ -1137,123 +1283,140 @@ function authForms(mode){
   return wrap;
 }
 
+/* ---------- personal cabinet: its own page /kabinet ---------- */
 function openAccount(tab, tid){
-  openModal(sheet=>{
-    let cur = tab || 'profile', lastKey = null, openTid = tid || null, tabBtns = {};
-    const openThread = id=>{ openTid = id; paint(true); };
-    const body = h('div',{style:'display:grid;gap:16px'});
-    sheet.append(body);
-    const lists = {};
-    function statsRow(){
-      return h('div',{class:'kv'},
-        h('div',null,h('b',null,leavesTotal()),h('span',null,'эко-листочков')),
-        h('div',null,h('b',null,STATS.examBest,'/10'),h('span',null,STATS.examPassed?'экзамен сдан':'лучший экзамен')),
-        h('div',null,h('b',null,STATS.gameBest),h('span',null,'рекорд в игре')),
-        h('div',null,h('b',null,postsCount()),h('span',null,'комментариев и сообщений')));
-    }
-    function build(st){
-      if (st==='loading') return [h('h2',null,'Личный кабинет'), h('p',{class:'muted'},'Загружаем…')];
-      if (st==='signedout') return [h('h2',null, tab==='register' ? 'Регистрация' : 'Вход'), authForms(tab), h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен. Результаты сохранятся в этом браузере.')];
-      const me = COM.me;
-      const tabs = [['profile','Профиль'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии']]
-        .concat(COM.admin ? [['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники']] : []);
-      if (!tabs.some(([k])=>k===cur)) cur = 'profile';
-      tabBtns = {};
-      const out = [
-        h('div',{style:'display:flex;gap:14px;align-items:center'},
-          h('div',{class:'mono',style:'width:56px;height:56px;font-size:30px'}, emojiOf(COM.uid)),
-          h('div',null,h('h2',{style:'font-size:28px'},me.nick), h('div',{class:'hint'}, levelName(me.level),' · с нами с ', dt(me.joined)))),
-        h('div',{class:'tabs',role:'tablist'}, tabs.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; paint(true); }},l); tabBtns[k]=b; return b; }))
-      ];
-      if (cur==='things') out.push(...thingsPanel(lists));
-      if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
-      if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
-      if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и могут редактировать сайт.'), lists.people); }
-      if (cur==='profile'){
-        const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
-        const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
-        f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2) return;
-          pb.collection('users').update(COM.uid,{name:v.slice(0,30)}).then(()=>toast('Имя обновлено')).catch(writeErr); });
-        const pick = characterPicker('acc-char', me.character);
-        const cf = h('form',{style:'display:grid;gap:8px'}, pick, h('div',null,h('button',{type:'submit',class:'btn ghost small'},'Сменить персонажа')));
-        cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value || pick.value===me.character) return;
-          pb.collection('users').update(COM.uid,{character:pick.value}).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
-        lists.stats = h('div'); lists.level = h('div');
-        if (!COM.verified && COM.email) out.push(h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
-          h('b',null,'Подтвердите почту'),
-          h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
-          h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
-            pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))));
-        out.push(lists.stats, lists.level,
-          h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
-            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('habits')},'Мои привычки'),
-            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('exam')},'Эко-экзамен'),
-            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('game')},'Играть'),
-            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('world')},'Мой мир')),
-          h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
-          h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж'), cf,
-          h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{ pb.authStore.clear(); location.reload(); }},'Выйти из аккаунта')));
-      }
-      if (cur==='suggest'){
-        const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
-        const title = h('input',{id:'sg-title',maxlength:'120'});
-        const text = h('textarea',{id:'sg-text',maxlength:'4000',style:'min-height:140px'});
-        const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
-          h('div',{class:'fields'}, h('label',{for:'sg-kind'},'Что предлагаете',kind), h('label',{for:'sg-title'},'Заголовок',title)),
-          h('label',{for:'sg-text'},'Текст или ссылка на источник',text),
-          h('div',null,h('button',{type:'submit',class:'btn'},'Отправить Даше')));
-        f.addEventListener('submit',e=>{ e.preventDefault(); const t=title.value.trim(), x=text.value.trim(); if(!t){ title.focus(); return; } if(!x){ text.focus(); return; }
-          pb.collection('suggestions').create({author:COM.uid, kind:kind.value, title:t.slice(0,120), text:x.slice(0,4000)}).then(()=>{ title.value=''; text.value=''; toast('Отправлено! Даша посмотрит'); }).catch(writeErr); });
-        lists.mySugg = h('div',{class:'list'});
-        out.push(h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f, h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg);
-      }
-      if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
-      if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
-      if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и модераторы.'), lists.inbox); }
-      return out;
-    }
-    const statusLabel = s => s==='accepted' ? 'В журнале' : s==='declined' ? 'Не подошло' : 'На рассмотрении';
-    function paintLists(){
-      if (lists.stats && lists.stats.isConnected) lists.stats.replaceChildren(statsRow());
-      if (lists.level && lists.level.isConnected) lists.level.replaceChildren(levelBlock() || '');
-      if (lists.things && lists.things.isConnected) paintThings(lists.things);
-      if (lists.chats && lists.chats.isConnected) paintChats(lists.chats, openThread);
-      if (lists.moder && lists.moder.isConnected) paintModeration(lists.moder);
-      if (lists.people && lists.people.isConnected) paintPeople(lists.people);
-      if (lists.mySugg && lists.mySugg.isConnected){
-        const it = COM.sugg.filter(s=>s.author===COM.uid);
-        lists.mySugg.replaceChildren(...(it.length ? it.map(s=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('span',null,dt(s.ts))), h('b',null,s.title))) : [h('p',{class:'hint'},'Вы пока ничего не предлагали.')]));
-      }
-      if (lists.mine && lists.mine.isConnected){
-        const rv = COM.reviews.filter(r=>r.author===COM.uid).map(r=>({...r,kind:'Отзыв',coll:'reviews'}));
-        const cm = COM.comments.filter(c=>c.author===COM.uid).map(c=>({...c,kind:'Комментарий',coll:'comments'}));
-        const all = rv.concat(cm).sort((a,b)=>b.ts-a.ts);
-        lists.mine.replaceChildren(...(all.length ? all.map(x=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status'},x.kind), h('span',null,dt(x.ts)), h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить',onclick:()=>delDoc(x.coll,x.id)},'×')), h('div',{style:'white-space:pre-line'},x.text))) : [h('p',{class:'hint'},'Здесь появятся ваши комментарии.')]));
-      }
-      if (lists.fb && lists.fb.isConnected){
-        lists.fb.replaceChildren(...(COM.feedback.length ? COM.feedback.map(x=>fbItem(x,true)) : [h('p',{class:'hint'},'Сообщений пока нет.')]));
-      }
-      if (lists.inbox && lists.inbox.isConnected){
-        const all = COM.sugg.slice();
-        lists.inbox.replaceChildren(...(all.length ? all.map(s=>h('div',{class:'li'},
-          h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('b',null,nameOf(s.author)), h('span',null,dt(s.ts))),
-          h('b',null,s.title), h('div',{style:'white-space:pre-line;font-size:15px'},s.text),
-          !s.status ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
-            h('button',{type:'button',class:'btn small',onclick:()=>acceptSugg(s)},'Опубликовать в журнале'),
-            h('button',{type:'button',class:'btn ghost small',onclick:()=>setSuggStatus(s.id,'declined')},'Отклонить')) : null
-        )) : [h('p',{class:'hint'},'Новых предложений нет.')]));
-      }
-    }
-    function paint(force){
-      const st = accState(), me = COM.me || {};
-      const key = st+'|'+cur+'|'+COM.admin+'|'+COM.owner+'|'+(me.nick||'')+'|'+(me.character||'')+'|'+COM.characters.length+'|'+(openTid && COM.threads[openTid] ? openTid : '');
-      if (force || key !== lastKey){ lastKey = key; MODAL_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); MODAL_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build(st).filter(x=>x!=null)); }
-      paintLists();
-      const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
-      if (st==='member'){ badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); }
-    }
-    mlive(()=>paint(false));
+  const q = new URLSearchParams();
+  if (tab) q.set('tab', tab);
+  if (tid) q.set('t', tid);
+  go('/kabinet'+(q.toString() ? '?'+q : ''));
+}
+function statsRow(){
+  return h('div',{class:'kv'},
+    h('div',null,h('b',null,leavesTotal()),h('span',null,'эко-листочков')),
+    h('div',null,h('b',null,STATS.examBest,'/10'),h('span',null,STATS.examPassed?'экзамен сдан':'лучший экзамен')),
+    h('div',null,h('b',null,STATS.gameBest),h('span',null,'рекорд в игре')),
+    h('div',null,h('b',null,postsCount()),h('span',null,'комментариев и сообщений')));
+}
+function cabinetPage(){
+  const q = new URLSearchParams(location.search);
+  const tab = q.get('tab') || '', tid = q.get('t') || null;
+  const st = accState();
+  if (st==='loading') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap'}, h('h1',{class:'cab-name'},'Личный кабинет'), h('p',{class:'muted'},'Загружаем…')))];
+  if (st==='signedout') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap cab-auth'},
+    h('div',{class:'eyebrow'},'Личный кабинет'),
+    h('h1',{class:'cab-name'}, tab==='register' ? 'Регистрация' : 'Вход'),
+    h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи на барахолке и переписка. А ещё вы появитесь в «Счастливом мире».'),
+    authForms(tab),
+    h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
+  return [cabinetHead(), habitsSection(), cabinetTabs(tab, tid)];
+}
+function cabinetHead(){
+  const head = h('div',{class:'cab-head'}), grow = h('div'), stats = h('div'), lvl = h('div');
+  live(()=>{
+    const me = COM.me; if (!me) return;
+    head.replaceChildren(h('div',{class:'mono cab-ava','aria-hidden':'true'}, emojiOf(COM.uid)),
+      h('div',null, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick), h('div',{class:'hint'}, stageName(me.stage),' · ', levelName(me.level),' · с нами с ', dt(me.joined))));
+    grow.replaceChildren(growthBlock() || '');
+    stats.replaceChildren(statsRow());
+    lvl.replaceChildren(levelBlock() || '');
   });
+  const verify = !COM.verified && COM.email ? h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
+    h('b',null,'Подтвердите почту'),
+    h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
+    h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
+      pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))) : null;
+  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, grow, stats, lvl));
+}
+function cabinetTabs(tab, tid){
+  let cur = tab || (unreadCount() ? 'chats' : 'things'), lastKey = null, openTid = tid || null, tabBtns = {};
+  const openThread = id=>{ openTid = id; paint(true); };
+  const body = h('div',{style:'display:grid;gap:16px'});
+  const lists = {};
+  function build(){
+    const me = COM.me;
+    const tabs = [['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
+      .concat(COM.admin ? [['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники']] : []);
+    if (!tabs.some(([k])=>k===cur)) cur = 'things';
+    tabBtns = {};
+    const out = [
+      h('div',{class:'tabs',role:'tablist'}, tabs.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }))
+    ];
+    if (cur==='things') out.push(...thingsPanel(lists));
+    if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
+    if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
+    if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
+    if (cur==='settings'){
+      const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
+      const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
+      f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2) return;
+        pb.collection('users').update(COM.uid,{name:v.slice(0,30)}).then(()=>toast('Имя обновлено')).catch(writeErr); });
+      const pick = characterPicker('acc-char', me.character);
+      const cf = h('form',{style:'display:grid;gap:8px'}, pick, h('div',null,h('button',{type:'submit',class:'btn ghost small'},'Сменить персонажа')));
+      cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value || pick.value===me.character) return;
+        pb.collection('users').update(COM.uid,{character:pick.value}).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
+      out.push(
+        h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
+        h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf,
+        h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{ pb.authStore.clear(); location.href = '/'; }},'Выйти из аккаунта')));
+    }
+    if (cur==='suggest'){
+      const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
+      const title = h('input',{id:'sg-title',maxlength:'120'});
+      const text = h('textarea',{id:'sg-text',maxlength:'4000',style:'min-height:140px'});
+      const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+        h('div',{class:'fields'}, h('label',{for:'sg-kind'},'Что предлагаете',kind), h('label',{for:'sg-title'},'Заголовок',title)),
+        h('label',{for:'sg-text'},'Текст или ссылка на источник',text),
+        h('div',null,h('button',{type:'submit',class:'btn'},'Отправить Даше')));
+      f.addEventListener('submit',e=>{ e.preventDefault(); const t=title.value.trim(), x=text.value.trim(); if(!t){ title.focus(); return; } if(!x){ text.focus(); return; }
+        pb.collection('suggestions').create({author:COM.uid, kind:kind.value, title:t.slice(0,120), text:x.slice(0,4000)}).then(()=>{ title.value=''; text.value=''; toast('Отправлено! Даша посмотрит'); }).catch(writeErr); });
+      lists.mySugg = h('div',{class:'list'});
+      out.push(h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f, h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg);
+    }
+    if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
+    if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
+    if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и модераторы.'), lists.inbox); }
+    return out;
+  }
+  const statusLabel = s => s==='accepted' ? 'В журнале' : s==='declined' ? 'Не подошло' : 'На рассмотрении';
+  function paintLists(){
+    if (lists.things && lists.things.isConnected) paintThings(lists.things);
+    if (lists.chats && lists.chats.isConnected) paintChats(lists.chats, openThread);
+    if (lists.moder && lists.moder.isConnected) paintModeration(lists.moder);
+    if (lists.people && lists.people.isConnected) paintPeople(lists.people);
+    if (lists.mySugg && lists.mySugg.isConnected){
+      const it = COM.sugg.filter(s=>s.author===COM.uid);
+      lists.mySugg.replaceChildren(...(it.length ? it.map(s=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('span',null,dt(s.ts))), h('b',null,s.title))) : [h('p',{class:'hint'},'Вы пока ничего не предлагали.')]));
+    }
+    if (lists.mine && lists.mine.isConnected){
+      const rv = COM.reviews.filter(r=>r.author===COM.uid).map(r=>({...r,kind:'Отзыв',coll:'reviews'}));
+      const cm = COM.comments.filter(c=>c.author===COM.uid).map(c=>({...c,kind:'Комментарий',coll:'comments'}));
+      const all = rv.concat(cm).sort((a,b)=>b.ts-a.ts);
+      lists.mine.replaceChildren(...(all.length ? all.map(x=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status'},x.kind), h('span',null,dt(x.ts)), h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить',onclick:()=>delDoc(x.coll,x.id)},'×')), h('div',{style:'white-space:pre-line'},x.text))) : [h('p',{class:'hint'},'Здесь появятся ваши комментарии.')]));
+    }
+    if (lists.fb && lists.fb.isConnected){
+      lists.fb.replaceChildren(...(COM.feedback.length ? COM.feedback.map(x=>fbItem(x,true)) : [h('p',{class:'hint'},'Сообщений пока нет.')]));
+    }
+    if (lists.inbox && lists.inbox.isConnected){
+      const all = COM.sugg.slice();
+      lists.inbox.replaceChildren(...(all.length ? all.map(s=>h('div',{class:'li'},
+        h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('b',null,nameOf(s.author)), h('span',null,dt(s.ts))),
+        h('b',null,s.title), h('div',{style:'white-space:pre-line;font-size:15px'},s.text),
+        !s.status ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
+          h('button',{type:'button',class:'btn small',onclick:()=>acceptSugg(s)},'Опубликовать в журнале'),
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>setSuggStatus(s.id,'declined')},'Отклонить')) : null
+      )) : [h('p',{class:'hint'},'Новых предложений нет.')]));
+    }
+  }
+  function paint(force){
+    const me = COM.me || {};
+    const key = cur+'|'+COM.admin+'|'+COM.owner+'|'+(me.nick||'')+'|'+(me.character||'')+'|'+COM.characters.length+'|'+(openTid && COM.threads[openTid] ? openTid : '');
+    if (force || key !== lastKey){ lastKey = key; PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build().filter(x=>x!=null)); }
+    paintLists();
+    const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
+    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0);
+  }
+  live(()=>paint(false));
+  return h('section',{class:'band',id:'cabinet-tabs'}, h('div',{class:'wrap'}, body));
 }
 function setSuggStatus(id, status){
   return write('suggestions/'+id, ()=>pb.collection('suggestions').update(id,{status})).catch(writeErr);
@@ -1263,11 +1426,11 @@ function acceptSugg(s){
   const lead = s.text.length > 200 ? s.text.slice(0,197).replace(/\s+\S*$/,'')+'…' : s.text;
   STATE.articles.unshift({id:'a'+uid(), cat:s.kind==='Новость'?'Новость':'Статья', date:iso(new Date()), title:s.title, lead, body:s.text, by:s.author});
   setSuggStatus(s.id, 'accepted');
-  closeModal(); markDirty(); setEditing(true); render(); location.hash = 'journal';
+  markDirty(); setEditing(true); go('/#journal');
   toast('Добавлено в журнал. Нажмите «Сохранить изменения»');
 }
 function accountButton(){
-  const b = h('button',{type:'button',class:'btn small acc-btn',onclick:()=>openAccount()});
+  const b = h('a',{class:'btn small acc-btn',href:'/kabinet'});
   live(()=>{
     const st = accState();
     if (st==='member'){ const n = unreadCount() + (COM.admin ? pendingListings().length + COM.feedback.filter(f=>!f.status).length : 0); b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean)); }
@@ -1551,6 +1714,9 @@ render();
   }catch(e){}
   watch('characters',{sort:'sort'}, l=>{ COM.characters = l; });
   watch('levels',{sort:'rank'}, l=>{ COM.levels = l; });
+  watch('growth_rules',{sort:'sort'}, l=>{ COM.growthRules = l; });
+  watch('growth_stages',{sort:'stage'}, l=>{ COM.stages = l; });
+  watch('likes',{fields:'id,user,target'}, l=>{ COM.likes = l; });
   const auth = pb.authStore;
   if (auth.isValid && auth.record && auth.record.collectionName==='users'){
     try{ await pb.collection('users').authRefresh({requestKey:null}); }catch(e){ if (e && (e.status===401 || e.status===404)) auth.clear(); }
@@ -1566,14 +1732,17 @@ render();
   }
   COM.ready = true;
   render();
-  let myLevel = COM.me ? COM.me.level : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves'}, l=>{
+  let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0, myStage = COM.me ? COM.me.stage : 0;
+  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage'}, l=>{
     const m = {}; l.forEach(r=>{ m[r.id] = memberOf(r); });
     COM.members = m;
     if (COM.uid && m[COM.uid]){
       COM.me = m[COM.uid];
       if (COM.me.level > myLevel && myLevel){ toast('Новый уровень: '+levelName(COM.me.level)+'! Сертификат — в кабинете'); }
       myLevel = COM.me.level;
+      if (COM.me.stage > myStage && myStage) toast('Ваш персонаж вырос: теперь он «'+stageName(COM.me.stage)+'»!');
+      else if (COM.me.xp > myXp && myLevel) toast('+'+(COM.me.xp-myXp)+' к росту персонажа');
+      myXp = COM.me.xp; myStage = COM.me.stage;
     }
   });
   watch('reviews',{sort:'-created'}, l=>{ COM.reviews = l.map(r=>({id:r.id, author:r.author, rating:r.rating, text:r.text, ts:tsOf(r)})); });
@@ -1582,6 +1751,9 @@ render();
   if (COM.uid){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
     watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
+    pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); }).catch(()=>{});
+    if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
+    startPresence();
     watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
     try{
       const hr = await pb.collection('habits').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null});
@@ -1593,5 +1765,6 @@ render();
   }
   refresh();
   routeHash();
+  if (location.hash && !/^#(cert|verify|reset|email)\//.test(location.hash)) scrollToHash(location.hash);
 })();
 })();
