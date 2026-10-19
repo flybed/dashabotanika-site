@@ -67,7 +67,8 @@ const T = '#cabinet-tabs ';
   await api('PATCH','/collections/users/records/'+dasha.id,{verified:true},t);
   await p.reload({waitUntil:'networkidle'}); await p.click('.tabs button:has-text("Настройки")');
   check('verified email shown as confirmed', (await p.textContent('.mail-row')).includes('✓ подтверждена') && !!(await p.$('.mail-ok')));
-  check('growth block with rules', !!(await p.$('.grow .grow-em')) && (await p.$$('.grow-how li')).length >= 8);
+  await p.click('.grow-cta'); await p.waitForSelector('#grow-ways');
+  check('"Растить персонажа" lists ways to grow with links', !!(await p.$('.grow .grow-em')) && (await p.$$('#grow-ways .way')).length >= 8 && !!(await p.$('#grow-ways a[href="/eko-test"]')));
   // challenge wizard: goal -> term -> habits
   await p.click('#challenges button:has-text("Создать челлендж")');
   await p.click('.ch-goal:has-text("Экология")');
