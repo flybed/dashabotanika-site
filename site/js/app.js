@@ -1155,8 +1155,8 @@ function openAccount(tab, tid){
         if (!COM.verified && COM.email) out.push(h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
           h('b',null,'Подтвердите почту'),
           h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
-          h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ e.target.disabled = true;
-            pb.collection('users').requestVerification(COM.email).then(()=>toast('Письмо отправлено, проверьте почту и папку «Спам»'),()=>{ e.target.disabled = false; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))));
+          h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
+            pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))));
         out.push(lists.stats, lists.level,
           h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
             h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('habits')},'Мои привычки'),
