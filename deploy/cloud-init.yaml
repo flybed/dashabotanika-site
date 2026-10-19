@@ -1,5 +1,5 @@
 #cloud-config
-# Timeweb Cloud, Ubuntu 24.04. Вставьте этот файл в поле «Cloud-init» при создании сервера.
+# Ubuntu 24.04. Вставьте этот файл в поле «Cloud-init» при создании сервера (если его нет — deploy/bootstrap.sh).
 # Если репозиторий приватный: перед вставкой замените строку GITHUB_TOKEN_HERE на read-only токен
 # (GitHub → Settings → Developer settings → Fine-grained token, только репозиторий
 # flybed/dashabotanika-site, права Contents: Read-only). В репозиторий токен не коммитить!
