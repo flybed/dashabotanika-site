@@ -153,8 +153,9 @@ function render(){
   app.replaceChildren(
     h('header',{class:'top'}, h('div',{class:'wrap'},
       h('a',{class:'logo',href:'/',html:LOGO+'<span>DashaBotanika</span>'}),
-      h('nav',{class:'nav','aria-label':'Разделы'}, NAV.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t))),
-      accountButton()
+      h('span',{style:'flex:1'}),
+      accountButton(),
+      siteMenu(path)
     )),
     h('main',null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'},
@@ -166,6 +167,24 @@ function render(){
   mountEditButton();
 }
 
+/* burger menu: all sections in a drop-down list, plus cabinet and sign-out */
+function siteMenu(path){
+  const btn = h('button',{type:'button',class:'burger','aria-label':'Меню','aria-expanded':'false','aria-controls':'site-menu'}, h('span'),h('span'),h('span'));
+  const tail = h('div',{class:'menu-tail'});
+  const panel = h('nav',{class:'menu',id:'site-menu','aria-label':'Разделы сайта',hidden:true},
+    NAV.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t)), tail);
+  live(()=>{
+    tail.replaceChildren(...(accState()==='member'
+      ? [h('a',{href:'/kabinet','aria-current':path==='/kabinet'?'page':null},'Личный кабинет'), h('button',{type:'button',class:'menu-out',onclick:logout},'Выйти из аккаунта')]
+      : [h('a',{href:'/kabinet'},'Войти или зарегистрироваться')]));
+  });
+  const set = open => { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.classList.toggle('open', open); };
+  btn.addEventListener('click', e=>{ e.stopPropagation(); set(panel.hidden); });
+  panel.addEventListener('click', e=>{ if (e.target.closest('a,button')) set(false); });
+  document.addEventListener('click', e=>{ if (!panel.hidden && !panel.contains(e.target)) set(false); });
+  document.addEventListener('keydown', e=>{ if (e.key==='Escape' && !panel.hidden){ set(false); btn.focus(); } });
+  return h('div',{class:'menu-wrap'}, btn, panel);
+}
 function hero(){
   return h('section',{class:'hero',id:'top'}, h('div',{class:'wrap'},
     h('div',null,

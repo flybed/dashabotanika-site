@@ -413,3 +413,18 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 @media (max-width:640px){.adm-rule{grid-template-columns:70px 1fr}.adm-rule input:nth-child(3){grid-column:1/-1}}
 .cab-head{flex-wrap:wrap}
 .cab-logout{align-self:flex-start}
+
+/* ---------- меню-бургер ---------- */
+.menu-wrap{position:relative;flex:none}
+.burger{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-content:center;gap:5px;cursor:pointer}
+.burger span{display:block;width:20px;height:2px;border-radius:2px;background:var(--ink);transition:transform .2s,opacity .2s}
+.burger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.burger.open span:nth-child(2){opacity:0}
+.burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.menu{position:absolute;right:0;top:calc(100% + 10px);width:min(300px,calc(100vw - 32px));max-height:calc(100vh - 100px);overflow:auto;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 40px -18px color-mix(in srgb,var(--ink) 50%,transparent);padding:8px;display:grid;gap:2px;z-index:40}
+.menu a,.menu-out{display:block;text-align:left;text-decoration:none;color:var(--ink);font-weight:700;font-size:16px;padding:10px 14px;border-radius:10px;border:0;background:none;cursor:pointer;font-family:inherit}
+.menu a:hover,.menu-out:hover{background:var(--soft)}
+.menu a[aria-current="page"]{color:var(--moss);background:color-mix(in srgb,var(--leaf) 14%,var(--surface))}
+.menu-tail{border-top:1px solid var(--line);margin-top:6px;padding-top:6px;display:grid;gap:2px}
+.menu-out{color:var(--clay)}
