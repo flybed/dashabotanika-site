@@ -1,0 +1,1683 @@
+<title>DashaBotanika</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,500;0,700;0,800;1,500&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style id="css">
+/* Layout: страница-гербарий — широкие «грядки»-секции на бумажном фоне, липкая навигация, карточки только у объектов (товары, кафе, вещи) */
+:root{
+  --paper:#EDE6D6; --surface:#F7F3EA; --ink:#232A1E; --muted:#61655A;
+  --moss:#3A6234; --on-moss:#FFFFFF; --leaf:#86A85C; --sun:#C9932E; --clay:#AD5E39;
+  --line:#D8CEB9; --soft:#E3DAC5;
+  --stone:#8D9187; --stone-hi:#C9CCC2; --stone-dk:#5E6359; --sand-deep:#D9CBAE;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .34 0 0 0 0 .22 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
+  --font-display:'Alegreya', Georgia, 'Times New Roman', serif;
+  --font-body:'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-hand:'Caveat', 'Comic Sans MS', cursive;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#17180F; --surface:#212219; --ink:#ECE5D4; --muted:#A8A390;
+  --moss:#9CC584; --on-moss:#12160D; --leaf:#7B9E52; --sun:#E2B45A; --clay:#DC8E63;
+  --line:#35362A; --soft:#1E1F16;
+  --stone:#5F6359; --stone-hi:#8F938A; --stone-dk:#3E4239; --sand-deep:#3A3527; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#17180F; --surface:#212219; --ink:#ECE5D4; --muted:#A8A390;
+  --moss:#9CC584; --on-moss:#12160D; --leaf:#7B9E52; --sun:#E2B45A; --clay:#DC8E63;
+  --line:#35362A; --soft:#1E1F16;
+  --stone:#5F6359; --stone-hi:#8F938A; --stone-dk:#3E4239; --sand-deep:#3A3527; color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{background:var(--paper) var(--grain);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--paper)}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--font-display);line-height:1.1;text-wrap:balance;margin:0}
+h2{font-size:clamp(30px,4.4vw,46px);font-weight:800}
+h3{font-size:22px;font-weight:700}
+p{margin:0}
+a{color:var(--moss)}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px;border-radius:6px}
+.hand{font-family:var(--font-hand);font-weight:700}
+.muted{color:var(--muted)}
+.eyebrow{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--clay)}
+.lead{max-width:62ch;color:var(--muted);font-size:18px}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:20px;min-height:60px}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:800;font-size:20px;text-decoration:none;color:var(--ink);white-space:nowrap}
+.logo svg{width:28px;height:28px}
+.nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}
+.nav::-webkit-scrollbar{display:none}
+.nav a{white-space:nowrap;text-decoration:none;color:var(--muted);font-weight:700;font-size:14px;padding:6px 10px;border-radius:999px}
+.nav a:hover{background:var(--soft);color:var(--ink)}
+
+/* hero */
+.hero{padding-block:clamp(40px,7vw,88px) clamp(32px,5vw,64px)}
+.hero .wrap{display:grid;grid-template-columns:1.25fr .9fr;gap:40px;align-items:center}
+.hero h1{font-size:clamp(40px,6.6vw,80px);font-weight:800;letter-spacing:-.01em}
+.hero h1 em{font-style:italic;font-weight:500;color:var(--moss)}
+.slogan{font-family:var(--font-hand);font-size:clamp(28px,3.6vw,40px);color:var(--clay);margin-top:18px;display:inline-block;position:relative}
+.slogan svg{position:absolute;left:0;right:0;bottom:-10px;width:100%;height:14px}
+.hero-intro{margin-top:26px;max-width:52ch;color:var(--muted);font-size:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:700;font-size:14px;text-decoration:none;color:var(--ink)}
+.chip:hover{border-color:var(--moss)}
+.planet{width:100%;max-width:400px;justify-self:center;aspect-ratio:1}
+.planet .sprout{stroke-dasharray:240;stroke-dashoffset:0;animation:grow 2.4s ease-out both}
+.planet .leafA,.planet .leafB{transform-box:fill-box;animation:sway 5s ease-in-out infinite}
+.planet .leafA{transform-origin:0% 100%}.planet .leafB{transform-origin:100% 100%;animation-delay:-2.5s}
+@keyframes grow{from{stroke-dashoffset:240}}
+@keyframes sway{50%{transform:rotate(-6deg)}}
+
+/* hero art: photo in a pebble, stones and a sprig */
+.brand{font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:.02em;color:var(--moss);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.brand::before{content:"";width:34px;height:2px;background:var(--sun);border-radius:2px}
+.hero-art{position:relative;width:100%;max-width:430px;justify-self:center;aspect-ratio:4/5}
+.pebble{position:absolute;inset:4% 3% 9% 7%;border-radius:58% 42% 52% 48% / 46% 55% 45% 54%;overflow:hidden;background:var(--sand-deep) var(--grain);box-shadow:0 34px 60px -34px color-mix(in srgb,var(--ink) 55%,transparent), inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent);animation:breathe 14s ease-in-out infinite}
+.pebble img{width:100%;height:100%;object-fit:cover;display:block}
+.pebble svg{width:100%;height:100%;display:block}
+@keyframes breathe{50%{border-radius:50% 50% 46% 54% / 54% 47% 53% 46%}}
+.hero-art .stones{position:absolute;left:-7%;bottom:-1%;width:50%;z-index:1}
+.hero-art .sprig{position:absolute;right:-6%;top:-3%;width:36%;z-index:1;transform-origin:20% 90%;animation:sway 7s ease-in-out infinite}
+.caption{position:absolute;right:2%;bottom:1%;z-index:2;font-family:var(--font-hand);font-size:26px;color:var(--clay);transform:rotate(-5deg)}
+.upl{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:3;white-space:nowrap}
+.about-photo{width:200px;aspect-ratio:4/5;border-radius:58% 42% 52% 48% / 46% 55% 45% 54%;overflow:hidden;background:var(--sand-deep) var(--grain)}
+.about-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:8px}
+.gallery figure{margin:0;position:relative;aspect-ratio:1;overflow:hidden;background:var(--sand-deep)}
+.gallery figure:nth-child(3n+1){border-radius:46% 54% 42% 58% / 52% 44% 56% 48%}
+.gallery figure:nth-child(3n+2){border-radius:24px 60px 30px 52px}
+.gallery figure:nth-child(3n){border-radius:55% 45% 60% 40% / 40% 58% 42% 60%}
+.gallery img{width:100%;height:100%;object-fit:cover;display:block}
+.gallery .x{position:absolute;top:8px;right:8px;background:var(--surface);border-radius:999px;width:28px;height:28px}
+.cairn{width:34px;height:34px;flex:none}
+
+/* sections */
+section.band{padding-block:clamp(48px,7vw,88px);border-top:1px solid var(--line)}
+section.band.alt{background:var(--soft) var(--grain);border-top:0;position:relative}
+section.band.alt::before{content:"";position:absolute;left:0;right:0;top:-23px;height:24px;background:var(--soft);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 24' preserveAspectRatio='none'%3E%3Cpath d='M0 24V14C120 4 240 2 380 10s260 14 420 4 300-14 400-6v16Z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 24' preserveAspectRatio='none'%3E%3Cpath d='M0 24V14C120 4 240 2 380 10s260 14 420 4 300-14 400-6v16Z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat}
+.sec-head{display:grid;gap:12px;margin-bottom:32px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;min-width:0;position:relative}
+.tag{align-self:flex-start;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--moss)}
+.ex{font-family:var(--font-hand);font-size:18px;color:var(--clay);position:absolute;top:10px;right:14px;transform:rotate(-4deg)}
+
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:10px 18px;font-weight:800;cursor:pointer;background:var(--moss);color:var(--on-moss);text-decoration:none}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--moss)}
+.btn.small{padding:6px 12px;font-size:14px}
+.btn.danger{background:transparent;color:var(--clay);border:1.5px solid var(--clay)}
+
+/* calculator */
+.calc{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
+.mat-list{display:grid;gap:10px}
+.mat{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.mat b{display:block;font-size:16px}
+.mat small{color:var(--muted);font-size:13px}
+.mark{font-variant-numeric:tabular-nums;font-size:12px;font-weight:800;color:var(--clay);margin-left:6px;white-space:nowrap}
+.stepper{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;background:var(--paper)}
+.stepper button{width:36px;height:36px;border:0;background:transparent;font-size:20px;font-weight:800;cursor:pointer;color:var(--moss)}
+.stepper button:hover{background:var(--soft)}
+.stepper input{width:54px;text-align:center;border:0;background:transparent;font-weight:800;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.result{position:sticky;top:84px;background:var(--moss);color:var(--on-moss);border-radius:20px;padding:24px;display:grid;gap:18px}
+.result h3{color:inherit}
+.result .big{font-family:var(--font-display);font-size:clamp(46px,6vw,64px);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:color-mix(in srgb,var(--on-moss) 12%,transparent);border-radius:12px;padding:12px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile span{font-size:13px;opacity:.85}
+.equiv{font-family:var(--font-hand);font-size:24px;line-height:1.25}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.howto{margin-top:40px}
+details.how{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 16px}
+details.how+details.how{margin-top:8px}
+details.how summary{cursor:pointer;padding:14px 0;font-weight:800;list-style:none;display:flex;justify-content:space-between;gap:12px}
+details.how summary::after{content:"+";color:var(--moss);font-size:22px;line-height:1}
+details.how[open] summary::after{content:"–"}
+details.how ul{margin:0 0 16px;padding-left:20px;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin-top:14px;max-width:70ch}
+
+/* habits */
+.habits{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;overflow-x:auto}
+.hgrid{width:100%;border-collapse:separate;border-spacing:4px;min-width:560px}
+.hgrid th{font-size:13px;font-weight:800;color:var(--muted);text-align:center;padding:4px}
+.hgrid th.today{color:var(--clay)}
+.hgrid td:first-child{font-weight:700;padding-right:8px;min-width:180px}
+.hgrid td{text-align:center}
+.cell{width:40px;height:40px;border-radius:12px;border:1.5px dashed var(--line);background:transparent;cursor:pointer;display:inline-grid;place-items:center;transition:transform .15s}
+.cell:hover{border-color:var(--leaf)}
+.cell.on{border:0;background:var(--leaf);transform:scale(1.04)}
+.cell svg{width:22px;height:22px}
+.hbar{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stats{display:flex;gap:24px;flex-wrap:wrap}
+.stats b{font-family:var(--font-display);font-size:30px;font-variant-numeric:tabular-nums;color:var(--moss);display:block;line-height:1}
+.stats span{font-size:13px;color:var(--muted)}
+.weeknav{display:flex;gap:6px;align-items:center;font-weight:700}
+.addrow{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.addrow input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:999px;padding:9px 16px;background:var(--paper)}
+.x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px;padding:0 6px}
+.x:hover{color:var(--clay)}
+
+/* fashion table */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.fab{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
+table.fab th,table.fab td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+table.fab th{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+table.fab tr:last-child td{border-bottom:0}
+.leaves{color:var(--leaf);letter-spacing:2px;white-space:nowrap}
+.tip-num{font-family:var(--font-display);font-size:34px;font-weight:800;color:var(--sun);line-height:1}
+
+/* food */
+.months{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.months button{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;cursor:pointer}
+.months button[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:#2A1C05}
+.season{display:flex;flex-wrap:wrap;gap:8px;min-height:44px}
+.season span{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-weight:700}
+.recipe ol{margin:4px 0 0;padding-left:20px;color:var(--muted)}
+
+/* about/contacts */
+.about{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:start}
+.mono{width:120px;height:120px;border-radius:50%;background:var(--leaf);color:var(--on-moss);display:grid;place-items:center;font-family:var(--font-display);font-size:56px;font-weight:800}
+.about-text{white-space:pre-line;max-width:62ch;font-size:18px}
+.contact{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.contact .val{font-weight:800;user-select:all;word-break:break-all}
+footer{padding-block:40px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+
+/* edit mode */
+.edit-only{display:none!important}
+body.editing .edit-only{display:revert!important}
+body.editing .edit-only.flex{display:flex!important}
+.editbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--ink);color:var(--paper);padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));padding-top:12px}
+.editbar .wrap{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.editbar .btn.ghost{color:var(--paper);border-color:color-mix(in srgb,var(--paper) 40%,transparent)}
+body.editing{padding-bottom:84px}
+.form{background:var(--surface);border:1.5px dashed var(--moss);border-radius:var(--r);padding:18px;display:grid;gap:10px;margin-top:16px}
+.form label{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--muted)}
+.form input,.form textarea,.form select{border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--paper);font-weight:400;font-size:16px;color:var(--ink)}
+.form textarea{min-height:90px;resize:vertical}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.del{position:absolute;top:10px;right:10px}
+body.editing .ex{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));background:var(--moss);color:var(--on-moss);padding:10px 18px;border-radius:999px;font-weight:800;z-index:50}
+.empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:24px;color:var(--muted);text-align:center}
+
+/* photos in sections */
+.split{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.5fr);gap:32px;align-items:start}
+.split.rev{grid-template-columns:minmax(0,1.5fr) minmax(0,.85fr)}
+.ph{position:relative;margin:0}
+.ph .frame{overflow:hidden;background:var(--sand-deep) var(--grain);box-shadow:0 28px 50px -30px color-mix(in srgb,var(--ink) 60%,transparent)}
+.ph .frame img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.arch .frame{border-radius:999px 999px 22px 22px;aspect-ratio:3/4}
+.ph.pebble2 .frame{border-radius:46% 54% 42% 58% / 52% 44% 56% 48%;aspect-ratio:4/5}
+.ph.round .frame{border-radius:50%;aspect-ratio:1}
+.ph figcaption{font-family:var(--font-hand);font-size:24px;color:var(--clay);margin-top:8px;text-align:center;transform:rotate(-2deg)}
+.ph .stones{position:absolute;width:44%;left:-8%;bottom:28px}
+.ph .btn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.about .ph{width:260px}
+
+/* header account */
+.acc-btn{white-space:nowrap;flex:none}
+.acc-btn .dot{width:22px;height:22px;border-radius:50%;background:var(--leaf);color:var(--on-moss);display:inline-grid;place-items:center;font-size:12px;font-weight:800}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:60;background:color-mix(in srgb,var(--ink) 45%,transparent);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--paper) var(--grain);color:var(--ink);border-radius:22px;width:min(640px,100%);max-height:min(86vh,820px);overflow:auto;padding:24px;display:grid;gap:16px;position:relative;box-shadow:0 30px 80px -20px rgba(0,0,0,.45)}
+.sheet .close{position:absolute;top:12px;right:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tabs button{border:0;background:transparent;font-weight:800;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--moss);color:var(--on-moss)}
+.kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kv div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.kv b{display:block;font-family:var(--font-display);font-size:26px;color:var(--moss);font-variant-numeric:tabular-nums;line-height:1.1}
+.kv span{font-size:12px;color:var(--muted);font-weight:700}
+.list{display:grid;gap:8px}
+.li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px}
+.li .meta{font-size:13px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.status{font-size:12px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--soft)}
+.status.accepted{background:var(--leaf);color:var(--on-moss)}
+.status.declined{background:var(--soft);color:var(--clay)}
+
+/* comments */
+.cm{border-top:1px dashed var(--line);margin-top:6px;padding-top:8px;display:grid;gap:8px}
+.cm-toggle{border:0;background:transparent;color:var(--moss);font-weight:800;cursor:pointer;padding:0;justify-self:start;font-size:14px}
+.cm-list{display:grid;gap:8px}
+.cm-item{font-size:14px;background:var(--paper);border-radius:10px;padding:8px 10px}
+.cm-item b{font-size:13px}
+.cm-item .meta{color:var(--muted);font-size:12px}
+.cm-form{display:flex;gap:6px}
+.cm-form input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;background:var(--paper);font-size:14px}
+.hint{font-size:13px;color:var(--muted)}
+.linkish{border:0;background:transparent;color:var(--moss);font-weight:800;cursor:pointer;padding:0;text-decoration:underline;font-size:inherit}
+
+/* articles */
+.art-body{white-space:pre-line;font-size:15px}
+.date{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* reviews */
+.rv-grid{columns:3 280px;column-gap:16px}
+.rv-grid .card{break-inside:avoid;margin-bottom:16px}
+.stars{color:var(--leaf);letter-spacing:2px}
+.rate{display:flex;gap:4px}
+.rate button{border:0;background:transparent;font-size:26px;cursor:pointer;color:var(--line);padding:0 2px;line-height:1}
+.rate button.on{color:var(--leaf)}
+
+/* game */
+.game{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:20px;align-items:start}
+.g-stage{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:var(--sand-deep)}
+.g-stage canvas{display:block;width:100%;height:auto;touch-action:none;cursor:pointer}
+.g-over{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;background:color-mix(in srgb,var(--paper) 82%,transparent);backdrop-filter:blur(3px)}
+.g-over>div{display:grid;gap:12px;justify-items:center;max-width:420px}
+.g-over .big{font-family:var(--font-display);font-size:56px;font-weight:800;color:var(--moss);line-height:1}
+.legend{display:grid;gap:8px}
+.legend div{display:flex;gap:10px;align-items:center;font-size:14px}
+.legend i{width:22px;height:22px;border-radius:6px;flex:none}
+.kbd{display:inline-block;border:1.5px solid var(--line);border-bottom-width:3px;border-radius:6px;padding:0 6px;font-size:13px;font-weight:800;background:var(--surface)}
+
+/* exam */
+.exam{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:start}
+.qbox{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:24px;display:grid;gap:14px;min-height:340px;align-content:start}
+.prog{height:8px;border-radius:999px;background:var(--soft);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--leaf);border-radius:999px;transition:width .3s}
+.opts{display:grid;gap:8px}
+.opt{text-align:left;border:1.5px solid var(--line);background:var(--paper);border-radius:12px;padding:12px 14px;cursor:pointer;font-weight:700}
+.opt:hover:not([disabled]){border-color:var(--moss)}
+.opt.right{border-color:var(--moss);background:color-mix(in srgb,var(--leaf) 22%,var(--paper))}
+.opt.wrong{border-color:var(--clay);background:color-mix(in srgb,var(--clay) 14%,var(--paper))}
+.opt[disabled]{cursor:default}
+.explain{border-left:3px solid var(--sun);padding:4px 0 4px 12px;color:var(--muted);font-size:15px}
+.cert{border:2px solid var(--moss);border-radius:20px;padding:24px;text-align:center;display:grid;gap:8px;background:var(--surface) var(--grain);position:relative}
+.cert .seal{width:74px;height:74px;justify-self:center;border-radius:50%;background:var(--leaf);color:var(--on-moss);display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:24px;box-shadow:0 0 0 6px color-mix(in srgb,var(--leaf) 30%,transparent)}
+
+@media (max-width:900px){
+  .split,.split.rev,.game,.exam{grid-template-columns:1fr}
+  .split .ph,.split.rev .ph{max-width:340px;justify-self:center;width:100%}
+  .kv{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hero .wrap,.calc{grid-template-columns:1fr}
+  .hero-art{max-width:340px}
+  .result{position:static}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:600px){
+  body{font-size:16px}
+  .g2,.g3,.g4,.fields{grid-template-columns:1fr}
+  .about{grid-template-columns:1fr}
+  .mono{width:88px;height:88px;font-size:40px}
+  .about-photo{width:160px}
+  .logo span{display:none}
+  .mat{grid-template-columns:1fr}
+}
+</style>
+<script type="application/json" id="site-data">{"about": {"name": "Даша", "text": "Привет! Я верю, что забота о планете начинается с маленьких ежедневных решений: что положить в тарелку, во что одеться, куда отнести пустую бутылку.\n\nЗдесь я собираю то, что пробую сама: полезные вещи, вкусные сезонные рецепты, любимые кафе и честные советы без занудства.\n\n(Этот текст можно заменить в режиме редактирования.)"}, "contacts": {"email": "", "telegram": "dashabotanikarecipes", "instagram": "@dashabotanika", "note": "Пишите, если хотите что-то предложить для барахолки, посоветовать кафе или просто поболтать об эко-привычках."}, "products": [{"id": "p1", "title": "Шопер из плотного хлопка", "cat": "Покупки", "replaces": "Пластиковые пакеты", "why": "Один шопер за год заменяет сотни пакетов. Выбирайте плотный и складной, чтобы всегда был в сумке."}, {"id": "p2", "title": "Сетчатые мешочки для овощей", "cat": "Покупки", "replaces": "Фасовочные пакеты", "why": "Лёгкие, их можно взвешивать на весах в магазине и стирать вместе с бельём."}, {"id": "p3", "title": "Бамбуковая зубная щётка", "cat": "Ванная", "replaces": "Пластиковая щётка", "why": "Ручка из бамбука разлагается. Щетинку перед утилизацией выдерните щипцами."}, {"id": "p4", "title": "Твёрдый шампунь", "cat": "Ванная", "replaces": "Шампунь во флаконе", "why": "Без пластиковой упаковки, кусочек на 50–80 мытьёв, удобно в поездках."}, {"id": "p5", "title": "Восковые салфетки", "cat": "Кухня", "replaces": "Пищевая плёнка", "why": "Ткань с пчелиным воском обнимает миску или сыр, моется прохладной водой и служит около года."}, {"id": "p6", "title": "Термокружка", "cat": "В дороге", "replaces": "Одноразовые стаканы", "why": "Многие кофейни наливают в свою кружку и даже дают скидку."}, {"id": "p7", "title": "Стеклянные контейнеры", "cat": "Кухня", "replaces": "Пластиковые ланчбоксы", "why": "Не впитывают запахи, подходят для духовки и микроволновки, служат годами."}, {"id": "p8", "title": "Многоразовые диски для снятия макияжа", "cat": "Ванная", "replaces": "Ватные диски", "why": "Набор из 10 дисков заменяет тысячи ватных. Стираются в мешочке для белья."}], "cafes": [{"id": "c1", "name": "Название кафе", "city": "Город", "address": "Улица, дом", "kind": "Веган-кафе", "note": "Что здесь особенного: своя кружка со скидкой, сезонное меню, без одноразовой посуды.", "example": true}, {"id": "c2", "name": "Название кофейни", "city": "Город", "address": "Улица, дом", "kind": "Кофейня", "note": "Например: овощи от местных фермеров, кофейная гуща идёт на удобрение.", "example": true}, {"id": "c3", "name": "Название бистро", "city": "Город", "address": "Улица, дом", "kind": "Бистро", "note": "Например: можно забрать остатки еды в свой контейнер.", "example": true}], "market": [{"id": "m1", "title": "Льняное платье, размер M", "kind": "Продам", "price": "1500 ₽", "condition": "Отличное", "note": "Пример объявления: замените своим.", "example": true}, {"id": "m2", "title": "Стеклянные банки 0,5 л, 12 шт.", "kind": "Отдам даром", "price": "", "condition": "Чистые", "note": "Пример объявления: для заготовок или хранения круп.", "example": true}, {"id": "m3", "title": "Книги о садоводстве", "kind": "Обмен", "price": "", "condition": "Хорошее", "note": "Пример объявления: меняю на комнатные растения.", "example": true}], "photos": {"hero": "e54d3531a50a0eb963b14740928eb054", "about": "846dfdb497b6ed3afa8c742b5674c983", "cafes": "ede5749747db8d85c53841f2c383b48e", "fashion": "c4d30eeeb0bfc32bef67da18ae4f36e7", "gallery": ["f1ff4c1535cc7fa9f9c21fc5057b2bec"]}, "articles": [{"id": "a1", "cat": "Статья", "date": "2026-10-19", "title": "Сортировка дома за один вечер", "lead": "Чтобы начать сортировать, не нужны пять вёдер и идеальная кухня. Хватит двух контейнеров и пары привычек.", "body": "1. Поставьте рядом с обычным ведром второе, для «сухого» вторсырья: пластик, бумага, металл, стекло. Разобрать их можно позже, уже перед походом к контейнерам.\n\n2. Ополаскивайте упаковку сразу после того, как она опустела. Сухая и чистая упаковка не пахнет и не портит остальное вторсырьё.\n\n3. Сплющивайте бутылки и коробки: так в контейнер помещается в три раза больше.\n\n4. Узнайте, что принимают рядом с домом. Карты пунктов приёма есть почти в каждом городе. Начните с того, что сдать проще всего, например бумаги и бутылок ПЭТ.\n\n5. Батарейки и лампочки складывайте в отдельную банку и раз в пару месяцев относите в бокс в супермаркете.\n\nГлавное правило: лучше сортировать два вида отходов каждый день, чем все семь один раз в жизни."}, {"id": "a2", "cat": "Статья", "date": "2026-10-19", "title": "Капсульный гардероб без жертв", "lead": "Меньше вещей, но больше образов. Как собрать гардероб, который сочетается сам с собой.", "body": "Капсула — это 30–40 вещей в одной цветовой гамме, которые легко комбинировать между собой.\n\nС чего начать:\n— Достаньте всё из шкафа и отложите то, что не носили больше года.\n— Выберите 2–3 базовых цвета и 1–2 акцентных.\n— Посчитайте, сколько образов даёт каждая вещь. Если меньше трёх, это кандидат на барахолку.\n— Новые покупки проверяйте правилом 30 носок.\n\nВещи, которые не вошли в капсулу, можно продать, обменять или отдать. Так у них начнётся вторая жизнь, а у вас освободится место."}, {"id": "a3", "cat": "Новость", "date": "2026-10-19", "title": "DashaBotanika открылась!", "lead": "Здесь будут эко-рецепты, полезные находки, любимые кафе и барахолка. Регистрируйтесь, чтобы оставлять отзывы и предлагать свои темы.", "body": "Привет! Этот сайт про то, как жить бережнее и при этом вкусно, красиво и с удовольствием.\n\nЧто уже можно сделать:\n— посчитать пользу от переработки в калькуляторе;\n— сыграть в игру и рассортировать мусор на скорость;\n— сдать эко-экзамен и получить сертификат;\n— отмечать эко-привычки в личном трекере.\n\nЗарегистрируйтесь, чтобы писать комментарии, оставлять отзывы и предлагать новости и статьи. Самые интересные предложения появятся в журнале."}]}</script>
+<div id="app"></div>
+<script id="appjs">
+(function(){
+"use strict";
+const DATA_EL = document.getElementById('site-data');
+let STATE = JSON.parse(DATA_EL.textContent);
+let EDIT = { on:false, dirty:false, art:null, assets:null };
+function normalize(){ STATE.photos = Object.assign({hero:null, about:null, gallery:[]}, STATE.photos||{}); if (!Array.isArray(STATE.moderators)) STATE.moderators = []; if (!Array.isArray(STATE.articles)) STATE.articles = []; }
+normalize();
+
+/* ---------- tiny DOM helper ---------- */
+function h(tag, attrs, ...kids){
+  const el = document.createElement(tag);
+  if (attrs) for (const k in attrs){
+    const v = attrs[k];
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'html') el.innerHTML = v; // only for static, trusted markup
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()){
+    if (c == null || c === false) continue;
+    el.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return el;
+}
+const fmt = (n, d=0) => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:d}).format(n);
+const uid = () => Math.random().toString(36).slice(2,9);
+const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z" fill="currentColor" opacity=".9"/><path d="M5 19 13 11" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+/* ---------- static content ---------- */
+const NAV = [['calc','Переработка'],['game','Игра'],['exam','Эко-экзамен'],['habits','Привычки'],['goods','Товары'],['fashion','Мода'],['food','Еда'],['cafes','Кафе'],['market','Барахолка'],['journal','Журнал'],['reviews','Отзывы'],['about','Про меня'],['contacts','Контакты']];
+
+const MATERIALS = [
+  {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
+   tips:['Сдавайте сухим и чистым: жирная коробка из-под пиццы не перерабатывается.','Коробки разберите и сложите плоско.','Чеки и бумажные стаканчики не подходят: в них пластик или термослой.']},
+  {k:'pet', name:'Пластиковые бутылки', mark:'♳ 1 PET', unit:'шт. в неделю', per:52, w:.03, step:1, def:6, co2:1.5, kwh:5.8,
+   tips:['Ополосните и сплющите: в контейнер влезет втрое больше.','Крышки собирайте отдельно, у них другой пластик (♷ 5 PP).','Смотрите на треугольник с цифрой на дне.']},
+  {k:'hdpe', name:'Флаконы и канистры', mark:'♴ 2 HDPE · ♷ 5 PP', unit:'шт. в неделю', per:52, w:.05, step:1, def:2, co2:1.3, kwh:4.5,
+   tips:['Флаконы от шампуня, бытовой химии и молока часто из ПНД (♴ 2).','Удалите остатки содержимого, этикетку снимать не обязательно.','Пластик ♸ 3 PVC и ♹ 6 PS принимают редко: проверьте в пункте.']},
+  {k:'glass', name:'Стеклянные банки и бутылки', mark:'GL 70–72', unit:'шт. в неделю', per:52, w:.3, step:1, def:3, co2:.3, kwh:.7,
+   tips:['Стекло перерабатывается бесконечно без потери качества.','Зеркала, посуда, лампочки и оконное стекло к таре не относятся.','Крышки снимите: металлические идут в металл.']},
+  {k:'alu', name:'Алюминиевые банки', mark:'ALU 41', unit:'шт. в неделю', per:52, w:.015, step:1, def:4, co2:9, kwh:14,
+   tips:['Переработка алюминия экономит до 95% энергии по сравнению с новым.','Проверка магнитом: алюминий не магнитится.','Банку можно смять, так она займёт меньше места.']},
+  {k:'tin', name:'Жестяные банки', mark:'FE 40', unit:'шт. в неделю', per:52, w:.06, step:1, def:1, co2:1.5, kwh:1.8,
+   tips:['Банки из-под консервов магнитятся: это сталь.','Ополосните от остатков еды.','Острую крышку вдавите внутрь банки.']},
+  {k:'textile', name:'Одежда и текстиль', mark:'TEX 60–61', unit:'вещей в месяц', per:12, w:.4, step:1, def:1, co2:3.4, kwh:0,
+   tips:['Целые вещи лучше отдать, продать или обменять: см. «Барахолку».','Изношенный текстиль принимают контейнеры фондов и некоторые магазины одежды.','Сдавайте чистым и сухим, в пакете.']},
+  {k:'bat', name:'Батарейки', mark:'опасные отходы', unit:'шт. в месяц', per:12, w:.023, step:1, def:2, co2:0, kwh:0, special:true,
+   tips:['Батарейки нельзя выбрасывать в общий мусор: в них тяжёлые металлы.','Боксы для батареек есть во многих супермаркетах и магазинах электроники.','Перед сдачей заклейте контакты литиевых батарей скотчем.']}
+];
+const PRESETS = {
+  'Я одна': {paper:.5,pet:3,hdpe:1,glass:1,alu:2,tin:1,textile:0,bat:1},
+  'Типичная семья': {paper:1.5,pet:6,hdpe:2,glass:3,alu:4,tin:1,textile:1,bat:2},
+  'Большая семья': {paper:3,pet:12,hdpe:4,glass:6,alu:8,tin:3,textile:2,bat:4}
+};
+
+const DEFAULT_HABITS = [
+  {id:'bag',name:'Шопер вместо пакета'},
+  {id:'cup',name:'Своя кружка или бутылка'},
+  {id:'sort',name:'Рассортировала отходы'},
+  {id:'veg',name:'День без мяса'},
+  {id:'walk',name:'Пешком, на велосипеде или транспорте'},
+  {id:'shower',name:'Душ до 5 минут'}
+];
+
+const FASHION_TIPS = [
+  ['Правило 30 носок','Перед покупкой спросите себя: надену ли я эту вещь хотя бы 30 раз? Если нет, лучше пройти мимо.'],
+  ['Секонд-хенд и свопы','Вещь с историей экономит воду, краски и энергию на производство новой. Свопы с подругами ещё и весело.'],
+  ['Капсульный гардероб','30–40 вещей, которые сочетаются между собой, дают больше образов, чем шкаф, набитый случайными покупками.'],
+  ['Ремонт и апсайкл','Новая пуговица, заплатка или вышивка продлевают жизнь вещи и делают её единственной в своём роде.'],
+  ['Стирка при 30°','Холодная стирка бережёт ткань и энергию. Сушите на воздухе: сушильная машина изнашивает волокна.'],
+  ['Аксессуары с умом','Сумки из переработанных материалов, винтажные украшения, часы, которые можно ремонтировать.']
+];
+const FABRICS = [
+  ['Лён','Растёт почти без полива и пестицидов, очень прочный','Мнётся, но это его шарм',5],
+  ['Конопля','Неприхотлива, улучшает почву, ткань крепкая и дышит','Пока редко встречается',5],
+  ['Органический хлопок','Без пестицидов и синтетических удобрений','Всё ещё много воды',4],
+  ['Лиоцелл (тенсел)','Из древесины, растворитель используется по замкнутому циклу','Важно, откуда сырьё',4],
+  ['Переработанный полиэстер','Вторая жизнь пластиковых бутылок','При стирке выделяет микропластик',3],
+  ['Обычный хлопок','Мягкий, приятный к телу','Около 2 700 л воды на одну футболку',2],
+  ['Полиэстер','Дешёвый и прочный','Делается из нефти, микропластик, не разлагается',1]
+];
+
+const SEASON = [
+  ['Янв',['капуста','морковь','свёкла','картофель','лук','яблоки из хранилищ','квашеная капуста']],
+  ['Фев',['капуста','свёкла','морковь','редька','проростки','клюква мороженая']],
+  ['Мар',['зелень с подоконника','капуста','свёкла','редька','проростки','квашеные овощи']],
+  ['Апр',['щавель','черемша','крапива','зелёный лук','редис']],
+  ['Май',['щавель','крапива','ревень','редис','спаржа','укроп']],
+  ['Июн',['клубника','черешня','молодой картофель','огурцы','кабачки','зелень']],
+  ['Июл',['малина','смородина','черника','вишня','огурцы','горошек','кабачки']],
+  ['Авг',['помидоры','кукуруза','перец','сливы','яблоки','арбузы','грибы']],
+  ['Сен',['яблоки','груши','тыква','брусника','грибы','баклажаны','виноград']],
+  ['Окт',['тыква','яблоки','клюква','брусника','облепиха','капуста','свёкла','топинамбур']],
+  ['Ноя',['капуста','морковь','свёкла','тыква','клюква','хурма','редька']],
+  ['Дек',['капуста','корнеплоды','квашеная капуста','мандарины','хурма','гранаты']]
+];
+const RECIPES = [
+  ['Бульон из очистков','30 минут',['Складывайте в пакет в морозилке луковую шелуху, морковные хвостики, стебли петрушки и укропа.','Когда наберётся полный пакет, залейте 2 л воды, добавьте лавровый лист и перец горошком.','Варите 40 минут на слабом огне и процедите. Бульон хранится в холодильнике до 4 дней.']],
+  ['Чипсы из яблочной кожуры','20 минут',['Кожуру от 4–5 яблок перемешайте с ложкой мёда и щепоткой корицы.','Разложите в один слой на противне с пергаментом.','Сушите при 120° 15–20 минут, пока не станут хрустящими.']],
+  ['Тыквенный суп и семечки','45 минут',['Мякоть тыквы запеките с луком и морковью при 200° 25 минут, пробейте блендером с бульоном.','Семечки отмойте от волокон, обсушите, сбрызните маслом и посолите.','Обжарьте семечки в духовке при 160° 15 минут и посыпьте ими суп.']]
+];
+
+/* ---------- habits storage (db for signed-in, localStorage otherwise) ---------- */
+const LS_KEY = 'planet-habits-v1';
+let HAB = { habits: DEFAULT_HABITS.slice(), log: {} };
+let habRef = null, habTimer = null;
+function lsRead(){ try{ const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+function lsWrite(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(HAB)); }catch(e){} }
+function saveHabits(){
+  lsWrite();
+  if (!habRef) return;
+  clearTimeout(habTimer);
+  habTimer = setTimeout(()=>{ habRef.set(JSON.parse(JSON.stringify(HAB))).catch(()=>{ habRef = null; }); }, 800);
+}
+const stored = lsRead(); if (stored && stored.habits) HAB = stored;
+
+/* ---------- dates ---------- */
+const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function mondayOf(d){ const x = new Date(d); x.setHours(0,0,0,0); const wd = (x.getDay()+6)%7; x.setDate(x.getDate()-wd); return x; }
+let weekStart = mondayOf(new Date());
+const DOW = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+/* ---------- page shell ---------- */
+const app = document.getElementById('app');
+function planetSVG(){
+  return '<svg class="planet" viewBox="0 0 400 400" role="img" aria-label="Планета с ростком"><defs><clipPath id="pc"><circle cx="200" cy="230" r="150"/></clipPath></defs>'+
+  '<circle cx="200" cy="230" r="150" fill="var(--leaf)" opacity=".28"/>'+
+  '<g clip-path="url(#pc)"><path d="M40 210c40-30 80 10 120-10s60-50 110-30 70 40 100 20v200H40Z" fill="var(--moss)" opacity=".55"/><path d="M40 300c50-20 90 20 150 0s90-30 170-5v100H40Z" fill="var(--moss)" opacity=".8"/></g>'+
+  '<circle cx="200" cy="230" r="150" fill="none" stroke="var(--moss)" stroke-width="3"/>'+
+  '<path class="sprout" d="M200 82c0-30 2-50 0-74" stroke="var(--moss)" stroke-width="6" stroke-linecap="round" fill="none" transform="translate(0 0)"/>'+
+  '<path class="leafA" d="M202 40c18-26 48-30 68-24-6 26-34 44-68 24Z" fill="var(--leaf)"/>'+
+  '<path class="leafB" d="M198 60c-16-24-44-28-62-22 6 24 32 40 62 22Z" fill="var(--moss)"/>'+
+  '<circle cx="330" cy="70" r="26" fill="var(--sun)" opacity=".9"/></svg>';
+}
+const LOGO = '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="18" r="12" fill="var(--leaf)" opacity=".35"/><circle cx="16" cy="18" r="12" fill="none" stroke="var(--moss)" stroke-width="2"/><path d="M16 12c0-5 3-8 9-8-1 6-4 8-9 8Z" fill="var(--moss)"/></svg>';
+
+function sectionHead(eyebrow, title, lead){
+  return h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},eyebrow), h('h2',null,title), lead ? h('p',{class:'lead'},lead) : null);
+}
+
+function render(){
+  LIVE = [];
+  app.replaceChildren(
+    h('header',{class:'top'}, h('div',{class:'wrap'},
+      h('a',{class:'logo',href:'#top',html:LOGO+'<span>DashaBotanika</span>'}),
+      h('nav',{class:'nav','aria-label':'Разделы'}, NAV.map(([id,t])=>h('a',{href:'#'+id},t))),
+      accountButton()
+    )),
+    hero(), calcSection(), gameSection(), examSection(), habitsSection(), goodsSection(), fashionSection(), foodSection(), cafesSection(), marketSection(), journalSection(), reviewsSection(), aboutSection(), contactsSection(),
+    h('footer',null, h('div',{class:'wrap'},
+      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета'),
+      h('span',{id:'edit-slot'})
+    )),
+    editBar()
+  );
+  mountEditButton();
+}
+
+function hero(){
+  return h('section',{class:'hero',id:'top'}, h('div',{class:'wrap'},
+    h('div',null,
+      h('div',{class:'brand'},'DashaBotanika'),
+      h('h1',{html:'Эко: еда, быт, <em>мода</em>, образ жизни!'}),
+      h('div',{class:'slogan',html:'Разумный человек — счастливая планета<svg viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9c60-6 130-8 294-2" stroke="var(--sun)" stroke-width="4" fill="none" stroke-linecap="round"/></svg>'}),
+      h('p',{class:'hero-intro'},'Без занудства и чувства вины, о простых шагах, которые делают жизнь вкуснее, красивее и чище. Посчитайте пользу от переработки, сыграйте в эко-уборку, сдайте эко-экзамен и загляните на барахолку.'),
+      h('div',{class:'chips'}, [['game','Сыграть в эко-уборку'],['exam','Сдать эко-экзамен'],['calc','Посчитать пользу'],['habits','Мой эко-челлендж']].map(([id,t])=>h('a',{class:'chip',href:'#'+id},t)))
+    ),
+    heroArt()
+  ));
+}
+
+/* ---------- photos & natural elements ---------- */
+const STONE_GRAD = '<defs><radialGradient id="stg" cx="35%" cy="28%" r="80%"><stop offset="0" style="stop-color:var(--stone-hi)"/><stop offset=".65" style="stop-color:var(--stone)"/><stop offset="1" style="stop-color:var(--stone-dk)"/></radialGradient><radialGradient id="stg2" cx="40%" cy="25%" r="85%"><stop offset="0" style="stop-color:var(--sand-deep)"/><stop offset="1" style="stop-color:var(--stone)"/></radialGradient></defs>';
+const STONES = '<svg class="stones" viewBox="0 0 220 120" aria-hidden="true">'+STONE_GRAD+
+  '<ellipse cx="110" cy="112" rx="100" ry="8" style="fill:var(--ink)" opacity=".12"/>'+
+  '<path d="M18 104c-6-22 14-40 44-42 34-2 58 12 56 32-2 16-26 20-54 18-24-1-42-1-46-8Z" fill="url(#stg)"/>'+
+  '<path d="M104 106c-4-18 10-32 34-34 30-3 62 6 64 24 1 12-18 16-48 15-28 0-46 3-50-5Z" fill="url(#stg2)"/>'+
+  '<path d="M70 66c-4-14 6-24 22-26 18-2 34 4 34 16 0 10-14 14-30 14-14 0-24 2-26-4Z" fill="url(#stg)"/></svg>';
+const SPRIG = '<svg class="sprig" viewBox="0 0 140 180" aria-hidden="true"><path d="M30 176C46 128 70 76 116 8" style="stroke:var(--moss)" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+  [[44,140,-40],[58,112,30],[66,96,-48],[80,74,24],[88,58,-50],[100,38,20],[108,22,-46]].map(([x,y,r],i)=>'<ellipse cx="'+x+'" cy="'+y+'" rx="'+(16-i)+'" ry="'+(8-i*0.5)+'" transform="rotate('+r+' '+x+' '+y+') translate('+(r>0?12:-12)+' 0)" style="fill:'+(i%2?'var(--leaf)':'var(--moss)')+'" opacity=".92"/>').join('')+'</svg>';
+const CAIRN_SCENE = '<svg viewBox="0 0 400 500" aria-label="Пирамидка из камней на песке" role="img">'+STONE_GRAD+
+  '<path d="M0 380c80-24 150-6 220-18s120-26 180-8v146H0Z" style="fill:var(--soft)" opacity=".9"/>'+
+  '<path d="M0 420c90-18 170 4 250-8s110-16 150-6v94H0Z" style="fill:var(--paper)" opacity=".8"/>'+
+  '<ellipse cx="200" cy="392" rx="120" ry="12" style="fill:var(--ink)" opacity=".12"/>'+
+  '<ellipse cx="200" cy="364" rx="104" ry="32" fill="url(#stg)"/>'+
+  '<ellipse cx="206" cy="306" rx="80" ry="27" fill="url(#stg2)"/>'+
+  '<ellipse cx="196" cy="256" rx="60" ry="22" fill="url(#stg)"/>'+
+  '<ellipse cx="202" cy="214" rx="42" ry="17" fill="url(#stg2)"/>'+
+  '<path d="M202 197c-2-30 4-56 22-80" style="stroke:var(--moss)" stroke-width="4" fill="none" stroke-linecap="round"/>'+
+  '<path d="M222 126c14-22 40-26 58-20-6 22-30 36-58 20Z" style="fill:var(--leaf)"/>'+
+  '<path d="M210 158c-14-20-38-24-54-18 6 20 28 32 54 18Z" style="fill:var(--moss)"/>'+
+  '<circle cx="318" cy="92" r="30" style="fill:var(--sun)" opacity=".85"/></svg>';
+const CAIRN_ICON = '<svg class="cairn" viewBox="0 0 34 34" aria-hidden="true"><ellipse cx="17" cy="28" rx="12" ry="4.5" style="fill:var(--stone)"/><ellipse cx="17.5" cy="20.5" rx="9" ry="3.8" style="fill:var(--stone-hi)"/><ellipse cx="16.5" cy="14" rx="6.5" ry="3" style="fill:var(--stone)"/><path d="M17 11c0-4 2-7 6-8-1 4-3 6-6 8Z" style="fill:var(--moss)"/></svg>';
+const photoURL = id => '/_blob/' + id;
+function photoImg(id, alt, fallbackHTML){
+  const img = h('img',{src:photoURL(id), alt, loading:'lazy'});
+  img.addEventListener('error',()=>{ const f=h('div',{html:fallbackHTML||'',style:'width:100%;height:100%'}); img.replaceWith(f); });
+  return img;
+}
+function pickAndUpload(onDone){
+  if (!EDIT.assets){ toast('Загрузка фото доступна только редакторам сайта'); return; }
+  const inp = h('input',{type:'file',accept:'image/jpeg,image/png,image/webp,image/gif'});
+  inp.addEventListener('change', async ()=>{
+    const f = inp.files && inp.files[0]; if (!f) return;
+    if (f.size > 20*1024*1024){ toast('Фото больше 20 МБ, уменьшите его'); return; }
+    toast('Загружаю фото…');
+    try{
+      const r = await EDIT.assets.upload(f);
+      onDone(r.id); markDirty(); render(); toast('Фото добавлено. Не забудьте сохранить');
+    }catch(e){
+      const c = e && e.code;
+      toast(c==='too_large' ? 'Файл слишком большой' : c==='unsupported_type' ? 'Подходят JPG, PNG или WebP' : c==='quota_or_state' ? 'Место для фото закончилось' : 'Не получилось загрузить фото, попробуйте ещё раз');
+    }
+  });
+  inp.click();
+}
+function uploadBtn(label, onDone, extraClass){
+  if (!EDIT.assets) return null;
+  return h('button',{type:'button',class:'btn small edit-only '+(extraClass||''),onclick:()=>pickAndUpload(onDone)},label);
+}
+function heroArt(){
+  const id = STATE.photos.hero;
+  return h('div',{class:'hero-art'},
+    h('div',{class:'pebble'}, id ? photoImg(id, STATE.about.name||'Фото', CAIRN_SCENE) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
+    h('div',{html:STONES,style:'display:contents'}),
+    h('div',{html:SPRIG,style:'display:contents'}),
+    id && STATE.about.name ? h('span',{class:'caption'},STATE.about.name) : null,
+    uploadBtn(id ? 'Заменить фото' : 'Загрузить фото Даши', nid=>{ STATE.photos.hero = nid; }, 'upl')
+  );
+}
+
+/* ---------- calculator ---------- */
+const calcVals = Object.fromEntries(MATERIALS.map(m=>[m.k,m.def]));
+function calcSection(){
+  const res = h('div',{class:'result','aria-live':'polite'});
+  const list = h('div',{class:'mat-list'}, MATERIALS.map(m=>{
+    const inp = h('input',{type:'number',min:'0',step:String(m.step),value:String(calcVals[m.k]),id:'calc-'+m.k,'aria-label':m.name+', '+m.unit});
+    const set = v => { v = Math.max(0, Math.round(v*10)/10); calcVals[m.k]=v; inp.value=v; paint(); };
+    inp.addEventListener('input',()=>{ const v=parseFloat(inp.value.replace(',','.')); calcVals[m.k]=isNaN(v)?0:Math.max(0,v); paint(); });
+    return h('div',{class:'mat'},
+      h('div',null, h('b',null,m.name, h('span',{class:'mark'},m.mark)), h('small',null,m.unit)),
+      h('div',{class:'stepper'}, h('button',{type:'button','aria-label':'Меньше',onclick:()=>set(calcVals[m.k]-m.step)},'−'), inp, h('button',{type:'button','aria-label':'Больше',onclick:()=>set(calcVals[m.k]+m.step)},'+'))
+    );
+  }));
+  function paint(){
+    let co2=0,kwh=0,water=0,trees=0,kg=0,bat=0;
+    for (const m of MATERIALS){
+      const units = (calcVals[m.k]||0)*m.per, mass = units*m.w;
+      if (m.special){ bat += units; continue; }
+      kg+=mass; co2+=mass*m.co2; kwh+=mass*(m.kwh||0); water+=mass*(m.water||0); trees+=mass*(m.trees||0);
+    }
+    const km = co2/0.17, fridge = kwh/1.2;
+    res.replaceChildren(
+      h('div',null, h('div',{style:'font-weight:800;opacity:.85'},'За год вы не дадите выбросить в атмосферу'), h('div',{class:'big'},fmt(co2),' кг'), h('div',{style:'opacity:.85'},'CO₂-эквивалента')),
+      h('div',{class:'tiles'},
+        h('div',{class:'tile'}, h('b',null,fmt(kg)), h('span',null,'кг вторсырья в год')),
+        h('div',{class:'tile'}, h('b',null,fmt(kwh)), h('span',null,'кВт·ч энергии сэкономлено')),
+        h('div',{class:'tile'}, h('b',null,fmt(trees,1)), h('span',null,'деревьев сохранено (бумага)')),
+        h('div',{class:'tile'}, h('b',null,fmt(bat)), h('span',null,'батареек не попадут на свалку'))
+      ),
+      h('p',{class:'equiv'},'Это как не проехать ', fmt(km), ' км на машине и ', fmt(fridge), ' дней работы холодильника бесплатно', water>0 ? ', плюс '+fmt(water)+' л воды на производстве бумаги' : '', '.')
+    );
+  }
+  paint();
+  const presets = h('div',{class:'presets'}, h('span',{class:'muted',style:'align-self:center;font-weight:700;font-size:14px'},'Быстро заполнить:'),
+    Object.keys(PRESETS).map(name=>h('button',{type:'button',class:'btn ghost small',onclick:()=>{ Object.assign(calcVals,PRESETS[name]); for(const m of MATERIALS){ const el=document.getElementById('calc-'+m.k); if(el) el.value=calcVals[m.k]; } paint(); }},name)));
+  return h('section',{class:'band',id:'calc'}, h('div',{class:'wrap'},
+    sectionHead('Калькулятор переработки','Сколько пользы в вашем мусорном ведре?','Укажите, сколько отходов вы сдаёте на переработку, и посмотрите, что это даёт планете за год. Ниже коротко о том, как сдавать каждый вид вторсырья.'),
+    h('div',{class:'calc'}, h('div',null,presets,list), res),
+    h('div',{class:'howto'},
+      h('h3',{style:'margin-bottom:14px'},'Как это делать'),
+      MATERIALS.map(m=>h('details',{class:'how'}, h('summary',null, h('span',null,m.name, h('span',{class:'mark'},m.mark))), h('ul',null,m.tips.map(t=>h('li',null,t)))))
+    ),
+    h('p',{class:'note'},'Цифры ориентировочные: усреднённые оценки экономии выбросов и энергии при переработке по сравнению с производством из первичного сырья. Реальная польза зависит от региона и того, как устроена переработка. Маркировку ищите на упаковке: треугольник из стрелок с цифрой или буквенный код.')
+  ));
+}
+
+/* ---------- habits ---------- */
+function habitsSection(){
+  const box = h('div',{class:'habits'});
+  function paint(){
+    const days = [...Array(7)].map((_,i)=>{ const d=new Date(weekStart); d.setDate(d.getDate()+i); return d; });
+    const today = iso(new Date());
+    let weekTotal = 0;
+    days.forEach(d=>{ weekTotal += (HAB.log[iso(d)]||[]).length; });
+    let streak = 0; const c = new Date(); c.setHours(0,0,0,0);
+    if (!(HAB.log[iso(c)]||[]).length) c.setDate(c.getDate()-1);
+    while ((HAB.log[iso(c)]||[]).length){ streak++; c.setDate(c.getDate()-1); }
+    const max = HAB.habits.length*7 || 1;
+    const fmtD = d => d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+    const nameInput = h('input',{id:'habit-new',placeholder:'Своя привычка, например «Без доставки на этой неделе»',maxlength:'60'});
+    const add = ()=>{ const v=nameInput.value.trim(); if(!v) return; HAB.habits.push({id:'u'+uid(),name:v,custom:true}); saveHabits(); paint(); };
+    nameInput.addEventListener('keydown',e=>{ if(e.key==='Enter') add(); });
+    box.replaceChildren(
+      h('div',{class:'hbar'},
+        h('div',{class:'stats'},
+          h('div',null,h('b',null,weekTotal),h('span',null,'листочков за неделю')),
+          h('div',null,h('b',null,Math.round(weekTotal/max*100),'%'),h('span',null,'от максимума')),
+          h('div',null,h('b',null,streak),h('span',null,'дней подряд'))
+        ),
+        h('div',{class:'weeknav'},
+          h('button',{type:'button',class:'btn ghost small','aria-label':'Предыдущая неделя',onclick:()=>{weekStart.setDate(weekStart.getDate()-7);paint();}},'←'),
+          h('span',{style:'font-variant-numeric:tabular-nums'},fmtD(days[0]),' — ',fmtD(days[6])),
+          h('button',{type:'button',class:'btn ghost small','aria-label':'Следующая неделя',onclick:()=>{weekStart.setDate(weekStart.getDate()+7);paint();}},'→')
+        )
+      ),
+      h('table',{class:'hgrid'},
+        h('thead',null,h('tr',null,h('th',{style:'text-align:left'},'Привычка'), days.map((d,i)=>h('th',{class:iso(d)===today?'today':null},DOW[i],h('br'),d.getDate())))),
+        h('tbody',null, HAB.habits.map(hb=>h('tr',null,
+          h('td',null, hb.name, hb.custom ? h('button',{type:'button',class:'x',title:'Удалить привычку','aria-label':'Удалить «'+hb.name+'»',onclick:()=>{ HAB.habits=HAB.habits.filter(x=>x.id!==hb.id); saveHabits(); paint(); }},'×') : null),
+          days.map(d=>{ const k=iso(d), on=(HAB.log[k]||[]).includes(hb.id);
+            return h('td',null,h('button',{type:'button',class:'cell'+(on?' on':''),'aria-pressed':on?'true':'false','aria-label':hb.name+', '+DOW[(d.getDay()+6)%7]+' '+d.getDate(),html:on?LEAF:'',style:on?'color:var(--moss)':null,onclick:()=>{
+              const arr = new Set(HAB.log[k]||[]); arr.has(hb.id)?arr.delete(hb.id):arr.add(hb.id);
+              if (arr.size) HAB.log[k]=[...arr]; else delete HAB.log[k];
+              saveHabits(); paint();
+            }})); })
+        )))
+      ),
+      h('div',{class:'addrow'}, nameInput, h('button',{type:'button',class:'btn',onclick:add},'Добавить привычку'))
+    );
+  }
+  paint();
+  habitsSection.repaint = paint;
+  return h('section',{class:'band alt',id:'habits'}, h('div',{class:'wrap'},
+    sectionHead('Образ жизни','Эко-челлендж недели','Отмечайте листочком каждый день, когда получилось. Отметки видите только вы, они сохраняются на вашем устройстве или в аккаунте Claude.'),
+    box
+  ));
+}
+
+/* ---------- editable collections ---------- */
+const SCHEMAS = {
+  products:[{k:'title',l:'Название'},{k:'cat',l:'Категория (Кухня, Ванная…)'},{k:'replaces',l:'Чем заменяет'},{k:'why',l:'Почему это лучше',area:true}],
+  cafes:[{k:'name',l:'Название'},{k:'kind',l:'Тип (кофейня, веган-кафе…)'},{k:'city',l:'Город'},{k:'address',l:'Адрес'},{k:'note',l:'Почему я его люблю',area:true}],
+  articles:[{k:'title',l:'Заголовок'},{k:'cat',l:'Рубрика',options:['Статья','Новость']},{k:'lead',l:'Короткое описание',area:true},{k:'body',l:'Текст',area:true}],
+  market:[{k:'title',l:'Что за вещь'},{k:'kind',l:'Формат',options:['Продам','Обмен','Отдам даром']},{k:'price',l:'Цена (если продаю)'},{k:'condition',l:'Состояние'},{k:'note',l:'Описание',area:true}]
+};
+function addForm(coll, title){
+  const fields = SCHEMAS[coll];
+  const inputs = {};
+  const form = h('form',{class:'form edit-only'},
+    h('h3',{style:'font-size:18px'},title),
+    h('div',{class:'fields'}, fields.map(f=>{
+      const id = 'new-'+coll+'-'+f.k;
+      const el = f.options ? h('select',{id}, f.options.map(o=>h('option',null,o))) : f.area ? h('textarea',{id}) : h('input',{id});
+      inputs[f.k]=el;
+      return h('label',{for:id,style:f.area?'grid-column:1/-1':null},f.l,el);
+    })),
+    h('div',null,h('button',{type:'submit',class:'btn'},'Добавить'))
+  );
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    const item = {id:coll[0]+uid()};
+    for (const f of fields) item[f.k]=inputs[f.k].value.trim();
+    if (!item[fields[0].k]) { inputs[fields[0].k].focus(); return; }
+    if (coll==='articles'){ item.date = iso(new Date()); STATE.articles.unshift(item); } else STATE[coll].push(item);
+    markDirty(); render(); location.hash = coll==='products'?'goods':coll==='articles'?'journal':coll;
+  });
+  return form;
+}
+function delBtn(coll, id){
+  return h('button',{type:'button',class:'btn danger small del edit-only',onclick:()=>{ STATE[coll]=STATE[coll].filter(x=>x.id!==id); markDirty(); render(); }},'Удалить');
+}
+const exMark = it => it.example ? h('span',{class:'ex'},'пример') : null;
+
+function photoFig(key, alt, cls, caption){
+  const id = STATE.photos[key];
+  return h('figure',{class:'ph '+cls},
+    h('div',{class:'frame'}, id ? photoImg(id, alt, CAIRN_SCENE) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
+    caption ? h('figcaption',null,caption) : null,
+    uploadBtn(id ? 'Заменить фото' : 'Добавить фото', nid=>{ STATE.photos[key] = nid; })
+  );
+}
+
+function goodsSection(){
+  const items = STATE.products;
+  return h('section',{class:'band',id:'goods'}, h('div',{class:'wrap'},
+    sectionHead('Быт','Товары, которые делают мир чище','Вещи, которые один раз покупаешь и годами не производишь мусор. Главное правило: сначала донашивайте то, что уже есть.'),
+    items.length ? h('div',{class:'grid g4'}, items.map(it=>h('article',{class:'card'},
+      delBtn('products',it.id),
+      h('span',{class:'tag'},it.cat||'Полезное'),
+      h('h3',{style:'font-size:20px'},it.title),
+      it.replaces ? h('p',{class:'muted',style:'font-size:14px;font-weight:700'},'Вместо: ',it.replaces) : null,
+      h('p',{style:'font-size:15px;flex:1'},it.why),
+      commentsBlock('products:'+it.id)
+    ))) : h('div',{class:'empty'},'Здесь пока пусто.'),
+    addForm('products','Новый товар')
+  ));
+}
+
+function fashionSection(){
+  return h('section',{class:'band alt',id:'fashion'}, h('div',{class:'wrap'},
+    sectionHead('Модная экология','Одежда и аксессуары','Самая экологичная вещь та, что уже висит в вашем шкафу. А когда хочется нового, вот что помогает выбирать с умом.'),
+    h('div',{class:'split'},
+      photoFig('fashion','Даша в белой рубашке и красной юбке с пайетками','arch','Образ, который хочется носить годами'),
+      h('div',{class:'grid g2'}, FASHION_TIPS.map(([t,d],i)=>h('div',{class:'card'}, h('div',{class:'tip-num'},i+1), h('h3',{style:'font-size:20px'},t), h('p',{class:'muted',style:'font-size:15px'},d))))
+    ),
+    h('h3',{style:'margin:40px 0 14px'},'Шпаргалка по тканям'),
+    h('div',{class:'tbl-wrap'}, h('table',{class:'fab'},
+      h('thead',null,h('tr',null,h('th',null,'Ткань'),h('th',null,'Плюсы'),h('th',null,'Минусы'),h('th',null,'Эко-оценка'))),
+      h('tbody',null,FABRICS.map(([n,p,m,s])=>h('tr',null,h('td',null,h('b',null,n)),h('td',null,p),h('td',{class:'muted'},m),h('td',null,h('span',{class:'leaves','aria-label':s+' из 5'},'❦'.repeat(s), h('span',{style:'opacity:.25'},'❦'.repeat(5-s)))))))
+    ))
+  ));
+}
+
+function foodSection(){
+  let month = new Date().getMonth();
+  const season = h('div',{class:'season','aria-live':'polite'});
+  const btns = SEASON.map(([m],i)=>h('button',{type:'button','aria-pressed':String(i===month),onclick:()=>{ month=i; btns.forEach((b,j)=>b.setAttribute('aria-pressed',String(j===i))); paintS(); }},m));
+  function paintS(){ season.replaceChildren(...SEASON[month][1].map(x=>h('span',null,x))); }
+  paintS();
+  return h('section',{class:'band',id:'food'}, h('div',{class:'wrap'},
+    sectionHead('Еда','Вкусная польза!','Сезонные продукты вкуснее, дешевле и не летят к нам через полмира. А очистки и хвостики могут стать ещё одним блюдом.'),
+    h('h3',{style:'margin-bottom:12px'},'Что сейчас в сезоне ', h('span',{class:'hand',style:'color:var(--clay);font-size:26px'},'средняя полоса')),
+    h('div',{class:'months'},btns), season,
+    h('h3',{style:'margin:40px 0 14px'},'Рецепты без отходов'),
+    h('div',{class:'grid g3'}, RECIPES.map(([t,time,steps],i)=>h('article',{class:'card recipe'}, h('span',{class:'tag'},time), h('h3',{style:'font-size:20px'},t), h('ol',{style:'flex:1'},steps.map(s=>h('li',null,s))), commentsBlock('recipes:'+i)))),
+    STATE.contacts.telegram ? h('p',{style:'margin-top:20px;font-weight:700'},'Больше рецептов в Telegram: ', h('a',{href:'https://t.me/'+STATE.contacts.telegram.replace(/^@/,''),target:'_blank',rel:'noopener'},'@'+STATE.contacts.telegram.replace(/^@/,''))) : null
+  ));
+}
+
+function cafesSection(){
+  const items = STATE.cafes;
+  return h('section',{class:'band alt',id:'cafes'}, h('div',{class:'wrap'},
+    sectionHead('Куда пойти','Моя подборка кафе 🍽️','Места, где вкусно и бережно: сезонное меню, своя кружка, минимум одноразового.'),
+    h('div',{class:'split'},
+      photoFig('cafes','Даша пьёт кофе','pebble2','Кофе — это ритуал'),
+      h('div',null,
+        items.length ? h('div',{class:'grid g2'}, items.map(it=>h('article',{class:'card'},
+          delBtn('cafes',it.id), exMark(it),
+          h('span',{class:'tag'},it.kind||'Кафе'),
+          h('h3',null,it.name),
+          h('p',{class:'muted',style:'font-size:14px;font-weight:700'},[it.city,it.address].filter(Boolean).join(', ')),
+          h('p',{style:'font-size:15px;flex:1'},it.note),
+          commentsBlock('cafes:'+it.id)
+        ))) : h('div',{class:'empty'},'Скоро здесь появятся любимые места.'),
+        addForm('cafes','Новое кафе')
+      )
+    )
+  ));
+}
+
+function journalSection(){
+  const items = STATE.articles;
+  const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
+  return h('section',{class:'band alt',id:'journal'}, h('div',{class:'wrap'},
+    sectionHead('Журнал','Новости и статьи','Заметки об экологичной жизни. Есть тема или новость? Предложите её в личном кабинете, лучшие появятся здесь.'),
+    h('div',{style:'margin:-12px 0 24px'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>openAccount('suggest')},'Предложить новость или статью')),
+    items.length ? h('div',{class:'grid g3'}, items.map(it=>{
+      let open = false;
+      const body = h('div',{class:'art-body',hidden:true}, it.body);
+      const more = h('button',{type:'button',class:'linkish',style:'justify-self:start','aria-expanded':'false'},'Читать полностью');
+      more.addEventListener('click',()=>{ open=!open; body.hidden=!open; more.textContent=open?'Свернуть':'Читать полностью'; more.setAttribute('aria-expanded',String(open)); });
+      return h('article',{class:'card'},
+        delBtn('articles',it.id),
+        h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
+        h('h3',{style:'font-size:22px'},it.title),
+        h('p',{class:'muted',style:'font-size:15px'},it.lead),
+        it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
+        body, more,
+        commentsBlock('articles:'+it.id)
+      );
+    })) : h('div',{class:'empty'},'Статьи скоро появятся.'),
+    addForm('articles','Новая статья или новость')
+  ));
+}
+
+function aboutSection(){
+  const a = STATE.about;
+  const nm = h('input',{id:'about-name',value:a.name}); nm.addEventListener('input',()=>{ a.name=nm.value; markDirty(); });
+  const tx = h('textarea',{id:'about-text',style:'min-height:200px'}); tx.value=a.text; tx.addEventListener('input',()=>{ a.text=tx.value; markDirty(); });
+  return h('section',{class:'band alt',id:'about'}, h('div',{class:'wrap'},
+    h('div',{class:'about'},
+      photoFig('about', 'Даша с семьёй у большого глобуса', 'round', 'Наша счастливая планета'),
+      h('div',{style:'display:grid;gap:14px;min-width:0'},
+        h('div',{class:'eyebrow',style:'display:flex;align-items:center;gap:8px'},h('span',{html:CAIRN_ICON,style:'display:contents'}),'Про меня'),
+        h('h2',null,a.name),
+        h('p',{class:'about-text'},a.text),
+        STATE.photos.gallery.length ? h('div',{class:'gallery'}, STATE.photos.gallery.map(gid=>h('figure',null, photoImg(gid,'Фото из жизни '+(a.name||'')),
+          h('button',{type:'button',class:'x edit-only',title:'Убрать фото','aria-label':'Убрать фото',onclick:()=>{ STATE.photos.gallery = STATE.photos.gallery.filter(x=>x!==gid); markDirty(); render(); }},'×')))) : null,
+        uploadBtn('Добавить фото в галерею', nid=>{ STATE.photos.gallery.push(nid); }),
+        h('div',{class:'form edit-only'}, h('label',{for:'about-name'},'Имя',nm), h('label',{for:'about-text'},'Текст о себе',tx))
+      )
+    )
+  ));
+}
+
+function contactsSection(){
+  const c = STATE.contacts;
+  const handle = v => String(v||'').replace(/^@/,'');
+  const rows = [
+    ['instagram','Instagram', v=>'https://instagram.com/'+handle(v), v=>'@'+handle(v)],
+    ['telegram','Telegram', v=>'https://t.me/'+handle(v), v=>'@'+handle(v)],
+    ['email','Почта', null, v=>v]
+  ];
+  const filled = rows.filter(([k])=>c[k]);
+  const copy = (btn,val)=>{ const done=()=>{ btn.textContent='Скопировано'; setTimeout(()=>btn.textContent='Копировать',1500); };
+    try{ navigator.clipboard.writeText(val).then(done,()=>selectText(btn)); }catch(e){ selectText(btn); } };
+  const selectText = btn => { const v=btn.parentElement.querySelector('.val'); if(!v) return; const r=document.createRange(); r.selectNodeContents(v); const s=getSelection(); s.removeAllRanges(); s.addRange(r); };
+  const editInputs = rows.map(([k,l])=>{ const el=h('input',{id:'contact-'+k,value:c[k]||'',placeholder:k==='email'?'name@mail.ru':'username'}); el.addEventListener('input',()=>{ c[k]=el.value.trim(); markDirty(); }); return h('label',{for:'contact-'+k},l,el); });
+  const note = h('textarea',{id:'contact-note'}); note.value=c.note||''; note.addEventListener('input',()=>{ c.note=note.value; markDirty(); });
+  return h('section',{class:'band',id:'contacts'}, h('div',{class:'wrap'},
+    sectionHead('Контакты','Давайте дружить', c.note),
+    filled.length ? h('div',{class:'grid g3'}, filled.map(([k,l,link,show])=>{
+      const val = show(c[k]);
+      const right = link ? h('a',{class:'btn small',href:link(c[k]),target:'_blank',rel:'noopener'},'Открыть') : (()=>{ const b=h('button',{type:'button',class:'btn ghost small'},'Копировать'); b.addEventListener('click',()=>copy(b,val)); return b; })();
+      return h('div',{class:'card contact'}, h('div',{style:'min-width:0'}, h('div',{class:'eyebrow',style:'color:var(--muted)'},l), h('div',{class:'val'},val)), right); }))
+      : h('div',{class:'empty'},'Контакты скоро появятся.'),
+    h('div',{class:'form edit-only'}, h('div',{class:'fields'},editInputs), h('label',{for:'contact-note'},'Подпись над контактами',note))
+  ));
+}
+
+/* ---------- community: accounts, comments, reviews, suggestions ---------- */
+function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
+const COM = { db:null, user:null, uid:null, canWrite:null, admin:false, owner:false, ready:false, assets:null, mk:{}, mkOk:{}, threads:{}, _tb:{}, _ts:{}, _tsite:{},
+  members:{}, me:null, reviews:[], comments:[], mySugg:[], allSugg:[] };
+let LIVE = [], MODAL_LIVE = [];
+function live(fn){ LIVE.push(fn); fn(); return fn; }
+function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
+function refresh(){ for (const f of LIVE.concat(MODAL_LIVE)){ try{ f(); }catch(e){} } }
+function accState(){
+  if (!COM.ready) return 'loading';
+  if (!COM.db || !COM.uid) return 'signedout';
+  if (COM.canWrite === false) return 'readonly';
+  return COM.me ? 'member' : 'guest';
+}
+function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
+const dt = ts => { const d = new Date(ts); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); };
+const canDelete = author => author === COM.uid || COM.admin;
+const WQ = {};
+function write(path, fn){ const p = (WQ[path]||Promise.resolve()).catch(()=>{}).then(fn); WQ[path] = p; return p; }
+function writeErr(e){
+  const c = e && e.code;
+  if (c==='invalid_argument'){ COM.canWrite = false; refresh(); toast('Сейчас у вас режим просмотра, писать пока нельзя'); }
+  else if (c==='quota_exceeded') toast('Место в базе сайта закончилось');
+  else if (c==='resource_exhausted') toast('Слишком часто, подождите немного');
+  else toast('Не получилось отправить, попробуйте ещё раз');
+  return null;
+}
+function delDoc(path){ return write(path, ()=>COM.db.doc(path).delete()).catch(writeErr); }
+
+function joinHint(what){
+  const st = accState();
+  if (st==='loading') return h('p',{class:'hint'},'Загружаем…');
+  if (st==='signedout') return h('p',{class:'hint'},'Чтобы '+what+', войдите в аккаунт Claude и откройте сайт снова.');
+  if (st==='readonly') return h('p',{class:'hint'},'Писать могут участники сайта. Попросите Дашу открыть вам доступ.');
+  return h('p',{class:'hint'},'Чтобы '+what+', ', h('button',{type:'button',class:'linkish',onclick:()=>openAccount()},'зарегистрируйтесь'),'. Это займёт полминуты.');
+}
+
+function commentsBlock(target){
+  let open = false, lastSt = null;
+  const toggle = h('button',{type:'button',class:'cm-toggle'});
+  const list = h('div',{class:'cm-list'});
+  const formSlot = h('div');
+  toggle.addEventListener('click',()=>{ open=!open; paint(); });
+  const box = h('div',{class:'cm'}, toggle, list, formSlot);
+  function form(){
+    const inp = h('input',{maxlength:'1000',placeholder:'Ваш комментарий','aria-label':'Комментарий'});
+    const f = h('form',{class:'cm-form'}, inp, h('button',{type:'submit',class:'btn small'},'Отправить'));
+    f.addEventListener('submit',e=>{ e.preventDefault(); const t=inp.value.trim(); if(!t) return; inp.value='';
+      COM.db.collection('comments').add({target, author:COM.uid, text:t.slice(0,1000), ts:Date.now()}).catch(err=>{ inp.value=t; writeErr(err); }); });
+    return f;
+  }
+  function paint(){
+    const items = COM.comments.filter(c=>c.target===target);
+    toggle.textContent = (open ? 'Скрыть комментарии' : 'Комментарии') + (items.length ? ' ('+items.length+')' : '');
+    toggle.setAttribute('aria-expanded', String(open));
+    list.hidden = !open; formSlot.hidden = !open;
+    if (!open) return;
+    list.replaceChildren(...(items.length ? items.map(c=>h('div',{class:'cm-item'},
+      h('div',null, h('b',null,nameOf(c.author)),' ', h('span',{class:'meta'},dt(c.ts)),
+        canDelete(c.author) ? h('button',{type:'button',class:'x',title:'Удалить комментарий','aria-label':'Удалить комментарий',onclick:()=>delDoc('comments/'+c.id)},'×') : null),
+      h('div',{style:'white-space:pre-line'},c.text))) : [h('div',{class:'hint'}, accState()==='signedout' ? 'Комментарии видны после входа в аккаунт Claude.' : 'Комментариев пока нет.')]));
+    const st = accState();
+    if (st !== lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? form() : joinHint('комментировать')); }
+  }
+  live(paint);
+  return box;
+}
+
+function leaves(n){ n = Math.max(1, Math.min(5, n|0)); return h('span',{class:'stars','aria-label':n+' из 5'}, '❦'.repeat(n), h('span',{style:'opacity:.25'},'❦'.repeat(5-n))); }
+function reviewsSection(){
+  const listBox = h('div');
+  const formSlot = h('div',{style:'margin-bottom:24px'});
+  let lastSt = null;
+  function form(){
+    let rating = 5;
+    const rate = h('div',{class:'rate',role:'radiogroup','aria-label':'Оценка'});
+    const paintRate = ()=> rate.replaceChildren(...[1,2,3,4,5].map(n=>h('button',{type:'button',class:n<=rating?'on':'',role:'radio','aria-checked':String(n===rating),'aria-label':n+' из 5',onclick:()=>{ rating=n; paintRate(); }},'❦')));
+    paintRate();
+    const ta = h('textarea',{id:'review-text',maxlength:'1500',placeholder:'Что понравилось, что стоит добавить?'});
+    const f = h('form',{class:'form',style:'margin-top:0;border-style:solid;border-color:var(--line)'},
+      h('h3',{style:'font-size:18px'},'Оставить отзыв'), rate, h('label',{for:'review-text'},'Ваш отзыв',ta),
+      h('div',null,h('button',{type:'submit',class:'btn'},'Опубликовать отзыв')));
+    f.addEventListener('submit',e=>{ e.preventDefault(); const t=ta.value.trim(); if(t.length<3){ ta.focus(); return; }
+      ta.value=''; COM.db.collection('reviews').add({author:COM.uid, rating, text:t.slice(0,1500), ts:Date.now()}).then(()=>toast('Спасибо за отзыв!'),err=>{ ta.value=t; writeErr(err); }); });
+    return f;
+  }
+  live(()=>{
+    const st = accState();
+    if (st !== lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? form() : h('div',{class:'card'}, joinHint('оставить отзыв'))); }
+    const r = COM.reviews;
+    listBox.replaceChildren(r.length ? h('div',{class:'rv-grid'}, r.map(rv=>h('article',{class:'card'},
+      leaves(rv.rating), h('p',{style:'white-space:pre-line'},rv.text),
+      h('div',{class:'li meta',style:'background:none;border:0;padding:0'}, h('b',null,nameOf(rv.author)), h('span',null,dt(rv.ts)),
+        canDelete(rv.author) ? h('button',{type:'button',class:'x',title:'Удалить отзыв','aria-label':'Удалить отзыв',onclick:()=>delDoc('reviews/'+rv.id)},'×') : null)
+    ))) : h('div',{class:'empty'}, st==='loading' ? 'Загружаем отзывы…' : st==='signedout' ? 'Отзывы видны после входа в аккаунт Claude.' : 'Отзывов пока нет. Станьте первым!'));
+  });
+  return h('section',{class:'band',id:'reviews'}, h('div',{class:'wrap'},
+    sectionHead('Отзывы','Что говорят друзья DashaBotanika','Расскажите, что вам пригодилось, или подскажите, чего не хватает.'),
+    formSlot, listBox
+  ));
+}
+
+/* ---------- flea market: participants' listings, moderation, deal chats ---------- */
+const MK_KINDS = ['Продам','Обмен','Отдам даром'];
+function sigOf(it){ const s = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo||''].join('|'); let h1 = 5381; for (let i=0;i<s.length;i++) h1 = ((h1<<5)+h1+s.charCodeAt(i))|0; return (h1>>>0).toString(36); }
+function mkKey(seller, id){ return seller+'__'+id; }
+function mkState(seller, it){
+  const ok = COM.mkOk[mkKey(seller,it.id)];
+  if (!ok || ok.sig !== sigOf(it)) return 'pending';
+  return ok.rejected ? 'rejected' : 'approved';
+}
+function publicListings(){
+  const out = [];
+  for (const sid in COM.mk){ (COM.mk[sid].items||[]).forEach(it=>{ if (it.status!=='gone' && mkState(sid,it)==='approved') out.push({seller:sid, it}); }); }
+  return out.sort((a,b)=>(b.it.ts||0)-(a.it.ts||0));
+}
+function pendingListings(){
+  const out = [];
+  for (const sid in COM.mk){ (COM.mk[sid].items||[]).forEach(it=>{ if (it.status!=='gone' && mkState(sid,it)==='pending') out.push({seller:sid, it}); }); }
+  return out.sort((a,b)=>(a.it.ts||0)-(b.it.ts||0));
+}
+const priceLabel = it => it.kind==='Продам' && it.price ? it.price : it.kind==='Отдам даром' ? 'Бесплатно' : 'Обмен';
+const kindStyle = k => k==='Отдам даром' ? 'background:var(--leaf);color:var(--on-moss)' : k==='Обмен' ? 'background:var(--sun);color:#2A1C05' : null;
+function dealLabel(kind){ return kind==='Отдам даром' ? 'Хочу забрать' : kind==='Обмен' ? 'Предложить обмен' : 'Хочу купить'; }
+function dealBtn(key, title, seller, kind){
+  return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openDeal(key, title, seller)}, dealLabel(kind));
+}
+function myItems(){ return (COM.mk[COM.uid] && COM.mk[COM.uid].items) || []; }
+function saveMyItems(items){ const path = 'mk/'+COM.uid; return write(path, ()=>COM.db.doc(path).set({author:COM.uid, items})).catch(writeErr); }
+function setMyItemStatus(id, status){ return saveMyItems(myItems().map(i=>i.id===id ? Object.assign({}, i, {status, updated:Date.now()}) : i)); }
+
+function userListingCard(seller, it){
+  const key = mkKey(seller, it.id);
+  const mine = seller === COM.uid;
+  const img = it.photo ? h('img',{src:photoURL(it.photo),alt:it.title,loading:'lazy',style:'width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block'}) : null;
+  if (img) img.addEventListener('error',()=>img.remove());
+  return h('article',{class:'card'},
+    img,
+    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle(it.kind)},it.kind||'Продам'), it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
+    h('h3',{style:'font-size:20px'},it.title),
+    h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
+    it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
+    it.city ? h('p',{class:'muted',style:'font-size:14px'},'Где забрать: ',it.city) : null,
+    it.note ? h('p',{style:'font-size:15px;flex:1;white-space:pre-line'},it.note) : null,
+    h('p',{class:'hint'},'Разместил(а): ', nameSpan(seller)),
+    mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Сообщения покупателей — в кабинете.') : dealBtn(key, it.title, seller, it.kind),
+    commentsBlock('mk:'+key)
+  );
+}
+
+async function openDeal(key, title, seller){
+  const st = accState();
+  if (st !== 'member'){ openAccount(); if (st==='guest') toast('Сначала зарегистрируйтесь, это быстро'); return; }
+  if (seller === COM.uid){ toast('Это ваша вещь'); return; }
+  const tid = key+'__'+COM.uid, path = 'chats/'+tid;
+  try{
+    const ref = COM.db.doc(path);
+    const s = await ref.get();
+    if (!s.exists){ const now = Date.now(); await write(path, ()=>ref.set({key, title:String(title).slice(0,120), seller, buyer:COM.uid, created:now, updated:now, lastFrom:COM.uid, readBy:{[COM.uid]:now}})); }
+    openAccount('chats', tid);
+  }catch(e){ writeErr(e); }
+}
+function unreadCount(){
+  return Object.values(COM.threads).filter(t=>t.lastFrom!==COM.uid && (t.updated||0) > ((t.readBy||{})[COM.uid]||0)).length;
+}
+function partnerName(t){
+  if (t.buyer === COM.uid) return t.seller === 'site' ? 'Даша' : nameOf(t.seller);
+  return nameOf(t.buyer);
+}
+
+/* thread view inside the cabinet */
+function threadView(tid, back){
+  const t = COM.threads[tid];
+  const msgs = h('div',{class:'list',style:'max-height:46vh;overflow:auto'});
+  const inp = h('textarea',{id:'chat-input',maxlength:'2000',placeholder:'Сообщение',style:'min-height:60px'});
+  const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line);padding:12px'}, inp, h('div',null,h('button',{type:'submit',class:'btn small'},'Отправить')));
+  let list = [], lastSeen = 0;
+  const path = 'chats/'+tid;
+  function markRead(){
+    const tt = COM.threads[tid]; if (!tt) return;
+    const now = Date.now();
+    if (((tt.readBy||{})[COM.uid]||0) >= (tt.updated||0) || now - lastSeen < 3000) return;
+    lastSeen = now;
+    write(path, ()=>COM.db.doc(path).update({readBy:{[COM.uid]:now}})).catch(()=>{});
+  }
+  function paintMsgs(){
+    msgs.replaceChildren(...(list.length ? list.map(m=>h('div',{class:'li',style:m.from===COM.uid?'background:color-mix(in srgb,var(--leaf) 16%,var(--surface));margin-left:12%':'margin-right:12%'},
+      h('div',{class:'meta'}, h('b',null, m.from===COM.uid ? 'Вы' : (m.from===t.seller && t.seller==='site') ? 'Даша' : nameOf(m.from)), h('span',null,new Date(m.ts).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))),
+      h('div',{style:'white-space:pre-line'},m.text))) : [h('p',{class:'hint'},'Напишите, когда и где удобно встретиться, задайте вопросы о вещи.')]));
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  const unsub = COM.db.collection(path+'/m').orderBy('ts','asc').limit(500).onSnapshot(snap=>{
+    list = snap.docs.map(d=>d.data()); paintMsgs(); markRead();
+  }, ()=>{});
+  MODAL_UNSUBS.push(unsub);
+  f.addEventListener('submit',e=>{ e.preventDefault(); const x = inp.value.trim(); if (!x) return; inp.value = '';
+    const now = Date.now();
+    COM.db.collection(path+'/m').add({from:COM.uid, text:x.slice(0,2000), ts:now})
+      .then(()=>write(path, ()=>COM.db.doc(path).update({updated:now, lastFrom:COM.uid, readBy:{[COM.uid]:now}})))
+      .catch(err=>{ inp.value = x; writeErr(err); }); });
+  const iAmSeller = t.seller === COM.uid;
+  const myIt = iAmSeller ? myItems().find(i=>mkKey(COM.uid,i.id)===t.key) : null;
+  const actions = myIt ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+    myIt.status!=='reserved' && myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'reserved').then(()=>toast('Вещь отмечена как забронированная'))},'Забронировать') : null,
+    myIt.status==='reserved' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'active').then(()=>toast('Бронь снята'))},'Снять бронь') : null,
+    myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'gone').then(()=>toast('Готово! Вещь убрана из барахолки'))},'Отдано / продано') : h('span',{class:'status'},'Сделка завершена')) : null;
+  paintMsgs(); markRead();
+  return [
+    h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('button',{type:'button',class:'btn ghost small',onclick:back},'← Все сообщения'),
+      h('div',{style:'min-width:0'}, h('b',null,t.title), h('div',{class:'hint'}, iAmSeller || (t.seller==='site' && COM.admin && t.buyer!==COM.uid) ? 'Покупатель: ' : 'Продавец: ', partnerName(t)))),
+    actions, msgs, f,
+    h('p',{class:'hint'},'Сайт не принимает оплату. Договоритесь о передаче и способе оплаты напрямую. Не отправляйте здесь паспортные и банковские данные: переписку видят модераторы.')
+  ];
+}
+let MODAL_UNSUBS = [];
+
+function marketSection(){
+  const items = STATE.market;
+  const userGrid = h('div');
+  const cache = new Map();
+  live(()=>{
+    const pub = publicListings();
+    const st = accState();
+    if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'}, st==='signedout' ? 'Вещи участников видны после входа в аккаунт Claude.' : 'Пока никто ничего не выставил. Будьте первым!')); cache.clear(); return; }
+    const els = pub.map(({seller,it})=>{
+      const k = mkKey(seller,it.id), v = sigOf(it)+'|'+it.status+'|'+st+'|'+(COM.me?1:0);
+      let c = cache.get(k);
+      if (!c || c.v !== v){ c = {v, el:userListingCard(seller,it)}; cache.set(k,c); }
+      return c.el;
+    });
+    userGrid.replaceChildren(h('div',{class:'grid g3'}, els));
+  });
+  const addBtn = h('div');
+  live(()=>{ const st = accState(); addBtn.replaceChildren(st==='member' ? h('button',{type:'button',class:'btn',onclick:()=>openAccount('things')},'Выставить свою вещь') : joinHint('выставить свою вещь')); });
+  return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
+    sectionHead('Вторая жизнь вещей','Барахолка','Отдавайте, меняйте и продавайте то, что ещё послужит другим. Каждое объявление участников проверяет Даша.'),
+    h('div',{class:'grid g3',style:'margin-bottom:28px'},
+      [['1','Выставьте вещь','В личном кабинете: фото, описание и цена. Объявление появится после проверки.'],
+       ['2','Договоритесь','Нажмите «Хочу купить» или «Хочу забрать» и обсудите детали в личных сообщениях.'],
+       ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Оплата напрямую, сайт деньги не принимает.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
+    h('h3',{style:'margin-bottom:14px'},'От Даши'),
+    items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
+      delBtn('market',it.id), exMark(it),
+      h('span',{class:'tag',style:kindStyle(it.kind)},it.kind||'Продам'),
+      h('h3',{style:'font-size:20px'},it.title),
+      h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
+      it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
+      it.note ? h('p',{style:'font-size:15px;flex:1'},it.note) : null,
+      dealBtn('site__'+it.id, it.title, 'site', it.kind),
+      commentsBlock('market:'+it.id)
+    ))) : h('div',{class:'empty'},'Сейчас ничего нет, загляните позже.'),
+    addForm('market','Новое объявление от Даши'),
+    h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:40px 0 14px'}, h('h3',null,'От участников'), addBtn),
+    userGrid
+  ));
+}
+
+/* cabinet panels for the market */
+function thingsPanel(lists){
+  const title = h('input',{id:'mk-title',maxlength:'100',placeholder:'Например, детский велосипед'});
+  const kind = h('select',{id:'mk-kind'}, MK_KINDS.map(o=>h('option',null,o)));
+  const price = h('input',{id:'mk-price',maxlength:'30',placeholder:'1500 ₽'});
+  const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Как новое'});
+  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город, район или метро'});
+  const note = h('textarea',{id:'mk-note',maxlength:'1500'});
+  const file = COM.assets ? h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp'}) : null;
+  const btn = h('button',{type:'submit',class:'btn'},'Отправить на проверку');
+  const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+    h('div',{class:'fields'},
+      h('label',{for:'mk-title',style:'grid-column:1/-1'},'Что за вещь',title),
+      h('label',{for:'mk-kind'},'Формат',kind), h('label',{for:'mk-price'},'Цена (если продаёте)',price),
+      h('label',{for:'mk-cond'},'Состояние',cond), h('label',{for:'mk-city'},'Где забрать',city)),
+    h('label',{for:'mk-note'},'Описание: размер, бренд, особенности',note),
+    file ? h('label',{for:'mk-photo'},'Фото (необязательно)',file) : null,
+    h('div',null,btn));
+  f.addEventListener('submit', async e=>{
+    e.preventDefault();
+    const t = title.value.trim(); if (t.length < 2){ title.focus(); return; }
+    btn.disabled = true; btn.textContent = 'Отправляю…';
+    let photo = null;
+    try{
+      const fl = file && file.files && file.files[0];
+      if (fl){ if (fl.size > 20*1024*1024) throw {code:'too_large'}; const r = await COM.assets.upload(fl); photo = r.id; }
+      const it = {id:uid(), title:t, kind:kind.value, price:kind.value==='Продам' ? price.value.trim() : '', condition:cond.value.trim(), city:city.value.trim(), note:note.value.trim(), photo, status:'active', ts:Date.now()};
+      await saveMyItems(myItems().concat([it]));
+      f.reset(); toast('Отправлено! Объявление появится после проверки');
+    }catch(err){
+      const c = err && err.code;
+      toast(c==='too_large' ? 'Фото больше 20 МБ' : c==='unsupported_type' ? 'Подходят JPG, PNG или WebP' : 'Не получилось отправить, попробуйте ещё раз');
+    }
+    btn.disabled = false; btn.textContent = 'Отправить на проверку';
+  });
+  lists.things = h('div',{class:'list'});
+  return [h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в барахолке, а покупатели смогут написать вам.'), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
+}
+function paintThings(el){
+  const items = myItems().slice().reverse();
+  const lbl = {pending:'На проверке', approved:'Опубликовано', rejected:'Отклонено'};
+  el.replaceChildren(...(items.length ? items.map(it=>{
+    const ms = mkState(COM.uid,it), ok = COM.mkOk[mkKey(COM.uid,it.id)];
+    const stl = it.status==='gone' ? 'Отдано' : it.status==='reserved' ? 'Забронировано' : lbl[ms];
+    return h('div',{class:'li'},
+      h('div',{class:'meta'}, h('span',{class:'status '+(ms==='approved'?'accepted':ms==='rejected'?'declined':'')},stl), h('span',null,it.kind), h('span',null,priceLabel(it)), h('span',null,dt(it.ts))),
+      h('b',null,it.title),
+      ms==='rejected' && ok && ok.reason ? h('div',{class:'hint'},'Причина: ',ok.reason) : null,
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+        it.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'gone')},'Отдано / продано') : null,
+        h('button',{type:'button',class:'btn danger small',onclick:()=>saveMyItems(myItems().filter(x=>x.id!==it.id))},'Удалить')));
+  }) : [h('p',{class:'hint'},'Вы пока ничего не выставили.')]));
+}
+function paintChats(el, openThread){
+  const ts = Object.entries(COM.threads).sort((a,b)=>(b[1].updated||0)-(a[1].updated||0));
+  el.replaceChildren(...(ts.length ? ts.map(([tid,t])=>{
+    const un = t.lastFrom!==COM.uid && (t.updated||0) > ((t.readBy||{})[COM.uid]||0);
+    return h('button',{type:'button',class:'li',style:'text-align:left;cursor:pointer;font:inherit;color:inherit',onclick:()=>openThread(tid)},
+      h('div',{class:'meta'}, un ? h('span',{class:'status accepted'},'Новое') : null, h('span',null, t.buyer===COM.uid ? 'Вы покупаете' : 'Вас спрашивают'), h('span',null,dt(t.updated))),
+      h('b',null,t.title), h('span',{class:'hint'},'Собеседник: ',partnerName(t)));
+  }) : [h('p',{class:'hint'},'Сообщений пока нет. Нажмите «Хочу купить» или «Хочу забрать» на любой вещи в барахолке.')]));
+}
+function paintModeration(el){
+  const pend = pendingListings();
+  el.replaceChildren(...(pend.length ? pend.map(({seller,it})=>{
+    const reason = h('input',{maxlength:'200',placeholder:'Причина отказа (увидит автор)','aria-label':'Причина отказа'});
+    const key = mkKey(seller,it.id), path = 'mk_ok/'+key;
+    return h('div',{class:'li'},
+      it.photo ? h('img',{src:photoURL(it.photo),alt:'',style:'width:120px;aspect-ratio:4/3;object-fit:cover;border-radius:8px'}) : null,
+      h('div',{class:'meta'}, h('span',{class:'status'},it.kind), h('b',null,nameOf(seller)), h('span',null,dt(it.ts)), h('span',null,priceLabel(it))),
+      h('b',null,it.title),
+      h('div',{style:'font-size:14px;white-space:pre-line'}, [it.condition && 'Состояние: '+it.condition, it.city && 'Где: '+it.city, it.note].filter(Boolean).join('\n')),
+      h('div',{class:'cm-form',style:'flex-wrap:wrap'},
+        h('button',{type:'button',class:'btn small',onclick:()=>write(path,()=>COM.db.doc(path).set({sig:sigOf(it), ok:true, by:COM.uid, ts:Date.now()})).then(()=>toast('Опубликовано')).catch(writeErr)},'Опубликовать'),
+        reason,
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>write(path,()=>COM.db.doc(path).set({sig:sigOf(it), rejected:true, reason:reason.value.trim().slice(0,200), by:COM.uid, ts:Date.now()})).then(()=>toast('Отклонено')).catch(writeErr)},'Отклонить')));
+  }) : [h('p',{class:'hint'},'Новых объявлений на проверку нет.')]));
+}
+function paintPeople(el){
+  const ids = Object.keys(COM.members).sort((a,b)=>(COM.members[b].joined||0)-(COM.members[a].joined||0));
+  const mods = STATE.moderators || [];
+  el.replaceChildren(...(ids.length ? ids.map(id=>h('div',{class:'li'},
+    h('div',{class:'meta'}, h('b',null,nameOf(id)), id===COM.uid ? h('span',{class:'status'},'Это вы') : null, mods.includes(id) ? h('span',{class:'status accepted'},'Модератор') : null, h('span',null,'с ',dt(COM.members[id].joined))),
+    id!==COM.uid ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
+      STATE.moderators = mods.includes(id) ? mods.filter(x=>x!==id) : mods.concat([id]);
+      closeModal(); markDirty(); setEditing(true); render(); toast('Нажмите «Сохранить изменения», чтобы применить');
+    }}, mods.includes(id) ? 'Снять модератора' : 'Сделать модератором')) : null
+  )) : [h('p',{class:'hint'},'Пока никто не зарегистрировался.')]));
+}
+
+/* ---------- personal stats ---------- */
+const ME_KEY = 'botanica-me-v1';
+let STATS = { examBest:0, examPassed:null, gameBest:0 };
+try{ const v = JSON.parse(localStorage.getItem(ME_KEY)||'null'); if (v) STATS = Object.assign(STATS, v); }catch(e){}
+function saveStats(){
+  try{ localStorage.setItem(ME_KEY, JSON.stringify(STATS)); }catch(e){}
+  if (COM.db && COM.uid && COM.canWrite !== false){
+    const path = 'data/users/'+COM.uid+'/profile';
+    write(path, ()=>COM.db.doc(path).set(Object.assign({}, STATS))).catch(()=>{});
+  }
+  refresh();
+}
+const leavesTotal = () => Object.values(HAB.log||{}).reduce((a,v)=>a+(v?v.length:0),0);
+
+/* ---------- modal & personal account ---------- */
+let MODAL = null;
+function closeModal(){ if (MODAL){ MODAL.remove(); MODAL = null; MODAL_LIVE = []; MODAL_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); MODAL_UNSUBS = []; document.removeEventListener('keydown', escClose); } }
+function escClose(e){ if (e.key==='Escape') closeModal(); }
+function openModal(build){
+  closeModal();
+  const sheet = h('div',{class:'sheet',role:'dialog','aria-modal':'true'});
+  MODAL = h('div',{class:'modal',onclick:e=>{ if (e.target===MODAL) closeModal(); }}, sheet);
+  document.body.append(MODAL);
+  document.addEventListener('keydown', escClose);
+  sheet.append(h('button',{type:'button',class:'btn ghost small close',onclick:closeModal},'Закрыть'));
+  build(sheet);
+  const f = sheet.querySelector('input,textarea,button:not(.close)'); if (f) f.focus();
+}
+function goTo(id){ closeModal(); location.hash = id; }
+
+function openAccount(tab, tid){
+  openModal(sheet=>{
+    let cur = tab || 'profile', lastKey = null, openTid = tid || null, tabBtns = {};
+    const openThread = id=>{ openTid = id; paint(true); };
+    const body = h('div',{style:'display:grid;gap:16px'});
+    sheet.append(body);
+    const lists = {};
+    function statsRow(){
+      const mine = COM.reviews.filter(r=>r.author===COM.uid).length + COM.comments.filter(c=>c.author===COM.uid).length;
+      return h('div',{class:'kv'},
+        h('div',null,h('b',null,leavesTotal()),h('span',null,'эко-листочков')),
+        h('div',null,h('b',null,STATS.examBest,'/10'),h('span',null,STATS.examPassed?'экзамен сдан':'лучший экзамен')),
+        h('div',null,h('b',null,STATS.gameBest),h('span',null,'рекорд в игре')),
+        h('div',null,h('b',null,mine),h('span',null,'отзывов и комментариев')));
+    }
+    function build(st){
+      if (st==='loading') return [h('h2',null,'Личный кабинет'), h('p',{class:'muted'},'Загружаем…')];
+      if (st==='signedout') return [h('h2',null,'Вход'), h('p',null,'Регистрация на DashaBotanika работает через аккаунт Claude. Войдите в Claude и откройте ссылку на сайт снова: здесь появится форма регистрации.'), h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен. Результаты сохранятся в этом браузере.')];
+      if (st==='readonly') return [h('h2',null,'Личный кабинет'), h('p',null,'Сейчас у вас доступ только для просмотра. Чтобы зарегистрироваться, оставлять отзывы и комментарии, попросите Дашу открыть вам доступ участника.'), statsRow()];
+      if (st==='guest'){
+        const nick = h('input',{id:'reg-nick',maxlength:'30',placeholder:'Например, Лиза из Москвы',autocomplete:'nickname'});
+        if (COM.user) COM.user.me().then(m=>{ if (m && m.name && !nick.value) nick.value = m.name; }).catch(()=>{});
+        const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+          h('label',{for:'reg-nick'},'Как вас подписывать',nick),
+          h('p',{class:'hint'},'Имя видят все посетители сайта рядом с вашими отзывами и комментариями.'),
+          h('div',null,h('button',{type:'submit',class:'btn'},'Зарегистрироваться')));
+        f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if (v.length<2){ nick.focus(); toast('Имя должно быть не короче двух букв'); return; }
+          const path='members/'+COM.uid;
+          write(path,()=>COM.db.doc(path).set({nick:v.slice(0,30), joined:Date.now()})).then(()=>toast('Добро пожаловать, '+v+'!')).catch(writeErr); });
+        return [h('h2',null,'Регистрация'), h('p',null,'В личном кабинете хранятся ваши эко-привычки, результаты экзамена и рекорд в игре. Ещё можно оставлять отзывы, комментировать и предлагать новости и статьи.'), f];
+      }
+      // member
+      const me = COM.me;
+      const tabs = [['profile','Профиль'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои отзывы']]
+        .concat(COM.admin ? [['moder','Модерация'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники']] : []);
+      tabBtns = {};
+      const out = [
+        h('div',{style:'display:flex;gap:14px;align-items:center'},
+          h('div',{class:'mono',style:'width:56px;height:56px;font-size:26px'},(me.nick||'?').charAt(0).toUpperCase()),
+          h('div',null,h('h2',{style:'font-size:28px'},me.nick), h('div',{class:'hint'},'С нами с ', dt(me.joined)))),
+        h('div',{class:'tabs',role:'tablist'}, tabs.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; paint(true); }},l); tabBtns[k]=b; return b; }))
+      ];
+      if (cur==='things') out.push(...thingsPanel(lists));
+      if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
+      if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения. Если автор изменит текст, объявление снова попадёт сюда.'), lists.moder); }
+      if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и могут редактировать сайт. Назначьте Дашу модератором, когда она зарегистрируется.'), lists.people); }
+      if (cur==='profile'){
+        const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
+        const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
+        f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2) return; const path='members/'+COM.uid;
+          write(path,()=>COM.db.doc(path).update({nick:v.slice(0,30)})).then(()=>toast('Имя обновлено')).catch(writeErr); });
+        lists.stats = h('div');
+        out.push(lists.stats,
+          h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('habits')},'Мои привычки'),
+            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('exam')},'Эко-экзамен'),
+            h('button',{type:'button',class:'btn ghost small',onclick:()=>goTo('game')},'Играть')),
+          h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f);
+      }
+      if (cur==='suggest'){
+        const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
+        const title = h('input',{id:'sg-title',maxlength:'120'});
+        const text = h('textarea',{id:'sg-text',maxlength:'4000',style:'min-height:140px'});
+        const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+          h('div',{class:'fields'}, h('label',{for:'sg-kind'},'Что предлагаете',kind), h('label',{for:'sg-title'},'Заголовок',title)),
+          h('label',{for:'sg-text'},'Текст или ссылка на источник',text),
+          h('div',null,h('button',{type:'submit',class:'btn'},'Отправить Даше')));
+        f.addEventListener('submit',e=>{ e.preventDefault(); const t=title.value.trim(), x=text.value.trim(); if(!t){ title.focus(); return; } if(!x){ text.focus(); return; }
+          const item = {id:'s'+uid(), kind:kind.value, title:t.slice(0,120), text:x.slice(0,4000), ts:Date.now(), status:'new'};
+          const path = 'suggestions/'+COM.uid;
+          write(path,()=>COM.db.doc(path).set({author:COM.uid, items:COM.mySugg.concat([item])})).then(()=>{ title.value=''; text.value=''; toast('Отправлено! Даша посмотрит'); }).catch(writeErr); });
+        lists.mySugg = h('div',{class:'list'});
+        out.push(h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f, h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg);
+      }
+      if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
+      if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и редакторы сайта.'), lists.inbox); }
+      return out;
+    }
+    const statusLabel = s => s==='accepted' ? 'В журнале' : s==='declined' ? 'Не подошло' : 'На рассмотрении';
+    function paintLists(){
+      if (lists.stats && lists.stats.isConnected) lists.stats.replaceChildren(statsRow());
+      if (lists.things && lists.things.isConnected) paintThings(lists.things);
+      if (lists.chats && lists.chats.isConnected) paintChats(lists.chats, openThread);
+      if (lists.moder && lists.moder.isConnected) paintModeration(lists.moder);
+      if (lists.people && lists.people.isConnected) paintPeople(lists.people);
+      if (lists.mySugg && lists.mySugg.isConnected){
+        const it = COM.mySugg.slice().reverse();
+        lists.mySugg.replaceChildren(...(it.length ? it.map(s=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('span',null,dt(s.ts))), h('b',null,s.title))) : [h('p',{class:'hint'},'Вы пока ничего не предлагали.')]));
+      }
+      if (lists.mine && lists.mine.isConnected){
+        const rv = COM.reviews.filter(r=>r.author===COM.uid).map(r=>({...r,kind:'Отзыв',path:'reviews/'+r.id}));
+        const cm = COM.comments.filter(c=>c.author===COM.uid).map(c=>({...c,kind:'Комментарий',path:'comments/'+c.id}));
+        const all = rv.concat(cm).sort((a,b)=>b.ts-a.ts);
+        lists.mine.replaceChildren(...(all.length ? all.map(x=>h('div',{class:'li'}, h('div',{class:'meta'}, h('span',{class:'status'},x.kind), h('span',null,dt(x.ts)), h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить',onclick:()=>delDoc(x.path)},'×')), h('div',{style:'white-space:pre-line'},x.text))) : [h('p',{class:'hint'},'Здесь появятся ваши отзывы и комментарии.')]));
+      }
+      if (lists.inbox && lists.inbox.isConnected){
+        const all = [];
+        COM.allSugg.forEach(d=>(d.items||[]).forEach(s=>all.push({...s, author:d.id})));
+        all.sort((a,b)=>b.ts-a.ts);
+        lists.inbox.replaceChildren(...(all.length ? all.map(s=>h('div',{class:'li'},
+          h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('b',null,nameOf(s.author)), h('span',null,dt(s.ts))),
+          h('b',null,s.title), h('div',{style:'white-space:pre-line;font-size:15px'},s.text),
+          s.status==='new' || !s.status ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
+            h('button',{type:'button',class:'btn small',onclick:()=>acceptSugg(s)},'Опубликовать в журнале'),
+            h('button',{type:'button',class:'btn ghost small',onclick:()=>setSuggStatus(s.author,s.id,'declined')},'Отклонить')) : null
+        )) : [h('p',{class:'hint'},'Новых предложений нет.')]));
+      }
+    }
+    function paint(force){
+      const st = accState(), key = st+'|'+cur+'|'+COM.admin+'|'+COM.owner+'|'+(COM.me?COM.me.nick:'')+'|'+(openTid && COM.threads[openTid] ? openTid : '');
+      if (force || key !== lastKey){ lastKey = key; MODAL_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); MODAL_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build(st)); }
+      paintLists();
+      const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
+      if (st==='member'){ badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); }
+    }
+    mlive(()=>paint(false));
+  });
+}
+function setSuggStatus(author, id, status){
+  const path = 'suggestions/'+author;
+  const doc = COM.allSugg.find(d=>d.id===author); if (!doc) return Promise.resolve();
+  const items = (doc.items||[]).map(i=>i.id===id ? Object.assign({}, i, {status}) : i);
+  return write(path, ()=>COM.db.doc(path).update({items})).catch(writeErr);
+}
+function acceptSugg(s){
+  if (!EDIT.art){ toast('Публиковать в журнал может только редактор сайта'); return; }
+  const lead = s.text.length > 200 ? s.text.slice(0,197).replace(/\s+\S*$/,'')+'…' : s.text;
+  STATE.articles.unshift({id:'a'+uid(), cat:s.kind==='Новость'?'Новость':'Статья', date:iso(new Date()), title:s.title, lead, body:s.text, by:s.author});
+  setSuggStatus(s.author, s.id, 'accepted');
+  closeModal(); markDirty(); setEditing(true); render(); location.hash = 'journal';
+  toast('Добавлено в журнал. Нажмите «Сохранить изменения»');
+}
+function accountButton(){
+  const b = h('button',{type:'button',class:'btn small acc-btn',onclick:()=>openAccount()});
+  live(()=>{
+    const st = accState();
+    if (st==='member'){ const n = unreadCount() + (COM.admin ? pendingListings().length : 0); b.replaceChildren(h('span',{class:'dot','aria-hidden':'true'},(COM.me.nick||'?').charAt(0).toUpperCase()), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null); }
+    else b.replaceChildren(st==='guest' ? 'Регистрация' : 'Войти');
+  });
+  return b;
+}
+
+/* ---------- game: eco clean-up ---------- */
+const BINS = [{k:'plastic',l:'Пластик',c:'#E0AE36'},{k:'paper',l:'Бумага',c:'#3E78B2'},{k:'glass',l:'Стекло',c:'#3B8F55'},{k:'metal',l:'Металл',c:'#858D95'},{k:'battery',l:'Батарейки',c:'#C0533D'}];
+const LITTER = [['plastic','Бутылка ПЭТ'],['plastic','Флакон от шампуня'],['paper','Газета'],['paper','Картонная коробка'],['glass','Стеклянная банка'],['glass','Бутылка из стекла'],['metal','Банка из-под газировки'],['metal','Консервная банка'],['battery','Батарейка']];
+function gameSection(){
+  const W = 760, H = 440;
+  const cv = h('canvas',{width:W,height:H,tabindex:'0','aria-label':'Игровое поле: собирайте мусор и относите в контейнеры'});
+  const ctx = cv.getContext('2d');
+  const over = h('div',{class:'g-over'});
+  const hud = h('div',{class:'stats',style:'margin-bottom:12px'});
+  let G = null, raf = 0, last = 0, keys = {}, C = null;
+  const bw = 124, gap = (W - bw*5)/6;
+  const bins = BINS.map((b,i)=>Object.assign({}, b, {x:gap+i*(bw+gap), y:12, w:bw, h:74}));
+  function tok(){ const cs = getComputedStyle(document.documentElement); const g = (n,f)=>cs.getPropertyValue(n).trim()||f;
+    return {sand:g('--sand-deep','#D9CBAE'), soft:g('--soft','#E3DAC5'), ink:g('--ink','#232A1E'), moss:g('--moss','#3A6234'), leaf:g('--leaf','#86A85C'), stone:g('--stone','#8D9187'), stoneHi:g('--stone-hi','#C9CCC2'), paper:g('--paper','#EDE6D6'), clay:g('--clay','#AD5E39'), sun:g('--sun','#C9932E')}; }
+  function deco(){ const a=[]; for(let i=0;i<14;i++) a.push({x:Math.random()*W, y:120+Math.random()*(H-130), r:6+Math.random()*14, t:Math.random()<.45?'grass':'stone'}); return a; }
+  function spawn(){ if (G.items.length >= 8) return; const [k,n] = LITTER[Math.random()*LITTER.length|0];
+    G.items.push({k, n, x:40+Math.random()*(W-80), y:140+Math.random()*(H-180), r:(Math.random()-.5)*1.4}); }
+  function start(){
+    C = tok();
+    G = {t:60, score:0, ok:0, bad:0, items:[], fx:[], p:{x:W/2, y:H-50, carry:null, face:1, walk:0}, target:null, spawnT:0, cool:0, msg:null, msgT:0, deco:deco()};
+    for (let i=0;i<5;i++) spawn();
+    over.hidden = true; cv.focus(); last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+  }
+  function finish(){
+    const best = Math.max(STATS.gameBest||0, G.score), rec = G.score > (STATS.gameBest||0) && G.score > 0;
+    if (rec){ STATS.gameBest = G.score; saveStats(); }
+    G.over = true; paintOver(rec);
+  }
+  function loop(t){
+    if (!cv.isConnected){ G = null; return; }
+    const dtm = Math.min(0.05, (t-last)/1000); last = t;
+    update(dtm); draw();
+    if (G && !G.over) raf = requestAnimationFrame(loop);
+  }
+  function update(d){
+    G.t -= d; if (G.t <= 0){ G.t = 0; finish(); return; }
+    const p = G.p, sp = 230; let vx = 0, vy = 0;
+    if (keys.ArrowLeft||keys.KeyA) vx -= 1; if (keys.ArrowRight||keys.KeyD) vx += 1;
+    if (keys.ArrowUp||keys.KeyW) vy -= 1; if (keys.ArrowDown||keys.KeyS) vy += 1;
+    if (vx||vy){ G.target = null; } else if (G.target){ const dx = G.target.x-p.x, dy = G.target.y-p.y, L = Math.hypot(dx,dy); if (L < 4) G.target = null; else { vx = dx/L; vy = dy/L; } }
+    const L = Math.hypot(vx,vy) || 1;
+    if (vx||vy){ p.x += vx/L*sp*d; p.y += vy/L*sp*d; p.walk += d*10; if (vx) p.face = vx>0?1:-1; }
+    p.x = Math.max(16, Math.min(W-16, p.x)); p.y = Math.max(118, Math.min(H-14, p.y));
+    if (!p.carry){
+      for (let i=0;i<G.items.length;i++){ const it = G.items[i]; if (Math.hypot(it.x-p.x, it.y-(p.y-10)) < 30){ p.carry = it; G.items.splice(i,1); break; } }
+    }
+    G.cool = Math.max(0, G.cool-d);
+    if (p.carry && G.cool === 0){
+      const b = bins.find(b=>p.x > b.x-6 && p.x < b.x+b.w+6 && p.y-44 < b.y+b.h);
+      if (b){
+        if (b.k === p.carry.k){ G.score += 10; G.ok++; G.fx.push({x:p.x, y:p.y-70, txt:'+10', c:C.moss, life:1}); p.carry = null; G.msg = null; }
+        else { G.score = Math.max(0, G.score-5); G.bad++; G.cool = 1; const right = BINS.find(x=>x.k===p.carry.k).l;
+          G.fx.push({x:p.x, y:p.y-70, txt:'−5', c:C.clay, life:1}); G.msg = '«'+p.carry.n+'» — это '+right.toLowerCase(); G.msgT = 3; }
+      }
+    }
+    G.spawnT -= d; if (G.spawnT <= 0){ spawn(); G.spawnT = 1.5; }
+    G.fx.forEach(f=>{ f.y -= 40*d; f.life -= d; }); G.fx = G.fx.filter(f=>f.life>0);
+    if (G.msgT > 0){ G.msgT -= d; if (G.msgT <= 0) G.msg = null; }
+    paintHud();
+  }
+  function rr(x,y,w,h_,r){ ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x,y,w,h_,r) : ctx.rect(x,y,w,h_); }
+  function drawItem(it, x, y, rot){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot||0);
+    if (it.k==='plastic'){ ctx.fillStyle='#9FD3E6'; rr(-7,-14,14,26,5); ctx.fill(); ctx.fillStyle='#2F7FB0'; ctx.fillRect(-4,-19,8,6); ctx.fillStyle='rgba(255,255,255,.6)'; ctx.fillRect(-4,-9,3,14); }
+    else if (it.k==='paper'){ ctx.fillStyle='#EFE6CF'; ctx.fillRect(-13,-10,26,20); ctx.strokeStyle='#8A7B5C'; ctx.lineWidth=1.5; for(let i=-5;i<=5;i+=5){ ctx.beginPath(); ctx.moveTo(-9,i); ctx.lineTo(9,i); ctx.stroke(); } if (it.n.includes('Картон')){ ctx.fillStyle='#C89B62'; ctx.fillRect(-13,-10,26,20); ctx.strokeStyle='#8E6A3D'; ctx.strokeRect(-13,-10,26,20); ctx.beginPath(); ctx.moveTo(-13,-3); ctx.lineTo(13,-3); ctx.stroke(); } }
+    else if (it.k==='glass'){ ctx.fillStyle='rgba(98,166,120,.85)'; rr(-9,-12,18,24,6); ctx.fill(); ctx.fillStyle='#4C5A50'; ctx.fillRect(-7,-16,14,5); ctx.fillStyle='rgba(255,255,255,.5)'; ctx.fillRect(-5,-7,3,12); }
+    else if (it.k==='metal'){ ctx.fillStyle='#B9C0C6'; rr(-8,-12,16,24,3); ctx.fill(); ctx.fillStyle= it.n.includes('газир') ? '#D2483A' : '#6E7A84'; ctx.fillRect(-8,-5,16,10); ctx.fillStyle='#8D959C'; ctx.fillRect(-8,-13,16,3); }
+    else { ctx.fillStyle='#2B2B2B'; ctx.fillRect(-6,-12,12,24); ctx.fillStyle='#D9A933'; ctx.fillRect(-6,-12,12,8); ctx.fillStyle='#bbb'; ctx.fillRect(-2,-15,4,3); }
+    ctx.restore();
+  }
+  function draw(){
+    if (!C) C = tok();
+    ctx.fillStyle = C.sand; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = C.soft; ctx.fillRect(0,0,W,100);
+    if (G) G.deco.forEach(o=>{ if (o.t==='stone'){ ctx.fillStyle=C.stone; ctx.globalAlpha=.55; ctx.beginPath(); ctx.ellipse(o.x,o.y,o.r,o.r*.62,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle=C.stoneHi; ctx.beginPath(); ctx.ellipse(o.x-o.r*.25,o.y-o.r*.2,o.r*.35,o.r*.18,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+      else { ctx.strokeStyle=C.leaf; ctx.lineWidth=2; for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(o.x+i*4,o.y); ctx.quadraticCurveTo(o.x+i*6,o.y-o.r*.6,o.x+i*9,o.y-o.r); ctx.stroke(); } } });
+    const p = G && G.p;
+    bins.forEach(b=>{
+      const hot = p && p.carry && p.x > b.x-6 && p.x < b.x+b.w+6 && p.y-44 < b.y+b.h+30;
+      ctx.fillStyle = 'rgba(0,0,0,.12)'; rr(b.x+4,b.y+8,b.w,b.h,12); ctx.fill();
+      ctx.fillStyle = b.c; rr(b.x,b.y,b.w,b.h,12); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(b.x,b.y,b.w,16,[12,12,0,0]); ctx.fill();
+      if (hot){ ctx.strokeStyle = C.ink; ctx.lineWidth = 3; rr(b.x-2,b.y-2,b.w+4,b.h+4,14); ctx.stroke(); }
+      ctx.fillStyle = '#fff'; ctx.font = '800 15px Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.l, b.x+b.w/2, b.y+b.h/2+6);
+    });
+    if (!G) return;
+    G.items.forEach(it=>{ ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(it.x,it.y+12,12,4,0,0,Math.PI*2); ctx.fill(); drawItem(it,it.x,it.y,it.r); });
+    // player
+    const sw = Math.sin(p.walk)*5;
+    ctx.fillStyle='rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(p.x,p.y+2,15,5,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#3B3A36'; ctx.lineWidth=5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(p.x-5,p.y-16); ctx.lineTo(p.x-5+sw,p.y); ctx.moveTo(p.x+5,p.y-16); ctx.lineTo(p.x+5-sw,p.y); ctx.stroke();
+    ctx.fillStyle = C.moss; rr(p.x-12,p.y-42,24,28,9); ctx.fill();
+    ctx.strokeStyle='#F0C8A6'; ctx.lineWidth=4;
+    ctx.beginPath(); if (p.carry){ ctx.moveTo(p.x-11,p.y-38); ctx.lineTo(p.x-8,p.y-60); ctx.moveTo(p.x+11,p.y-38); ctx.lineTo(p.x+8,p.y-60); } else { ctx.moveTo(p.x-12,p.y-36); ctx.lineTo(p.x-15,p.y-20-sw*.4); ctx.moveTo(p.x+12,p.y-36); ctx.lineTo(p.x+15,p.y-20+sw*.4); } ctx.stroke();
+    ctx.fillStyle='#E9C46F'; ctx.beginPath(); ctx.arc(p.x,p.y-52,12,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#F3CFAF'; ctx.beginPath(); ctx.arc(p.x+p.face*1.5,p.y-50,9.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#E9C46F'; ctx.beginPath(); ctx.ellipse(p.x-p.face*2,p.y-58,11,5,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#2C2A27'; ctx.beginPath(); ctx.arc(p.x+p.face*4.5,p.y-50,1.6,0,Math.PI*2); ctx.fill();
+    if (p.carry) drawItem(p.carry, p.x, p.y-76, 0);
+    G.fx.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life); ctx.fillStyle=f.c; ctx.font='800 22px Nunito, system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; });
+    if (G.msg){ ctx.font='700 16px Nunito, system-ui, sans-serif'; const tw = ctx.measureText(G.msg).width+28; ctx.fillStyle=C.paper; rr(W/2-tw/2,H-46,tw,32,16); ctx.fill(); ctx.fillStyle=C.clay; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(G.msg,W/2,H-30); }
+    else if (p.carry){ ctx.font='700 14px Nunito, system-ui, sans-serif'; ctx.fillStyle=C.ink; ctx.globalAlpha=.75; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('Несёте: '+p.carry.n, W/2, H-24); ctx.globalAlpha=1; }
+  }
+  let hudKey = '';
+  function paintHud(){
+    const s = G ? Math.ceil(G.t) : 60, key = s+'|'+(G?G.score:0)+'|'+(G?G.ok:0)+'|'+STATS.gameBest;
+    if (key === hudKey) return; hudKey = key;
+    hud.replaceChildren(
+      h('div',null,h('b',null,'0:'+String(s).padStart(2,'0')),h('span',null,'осталось')),
+      h('div',null,h('b',null,G?G.score:0),h('span',null,'очков')),
+      h('div',null,h('b',null,G?G.ok:0),h('span',null,'рассортировано')),
+      h('div',null,h('b',null,STATS.gameBest||0),h('span',null,'ваш рекорд')));
+  }
+  function paintOver(rec){
+    over.hidden = false;
+    if (!G || !G.over){
+      over.replaceChildren(h('div',null, h('h3',{style:'font-size:30px'},'Эко-уборка'),
+        h('p',null,'Соберите мусор в парке и отнесите каждый предмет в правильный контейнер. Верно: +10 очков, ошибка: −5. На всё 60 секунд.'),
+        h('p',{class:'hint'},'Компьютер: стрелки или ', h('span',{class:'kbd'},'W'),h('span',{class:'kbd'},'A'),h('span',{class:'kbd'},'S'),h('span',{class:'kbd'},'D'),'. Телефон: нажмите на место, куда идти.'),
+        h('button',{type:'button',class:'btn',onclick:start},'Начать игру')));
+    } else {
+      over.replaceChildren(h('div',null, h('div',{class:'eyebrow'}, rec ? 'Новый рекорд!' : 'Время вышло'), h('div',{class:'big'},G.score),
+        h('p',null,'Верно рассортировано: ',G.ok,'. Ошибок: ',G.bad,'.'),
+        h('p',{class:'hint'}, G.ok >= 15 ? 'Вы настоящий эко-герой!' : G.bad > G.ok ? 'Подсказка: загляните в памятку «Как это делать» в калькуляторе.' : 'Неплохо! Попробуйте побить рекорд.'),
+        h('button',{type:'button',class:'btn',onclick:start},'Ещё раз')));
+    }
+  }
+  const toCanvas = e => { const r = cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/r.width, y:(e.clientY-r.top)*H/r.height}; };
+  cv.addEventListener('pointerdown', e=>{ if (!G || G.over) return; G.target = toCanvas(e); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+  cv.addEventListener('pointermove', e=>{ if (G && !G.over && e.buttons) G.target = toCanvas(e); });
+  const KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS'];
+  const kd = e=>{ if (!cv.isConnected){ window.removeEventListener('keydown',kd); window.removeEventListener('keyup',ku); return; }
+    if (G && !G.over && KEYS.includes(e.code)){ const tg = e.target; if (tg && /INPUT|TEXTAREA|SELECT/.test(tg.tagName)) return; keys[e.code] = true; e.preventDefault(); } };
+  const ku = e=>{ keys[e.code] = false; };
+  window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
+  window.addEventListener('blur', ()=>{ keys = {}; });
+  requestAnimationFrame(()=>{ C = tok(); draw(); });
+  paintHud(); paintOver(false);
+  live(paintHud);
+  return h('section',{class:'band alt',id:'game'}, h('div',{class:'wrap'},
+    sectionHead('Игра','Эко-уборка','Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер. Чем быстрее и точнее, тем больше очков.'),
+    h('div',{class:'game'},
+      h('div',{style:'min-width:0'}, hud, h('div',{class:'g-stage'}, cv, over)),
+      h('div',{class:'card'}, h('h3',{style:'font-size:20px'},'Какой контейнер для чего'),
+        h('div',{class:'legend'}, BINS.map(b=>h('div',null, h('i',{style:'background:'+b.c}), h('span',null, h('b',null,b.l),': ', LITTER.filter(x=>x[0]===b.k).map(x=>x[1].toLowerCase()).join(', '))))),
+        h('p',{class:'hint'},'В реальной жизни цвета контейнеров зависят от города. Смотрите на надписи на баках.'))
+    )
+  ));
+}
+
+/* ---------- eco exam ---------- */
+const QUESTIONS = [
+  {q:'Что означает цифра 1 в треугольнике из стрелок на дне бутылки?', o:['ПЭТ, самый ходовой пластик для бутылок','ПВХ','Полистирол','Что бутылку можно использовать один раз'], a:0, ex:'Код 1 (PET, ПЭТ) обозначает полиэтилентерефталат. Его принимают почти во всех пунктах приёма.'},
+  {q:'Какой из этих пластиков сдать сложнее всего?', o:['♳ 1 PET','♴ 2 HDPE','♸ 3 PVC','♷ 5 PP'], a:2, ex:'ПВХ содержит хлор, при переработке с ним много сложностей, поэтому его принимают редко.'},
+  {q:'Можно ли сдать в макулатуру коробку из-под пиццы с жирными пятнами?', o:['Да, целиком','Нет, жирная часть не перерабатывается','Только если она мокрая','Только вместе с остатками еды'], a:1, ex:'Жир мешает переработке бумаги. Чистую крышку коробки можно оторвать и сдать отдельно.'},
+  {q:'Куда правильно деть старые батарейки?', o:['В общий мусор','В контейнер для металла','В специальный бокс для батареек','Закопать в землю'], a:2, ex:'В батарейках есть тяжёлые металлы. Боксы для них стоят во многих супермаркетах и магазинах электроники.'},
+  {q:'Сколько раз можно перерабатывать стеклянную банку?', o:['Один раз','Три раза','Около десяти раз','Бесконечно, без потери качества'], a:3, ex:'Стекло переплавляется снова и снова, и качество от этого не страдает.'},
+  {q:'Куда отправить кассовый чек?', o:['В макулатуру','В общий мусор: это термобумага','В пластик','В стекло'], a:1, ex:'Чеки печатают на термобумаге со специальным покрытием, поэтому в макулатуру они не подходят.'},
+  {q:'Сколько энергии экономит переработка алюминиевой банки по сравнению с производством новой?', o:['Около 10%','Около 30%','Около 50%','До 95%'], a:3, ex:'Чтобы получить алюминий из руды, нужно очень много энергии. Переплавка готового металла обходится намного дешевле.'},
+  {q:'Что лучше всего сделать с целой, но ненужной одеждой?', o:['Выбросить','Продать, обменять или отдать','Сжечь на даче','Порезать на тряпки сразу'], a:1, ex:'Повторное использование лучше переработки: вещь служит дальше, а новую не нужно производить.'},
+  {q:'Что из этого НЕЛЬЗЯ сдавать вместе со стеклянной тарой?', o:['Банку из-под огурцов','Бутылку из-под сока','Разбитое зеркало','Флакон из-под духов из стекла'], a:2, ex:'Зеркала, оконное стекло, посуда и лампочки отличаются по составу от тары и портят сырьё.'},
+  {q:'Как подготовить пластиковую бутылку к сдаче?', o:['Оставить с остатками напитка','Ополоснуть и сплющить','Разрезать на мелкие кусочки','Покрасить'], a:1, ex:'Чистую сплющенную бутылку легче везти и перерабатывать. Крышки обычно собирают отдельно.'},
+  {q:'Что означает маркировка PAP 20?', o:['Гофрокартон','Полиэтилен','Алюминий','Стекло'], a:0, ex:'PAP 20 означает гофрированный картон, PAP 21 обычный картон, PAP 22 бумагу.'},
+  {q:'У какой еды обычно самый маленький углеродный след?', o:['Говядина','Сезонные местные овощи','Фрукты, привезённые самолётом','Сыр'], a:1, ex:'Овощи растят без больших затрат и не везут издалека. У говядины и сыра след в разы больше.'},
+  {q:'Чем полезна стирка при 30 °C?', o:['Ничем','Экономит энергию и бережёт ткань','Убивает всю одежду','Нужна только для шерсти'], a:1, ex:'Большая часть энергии при стирке уходит на нагрев воды. Современные порошки хорошо работают и в прохладной.'},
+  {q:'Что делать с перегоревшей энергосберегающей лампой?', o:['Выбросить в общий мусор','Сдать в пункт приёма опасных отходов','Разбить и выбросить','Сдать вместе со стеклом'], a:1, ex:'В таких лампах есть ртуть. Их принимают экоцентры и некоторые магазины.'},
+  {q:'Куда сдавать пакет из-под сока (тетрапак)?', o:['В бумагу вместе с газетами','В отдельный приём многослойной упаковки','В стекло','В металл'], a:1, ex:'Тетрапак склеен из картона, пластика и фольги. Его перерабатывают отдельно, и принимают его не везде.'},
+  {q:'Что такое микропластик?', o:['Пластик для маленьких деталей','Частицы пластика меньше 5 мм','Пластик, который быстро разлагается','Название переработанного пластика'], a:1, ex:'Микропластик появляется при износе синтетики и упаковки. Он попадает в воду, почву и еду.'}
+];
+const LESSONS = [
+  ['Маркировка упаковки',['Треугольник из стрелок с цифрой: 1 PET и 2 HDPE принимают почти везде, 5 PP часто.','3 PVC и 6 PS принимают редко, 7 OTHER почти не перерабатывается.','PAP 20–22: бумага и картон. GL 70–72: стекло. ALU 41 и FE 40: металл.']],
+  ['Что не перерабатывается',['Чеки, бумажные стаканчики, грязная и жирная бумага.','Зеркала, посуда и оконное стекло вместе с тарой.','Сильно загрязнённая упаковка: перед сдачей её стоит ополоснуть.']],
+  ['Опасные отходы',['Батарейки и аккумуляторы: в специальные боксы.','Ртутные градусники и энергосберегающие лампы: в экоцентры.','Лекарства, краски и бытовая химия: в пункты приёма опасных отходов.']]
+];
+function shuffle(a){ a = a.slice(); for (let i=a.length-1;i>0;i--){ const j = Math.random()*(i+1)|0; [a[i],a[j]] = [a[j],a[i]]; } return a; }
+function examSection(){
+  const box = h('div',{class:'qbox','aria-live':'polite'});
+  let S = null;
+  function start(){ S = {qs:shuffle(QUESTIONS).slice(0,10).map(q=>Object.assign({}, q, {order:shuffle(q.o.map((_,i)=>i))})), i:0, score:0, picked:null}; paint(); }
+  function finish(){
+    if (S.score > (STATS.examBest||0)) STATS.examBest = S.score;
+    if (S.score >= 8 && !STATS.examPassed) STATS.examPassed = Date.now();
+    saveStats();
+  }
+  function paint(){
+    if (!S){
+      box.replaceChildren(h('div',{class:'eyebrow'},'10 вопросов'), h('h3',{style:'font-size:28px'},'Проверьте себя'),
+        h('p',{class:'muted'},'Вопросы о переработке, маркировке и экологичном быте. Экзамен сдан, если верных ответов 8 и больше. После каждого ответа будет короткое объяснение, так что это ещё и обучение.'),
+        STATS.examBest ? h('p',{style:'font-weight:700'},'Ваш лучший результат: ',STATS.examBest,' из 10', STATS.examPassed ? ', экзамен сдан' : '') : null,
+        h('div',null,h('button',{type:'button',class:'btn',onclick:start}, STATS.examBest ? 'Пройти ещё раз' : 'Начать экзамен')));
+      return;
+    }
+    if (S.i >= S.qs.length){
+      const pass = S.score >= 8;
+      const who = COM.me ? COM.me.nick : '';
+      box.replaceChildren(pass ? h('div',{class:'cert'},
+          h('div',{class:'seal'},S.score+'/10'), h('div',{class:'eyebrow'},'Сертификат DashaBotanika'),
+          h('h3',{style:'font-size:28px'},'Эко-знаток'),
+          who ? h('p',{style:'font-weight:800;font-size:18px'},who) : null,
+          h('p',{class:'muted'},'Экзамен по экологии и переработке сдан ', new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}),'.'))
+        : h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'Почти получилось'), h('h3',{style:'font-size:28px'},S.score,' из 10'),
+          h('p',{class:'muted'},'Для сертификата нужно 8 верных ответов. Загляните в уроки справа и попробуйте снова: вопросы каждый раз немного другие.')),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'button',class:'btn',onclick:start},'Пройти ещё раз'),
+          accState()==='guest' ? h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount()},'Сохранить результат в кабинете') : null));
+      return;
+    }
+    const q = S.qs[S.i], done = S.picked !== null;
+    box.replaceChildren(
+      h('div',{style:'display:flex;justify-content:space-between;gap:12px;font-weight:800;font-size:14px;color:var(--muted)'}, h('span',null,'Вопрос ',S.i+1,' из ',S.qs.length), h('span',null,'Верно: ',S.score)),
+      h('div',{class:'prog'}, h('i',{style:'width:'+((S.i+(done?1:0))/S.qs.length*100)+'%'})),
+      h('h3',{style:'font-size:22px'},q.q),
+      h('div',{class:'opts'}, q.order.map(oi=>h('button',{type:'button',class:'opt'+(done ? (oi===q.a?' right':oi===S.picked?' wrong':'') : ''),disabled:done,onclick:()=>{ S.picked = oi; if (oi===q.a) S.score++; paint(); }}, q.o[oi]))),
+      done ? h('p',{class:'explain'}, h('b',null, S.picked===q.a ? 'Верно! ' : 'Не совсем. '), q.ex) : null,
+      done ? h('div',null,h('button',{type:'button',class:'btn',onclick:()=>{ S.i++; S.picked=null; if (S.i>=S.qs.length) finish(); paint(); }}, S.i+1>=S.qs.length ? 'Узнать результат' : 'Следующий вопрос')) : null
+    );
+  }
+  paint();
+  live(()=>{ if (!S) paint(); });
+  return h('section',{class:'band',id:'exam'}, h('div',{class:'wrap'},
+    sectionHead('Эко-экзамен','Обучение и тест по экологии','Сначала пробегитесь по коротким урокам, потом сдайте экзамен и получите сертификат эко-знатока.'),
+    h('div',{class:'exam'}, box,
+      h('div',{style:'display:grid;gap:8px'}, h('h3',{style:'font-size:20px;margin-bottom:6px'},'Уроки'),
+        LESSONS.map(([t,pts],i)=>h('details',{class:'how',open:i===0}, h('summary',null,'Урок ',i+1,'. ',t), h('ul',null,pts.map(x=>h('li',null,x)))))))
+  ));
+}
+
+/* ---------- edit mode: the page republishes itself ---------- */
+function markDirty(){ EDIT.dirty = true; const s=document.getElementById('save-state'); if(s) s.textContent='Есть несохранённые изменения'; }
+function editBar(){
+  return h('div',{class:'editbar edit-only'}, h('div',{class:'wrap'},
+    h('span',{id:'save-state',style:'font-weight:700'}, EDIT.dirty?'Есть несохранённые изменения':'Режим редактирования: добавляйте и удаляйте карточки, правьте тексты'),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+      h('button',{type:'button',class:'btn ghost',onclick:()=>{ if(EDIT.dirty){ STATE=JSON.parse(DATA_EL.textContent); normalize(); EDIT.dirty=false; } setEditing(false); render(); }},'Отменить'),
+      h('button',{type:'button',class:'btn',id:'save-btn',onclick:saveSite},'Сохранить изменения')
+    )
+  ));
+}
+function setEditing(on){ EDIT.on=on; document.body.classList.toggle('editing',on); }
+function mountEditButton(){
+  const slot = document.getElementById('edit-slot');
+  if (!slot || !EDIT.art || EDIT.on) return;
+  slot.replaceChildren(h('button',{type:'button',class:'btn ghost small',onclick:()=>{ setEditing(true); render(); document.body.classList.add('editing'); }},'Редактировать сайт'));
+}
+function toast(msg){ const t=h('div',{class:'toast',role:'status'},msg); document.body.append(t); setTimeout(()=>t.remove(),2600); }
+const HEAD = '<title>DashaBotanika</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,500;0,700;0,800;1,500&family=Caveat:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap">\n';
+const RESET = ':root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}';
+function buildDocument(){
+  for (const k of ['cafes','market']) STATE[k].forEach(it=>{ if (it.example && it._touched) delete it.example; });
+  const json = JSON.stringify(STATE).replace(/</g,'\\u003c');
+  const SC = '<'+'/script>', ST = '<'+'/style>';
+  const content = HEAD +
+    '<style id="css">' + document.getElementById('css').textContent + ST + '\n' +
+    '<script type="application/json" id="site-data">' + json + SC + '\n' +
+    '<div id="app"></div>\n' +
+    '<script id="appjs">' + document.getElementById('appjs').textContent + SC + '\n';
+  return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>'+RESET+'</style></head><body>'+content+'</body></html>';
+}
+async function saveSite(){
+  const btn = document.getElementById('save-btn');
+  if (!EDIT.art){ toast('Сохранение недоступно в этом окне'); return; }
+  btn.disabled = true; btn.textContent = 'Сохраняю…';
+  try{
+    await EDIT.art.publish(buildDocument());
+    EDIT.dirty = false; toast('Сохранено');
+  }catch(e){
+    const code = e && e.code;
+    toast(code==='conflict' ? 'Кто-то сохранил раньше, страница обновится' : code==='not_writer'||code==='not_granted' ? 'У вас нет прав на редактирование' : 'Не получилось сохранить, попробуйте ещё раз');
+    btn.disabled = false; btn.textContent = 'Сохранить изменения';
+  }
+}
+
+render();
+
+/* ---------- capabilities light up later ---------- */
+const use = window.claude && window.claude.use ? n => window.claude.use(n).catch(()=>null) : () => Promise.resolve(null);
+(async ()=>{
+  const [db, user, art] = await Promise.all([use('db'), use('user'), use('artifact')]);
+  COM.db = db; COM.user = user;
+  const id = user ? await user.id().catch(()=>null) : null;
+  COM.uid = id;
+  COM.owner = user ? await user.isOwner().catch(()=>false) : false;
+  const editor = user ? await user.canEdit().catch(()=>false) : false;
+  COM.admin = COM.owner || (editor && !!id && (STATE.moderators||[]).includes(id));
+  if (editor) COM.assets = await use('assets');
+  if (art && COM.admin){ EDIT.art = art; EDIT.assets = COM.assets; render(); }
+  if (!db || !user){ COM.ready = true; refresh(); return; }
+  const cw = await user.can('data.write').catch(()=>null);
+  COM.canWrite = cw === false ? false : (cw === true ? true : null);
+  COM.ready = true;
+  const fail = ()=>{};
+  db.collection('members').limit(1000).onSnapshot(snap=>{
+    const m = {}; snap.docs.forEach(d=>{ m[d.id] = d.data(); });
+    COM.members = m; COM.me = id ? (m[id] || null) : null; refresh();
+  }, fail);
+  db.collection('reviews').orderBy('ts','desc').limit(300).onSnapshot(snap=>{
+    COM.reviews = snap.docs.map(d=>Object.assign({id:d.id}, d.data())); refresh();
+  }, fail);
+  db.collection('comments').orderBy('ts','asc').limit(1000).onSnapshot(snap=>{
+    COM.comments = snap.docs.map(d=>Object.assign({id:d.id}, d.data())); refresh();
+  }, fail);
+  db.collection('mk').limit(500).onSnapshot(snap=>{ const m = {}; snap.docs.forEach(d=>{ m[d.id] = d.data(); }); COM.mk = m; refresh(); }, fail);
+  db.collection('mk_ok').limit(1000).onSnapshot(snap=>{ const m = {}; snap.docs.forEach(d=>{ m[d.id] = d.data(); }); COM.mkOk = m; refresh(); }, fail);
+  if (id){
+    const mergeThreads = ()=>{ COM.threads = Object.assign({}, COM._tsite, COM._ts, COM._tb); refresh(); };
+    const toMap = snap=>{ const m = {}; snap.docs.forEach(d=>{ m[d.id] = d.data(); }); return m; };
+    db.collection('chats').where('buyer','==',id).limit(300).onSnapshot(snap=>{ COM._tb = toMap(snap); mergeThreads(); }, fail);
+    db.collection('chats').where('seller','==',id).limit(300).onSnapshot(snap=>{ COM._ts = toMap(snap); mergeThreads(); }, fail);
+    if (COM.admin) db.collection('chats').where('seller','==','site').limit(300).onSnapshot(snap=>{ COM._tsite = toMap(snap); mergeThreads(); }, fail);
+    db.doc('suggestions/'+id).onSnapshot(snap=>{ const d = snap.exists ? snap.data() : null; COM.mySugg = d && Array.isArray(d.items) ? d.items : []; refresh(); }, fail);
+    if (COM.admin) db.collection('suggestions').limit(500).onSnapshot(snap=>{ COM.allSugg = snap.docs.map(d=>Object.assign({id:d.id}, d.data())); refresh(); }, fail);
+    try{
+      const pr = await db.doc('data/users/'+id+'/profile').get();
+      if (pr.exists){ const d = pr.data() || {}; STATS.examBest = Math.max(STATS.examBest||0, d.examBest||0); STATS.gameBest = Math.max(STATS.gameBest||0, d.gameBest||0); STATS.examPassed = STATS.examPassed || d.examPassed || null; }
+      try{ localStorage.setItem(ME_KEY, JSON.stringify(STATS)); }catch(e){}
+    }catch(e){}
+    try{
+      const ref = db.doc('data/users/'+id+'/habits');
+      const snap = await ref.get();
+      habRef = ref;
+      if (snap.exists){ const d = snap.data(); if (d && Array.isArray(d.habits)){ HAB = JSON.parse(JSON.stringify(d)); lsWrite(); habitsSection.repaint && habitsSection.repaint(); } }
+      else if (stored) saveHabits();
+    }catch(e){ habRef = null; }
+  }
+  refresh();
+})();
+})();
+</script>

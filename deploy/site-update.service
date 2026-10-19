@@ -1,0 +1,6 @@
+[Unit]
+Description=Pull dashabotanika-site from GitHub
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/site-update
