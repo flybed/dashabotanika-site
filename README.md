@@ -1,38 +1,54 @@
 # dashabotanika-site
 
-Эко-сайт DashaBotanika: **dashabotanika.ru**. Переезд с артефакта claude.ai на свой сервер
-(Timeweb Cloud, Ubuntu 24.04): статический сайт + PocketBase + Caddy.
+Эко-сайт DashaBotanika: **dashabotanika.ru**. Статический фронтенд + PocketBase + Caddy на своём сервере
+(Timeweb Cloud, Ubuntu 24.04). Всё, что попадает в ветку `main`, сервер подтягивает сам в течение 5 минут.
 
 ## Структура
 
 | Путь | Что это |
 |---|---|
-| `legacy/artifact-version.html` | Исходная версия сайта (артефакт claude.ai, v5) — эталон, не редактируется |
-| `site/` | То, что отдаёт Caddy. Сейчас `index.html` = артефакт в режиме «только чтение» (фото из `site/img/`) |
-| `site/img/` | Фото Даши: hero, globe (about), coffee (cafes), fashion, owl (gallery) |
-| `pocketbase/pb_migrations`, `pb_hooks` | Схема коллекций и серверные правила PocketBase (этап 2) |
-| `deploy/` | Caddyfile, systemd-юниты, cloud-init для Timeweb, скрипт автообновления из GitHub |
-| `docs/source-notes.md` | Исходные заметки из архива |
+| `site/` | То, что отдаёт Caddy: `index.html`, `css/app.css`, `js/app.js`, `js/pocketbase.umd.js` (SDK 0.28.1), фото в `img/`, `robots.txt`, `sitemap.xml` |
+| `pocketbase/pb_migrations/` | Схема базы: коллекции, правила доступа, стартовый контент, персонажи и уровни. Применяется автоматически при перезапуске PocketBase |
+| `pocketbase/pb_hooks/` | Серверная логика: автоматическое повышение уровня (`levels.js`, `levels.pb.js`) |
+| `deploy/` | Caddyfile, systemd-юниты, `cloud-init.yaml` / `bootstrap.sh`, автообновление из GitHub, бэкап |
+| `tests/` | `api_test.py` — правила доступа и уровни; `e2e.js` — сквозная проверка в браузере |
+| `legacy/artifact-version.html` | Исходная версия сайта (артефакт claude.ai) — эталон, не редактируется |
+| `docs/ROADMAP.md` | Новые функции, SEO, решения |
 
-## План переезда
+## Как устроен сайт
 
-**Этап 1 — сервер и домен (готово в репозитории, ждёт запуска)**
-1. Сервер в Timeweb Cloud (Москва, Ubuntu 24.04) создаётся с `deploy/cloud-init.yaml`:
-   ставит Caddy, PocketBase (systemd, только на 127.0.0.1:8090), firewall, клонирует репозиторий,
-   таймер `site-update` подтягивает `main` каждые 5 минут, ежедневный бэкап `pb_data` (14 дней).
-2. В Webnames: A-записи `@` и `www` → IP сервера. Caddy сам выпускает HTTPS.
-3. Результат: сайт открывается в нынешнем дизайне, но без входа/отзывов/барахолки.
+- **Контент** (тексты, товары, кафе, статьи, фото) хранится в PocketBase, коллекция `content`, запись `site`.
+  Даша редактирует его прямо на сайте: кнопка «Редактировать сайт» внизу страницы (видна администраторам и модераторам).
+- **Участники** регистрируются по почте и паролю и выбирают персонажа для «Счастливого мира».
+- **Уровни** (Эко малыш → Эко Эксперт) повышаются автоматически. Условия — в коллекции `levels`.
+  Сертификат каждого уровня — страница `https://dashabotanika.ru/#cert/<id участника>/<уровень>`.
+- **Роли**: `admin` (Даша — всё, включая назначение модераторов), `moderator` (проверка объявлений, предложения, редактирование сайта), обычные участники.
 
-**Этап 2 — PocketBase вместо `window.claude.*`**
-- Коллекции: `users` (вход по почте с подтверждением), `members` (ник), `reviews`, `comments`,
-  `suggestions`, `mk` (объявления) + `mk_ok` (модерация), `chats` + `messages`, `profiles`, `habits`,
-  `content` (тексты/фото сайта, одна запись), `photos` (файлы).
-- Права (API rules): читать отзывы/комментарии/одобренные объявления — все; писать — вошедшие;
-  править/удалять — автор или модератор; чаты видят только участники.
-- Фронтенд: `use('db'|'user'|'assets'|'artifact')` → PocketBase JS SDK; `onSnapshot` → realtime-подписки.
-  Режим «Редактировать сайт» сохраняет в коллекцию `content`, а не публикует HTML.
+## Первичная настройка (один раз, после первого деплоя)
 
-**Этап 3 — данные и запуск**
-- Перенос текущих отзывов/комментариев/объявлений из базы артефакта (если нужно).
-  Аккаунты claude.ai не переносятся — участникам нужно будет зарегистрироваться заново.
-- Проверка, бэкапы, ссылка с артефакта на новый адрес.
+1. **Суперпользователь PocketBase** (доступ к админке `https://dashabotanika.ru/_/`). На сервере:
+   ```
+   sudo -u pocketbase /opt/pocketbase/pocketbase superuser upsert ПОЧТА 'ПАРОЛЬ' --dir=/opt/pocketbase/pb_data
+   ```
+2. **Даша регистрируется на сайте** как обычный участник (персонаж — Слон).
+3. В админке: **Collections → users →** запись Даши **→ role = admin**.
+4. **Почта** (письма подтверждения и сброса пароля): админка → **Settings → Mail settings** → SMTP
+   (например, Яндекс 360, порт 465, SSL). Затем можно включить обязательное подтверждение почты.
+
+## Что Даша может менять в админке без программиста
+
+- `levels` — названия уровней, описания, условия (листочки, экзамен, игра, отзывы), текст сертификата.
+  После сохранения уровни всех участников пересчитываются.
+- `characters` — список животных и растений для регистрации (имя, эмодзи, порядок).
+- `listings`, `reviews`, `comments`, `suggestions` — модерация, удаление.
+
+## Проверки (локально)
+
+```
+pocketbase serve --dir=/tmp/pb --migrationsDir=pocketbase/pb_migrations --hooksDir=pocketbase/pb_hooks --http=127.0.0.1:8099
+pocketbase superuser upsert admin@test.local Passw0rd123 --dir=/tmp/pb
+python3 tests/api_test.py                       # правила доступа и уровни
+caddy run --config <Caddyfile с :8088 → site/ и /api → 8099>
+BASE=http://localhost:8088 node tests/e2e.js ./shots   # браузер (нужен playwright)
+```
+Обе проверки рассчитаны на чистую базу.
