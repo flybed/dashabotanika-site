@@ -402,3 +402,14 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .grow-step.on{opacity:1;filter:none}
 .grow-step small{font-size:11px;font-weight:800;text-align:center}
 .grow-step.now small{color:var(--moss);text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- админ: уровни и рост ---------- */
+.adm-row{display:flex;gap:10px;flex-wrap:wrap}
+.adm-row label,.adm-full{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--muted)}
+.adm-row label:first-child{flex:1 1 220px}
+.li input{border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--paper);font-size:15px;color:var(--ink);font-weight:400}
+.adm-rule{display:grid;grid-template-columns:90px 1fr 160px auto;gap:8px;align-items:center}
+.adm-rule input{border:1.5px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--paper);font-size:15px;color:var(--ink);min-width:0}
+@media (max-width:640px){.adm-rule{grid-template-columns:70px 1fr}.adm-rule input:nth-child(3){grid-column:1/-1}}
+.cab-head{flex-wrap:wrap}
+.cab-logout{align-self:flex-start}

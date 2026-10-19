@@ -39,9 +39,9 @@ st,_ = req('DELETE','/collections/reviews/records/'+rv['id'],None,tb); check('ot
 log={f'2026-10-{d:02d}':['h1','h2'] for d in range(1,7)}
 st,hb = req('POST','/collections/habits/records',{'owner':a['id'],'data':{'habits':[],'log':log}},ta); check('habits ok', st==200, hb)
 st,_ = req('GET','/collections/habits/records/'+hb['id'],None,tb); check('habits private', st>=400, st)
-req('PATCH','/collections/users/records/'+a['id'],{'exam_best':6},ta)
+req('PATCH','/collections/users/records/'+a['id'],{'exam_best':8},ta)
 u = req('GET','/collections/users/records/'+a['id'])[1]
-check('auto level 2 (12 leaves, exam 6)', u['level']==2 and u['leaves']==12 and len(u['level_history'])==2, u)
+check('auto level 2 by growth points (10 + 12 leaves*2 + exam 30 = 64)', u['level']==2 and u['xp']==64 and u['leaves']==12 and len(u['level_history'])==2, u)
 # listings
 st,li = req('POST','/collections/listings/records',{'seller':a['id'],'title':'Шопер','kind':'Отдам даром'},ta); check('listing ok', st==200, li)
 st,lst = req('GET','/collections/listings/records'); check('pending listing hidden from public', lst['totalItems']==0, lst)
@@ -97,4 +97,7 @@ st,l = req('GET','/collections/reads/records',None,ta); check('reads are private
 log={f'2026-09-{d:02d}':['h1','h2','h3'] for d in range(1,11)}
 req('POST','/collections/habits/records',{'owner':c['id'],'data':{'habits':[],'log':log}},tc)
 check('30 leaves +60 -> stage 2', xp()['xp']==105 and xp()['stage']==2, xp())
+lv2 = req('GET','/collections/levels/records?filter=rank%3D2')[1]['items'][0]
+st,_ = req('PATCH','/collections/levels/records/'+lv2['id'],{'name':'Хак'},tb); check('moderator cannot rename levels', st>=400, st)
+st,_ = req('PATCH','/collections/growth_rules/records/'+req('GET','/collections/growth_rules/records')[1]['items'][0]['id'],{'points':999},tb); check('moderator cannot change growth points', st>=400, st)
 print('ALL OK' if ok else 'SOME FAILED')

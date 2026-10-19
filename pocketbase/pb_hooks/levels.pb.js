@@ -21,8 +21,14 @@ onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).re
 onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("seller")) }, "listings")
 onRecordAfterDeleteSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("seller")) }, "listings")
 
-onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recomputeAll(e.app) }, "levels", "growth_rules", "growth_stages")
-onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recomputeAll(e.app) }, "levels", "growth_rules", "growth_stages")
+onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recomputeAll(e.app) }, "levels", "growth_rules")
+onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recomputeAll(e.app) }, "levels", "growth_rules")
 
 // Раз в сутки пересчитываем всех — на случай ручных правок в админке.
 cronAdd("levels-recompute", "17 3 * * *", () => { require(`${__hooks}/levels.js`).recomputeAll($app) })
+
+// При запуске (в том числе после обновления правил миграцией) — пересчитать всех сразу.
+onBootstrap((e) => {
+  e.next()
+  require(`${__hooks}/levels.js`).recomputeAll(e.app)
+})
