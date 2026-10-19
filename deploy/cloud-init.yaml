@@ -1,6 +1,6 @@
 #cloud-config
-# Timeweb Cloud, Ubuntu 24.04. Вставьте этот файл в поле «Cloud-init» при создании сервера.
-# ПЕРЕД ВСТАВКОЙ замените строку GITHUB_TOKEN_HERE на read-only токен
+# Ubuntu 24.04. Вставьте этот файл в поле «Cloud-init» при создании сервера (если его нет — deploy/bootstrap.sh).
+# Если репозиторий приватный: перед вставкой замените строку GITHUB_TOKEN_HERE на read-only токен
 # (GitHub → Settings → Developer settings → Fine-grained token, только репозиторий
 # flybed/dashabotanika-site, права Contents: Read-only). В репозиторий токен не коммитить!
 
@@ -27,7 +27,11 @@ runcmd:
   - apt-get update && apt-get install -y caddy
 
   # --- Репозиторий сайта ---
-  - git clone "https://x-access-token:$(cat /root/.dashabotanika-token)@github.com/flybed/dashabotanika-site.git" /srv/dashabotanika
+  # Токен нужен только для приватного репозитория; без него клонируем анонимно.
+  - |
+    T=$(tr -d '[:space:]' < /root/.dashabotanika-token 2>/dev/null || true)
+    if [ ${#T} -gt 30 ]; then U="https://x-access-token:${T}@github.com/flybed/dashabotanika-site.git"; else U=https://github.com/flybed/dashabotanika-site.git; fi
+    git clone "$U" /srv/dashabotanika
   - git config --global --add safe.directory /srv/dashabotanika
 
   # --- PocketBase (последний релиз) ---
