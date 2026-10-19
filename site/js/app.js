@@ -1061,7 +1061,10 @@ function growthBlock(){
   const me = COM.me; if (!me) return null;
   const cur = levelOf(me.level), next = levelOf(me.level+1);
   const from = cur ? cur.min_xp||0 : 0, to = next ? next.min_xp||0 : from;
-  const pct = next ? Math.max(0, Math.min(100, Math.round((me.xp-from)/((to-from)||1)*100))) : 100;
+  const frac = next ? Math.max(0, Math.min(1, (me.xp-from)/((to-from)||1))) : 0;
+  const n = Math.max(1, COM.levels.length), idx = Math.max(0, COM.levels.findIndex(l=>l.rank===me.level));
+  // steps are equal columns: fill from the first column centre to the current one, plus the share done towards the next
+  const pathPct = n === 1 ? 100 : (50/n) + (idx + frac) / (n-1) * (100 - 100/n);
   const ch = charOf(me.character), em = ch ? ch.emoji : '🌱';
   const have = {min_leaves:Math.max(me.leaves||0, leavesTotal()), min_exam:STATS.examBest||0, min_game:STATS.gameBest||0, min_reviews:postsCount()};
   const extra = next ? [['min_leaves','эко-листочков в трекере'],['min_exam','баллов на эко-экзамене (из 10)'],['min_game','очков в игре «Эко-уборка»'],['min_reviews','комментариев и сообщений Даше']]
@@ -1077,9 +1080,10 @@ function growthBlock(){
       h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, (ch ? ch.name : 'Персонаж'),' — ', levelName(me.level)),
       cur && cur.description ? h('p',{class:'muted'}, cur.description) : null,
       h('div',{class:'grow-steps'}, COM.levels.map(l=>h('div',{class:'grow-step'+(l.rank<=me.level?' on':'')+(l.rank===me.level?' now':''),title:l.name+(l.min_xp ? ' — от '+l.min_xp+' очков роста' : '')},
-        h('span',{style:'font-size:'+(14+l.rank*4)+'px','aria-hidden':'true'}, em), h('small',null,l.name)))),
-      h('div',{class:'grow-bar'}, h('i',{style:'width:'+pct+'%'})),
+        h('span',{style:'font-size:'+(14+l.rank*4)+'px','aria-hidden':'true'}, em), h('small',null,l.name), h('small',{class:'grow-xp'}, (l.min_xp||0)+' очк.')))),
+      h('div',{class:'grow-bar',role:'progressbar','aria-valuemin':'0','aria-valuemax':String(to||me.xp),'aria-valuenow':String(me.xp),'aria-label':'Очки роста'}, h('i',{style:'width:'+pathPct.toFixed(1)+'%'})),
       h('p',{class:'hint',style:'font-weight:800'}, next ? 'Очки роста: '+me.xp+' из '+to+' до уровня «'+next.name+'»' : 'Очки роста: '+me.xp+'. Это высший уровень — вы эко-эксперт!'),
+      xpBreakdown(),
       extra.length ? h('div',{class:'lvl-next'}, h('div',{class:'hint',style:'font-weight:800'},'Ещё для уровня «',next.name,'»:'), extra) : null,
       certs.length ? h('div',null, h('div',{class:'hint',style:'font-weight:800;margin-bottom:6px'},'Мои сертификаты'),
         h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, certs.map(x=>h('a',{class:'chip',href:'#cert/'+COM.uid+'/'+x.rank},'🎓 ',levelName(x.rank))))) : null,
@@ -1087,6 +1091,33 @@ function growthBlock(){
         h('summary',null,'Как растёт ваш персонаж'),
         h('ul',null, COM.growthRules.filter(r=>r.points>0).map(r=>h('li',null, h('b',null,'+',r.points), ' ', r.title, r.per ? h('span',{class:'hint'},' — ',r.per) : null))),
         h('p',{class:'hint'},'За каждый новый уровень — именной сертификат. Скоро добавим новые способы расти; чем выше уровень, тем крупнее ваш персонаж в «Счастливом мире».'))));
+}
+
+/* where the growth points come from — the same formula as on the server */
+function xpBreakdown(){
+  const me = COM.me; if (!me) return null;
+  const mine = (arr, f) => arr.filter(x=>x[f]===COM.uid).length;
+  const done = {
+    signup: 1,
+    leaf: Math.max(me.leaves||0, leavesTotal()),
+    exam_passed: (STATS.examBest||0) >= 8 ? 1 : 0,
+    game: Math.floor((STATS.gameBest||0)/10),
+    article_read: Object.keys(COM.reads).length,
+    like: mine(COM.likes,'user'),
+    comment: mine(COM.comments,'author'),
+    feedback: mine(COM.feedback,'author'),
+    listing_approved: COM.listings.filter(l=>l.seller===COM.uid && l.moderation==='approved').length,
+    deal_done: COM.listings.filter(l=>l.seller===COM.uid && l.status==='gone').length,
+  };
+  const label = {signup:()=>'Регистрация', leaf:n=>n+' '+plural(n,'листочек','листочка','листочков')+' в челлендже', exam_passed:()=>'Эко-экзамен сдан',
+    game:()=>'Рекорд в игре '+(STATS.gameBest||0)+' ('+Math.floor((STATS.gameBest||0)/10)+' × 10 очков)', article_read:n=>n+' '+plural(n,'статья прочитана','статьи прочитаны','статей прочитано'),
+    like:n=>n+' '+plural(n,'лайк','лайка','лайков'), comment:n=>n+' '+plural(n,'комментарий','комментария','комментариев'), feedback:n=>n+' '+plural(n,'сообщение','сообщения','сообщений')+' Даше',
+    listing_approved:n=>n+' '+plural(n,'вещь опубликована','вещи опубликованы','вещей опубликовано'), deal_done:n=>n+' '+plural(n,'сделка','сделки','сделок')+' на барахолке'};
+  const rows = COM.growthRules.map(r=>({r, n:done[r.key]||0})).filter(x=>x.n > 0 && x.r.points > 0);
+  if (!rows.length) return null;
+  return h('details',{class:'grow-how'},
+    h('summary',null,'Откуда ваши ',me.xp,' ',plural(me.xp,'очко','очка','очков'),' роста'),
+    h('ul',null, rows.map(({r,n})=>h('li',null, (label[r.key]||(()=>r.title))(n), ' — ', h('b',null,'+',n*r.points)))));
 }
 
 /* admin: level names, thresholds, certificate texts and growth points — right on the site */
@@ -1806,7 +1837,7 @@ render();
   if (COM.uid){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
     watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
-    pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); }).catch(()=>{});
+    pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); refresh(); }).catch(()=>{});
     if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
     startPresence();
     watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
