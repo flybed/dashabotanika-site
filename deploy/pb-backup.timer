@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily PocketBase backup
+
+[Timer]
+OnCalendar=*-*-* 04:10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

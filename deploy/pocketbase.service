@@ -1,0 +1,22 @@
+[Unit]
+Description=PocketBase (dashabotanika.ru)
+After=network.target
+
+[Service]
+Type=simple
+User=pocketbase
+Group=pocketbase
+WorkingDirectory=/opt/pocketbase
+ExecStart=/opt/pocketbase/pocketbase serve --http=127.0.0.1:8090 --dir=/opt/pocketbase/pb_data --migrationsDir=/srv/dashabotanika/pocketbase/pb_migrations --hooksDir=/srv/dashabotanika/pocketbase/pb_hooks
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=4096
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/pocketbase/pb_data
+
+[Install]
+WantedBy=multi-user.target

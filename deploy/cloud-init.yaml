@@ -1,0 +1,54 @@
+#cloud-config
+# Timeweb Cloud, Ubuntu 24.04. Вставьте этот файл в поле «Cloud-init» при создании сервера.
+# ПЕРЕД ВСТАВКОЙ замените строку GITHUB_TOKEN_HERE на read-only токен
+# (GitHub → Settings → Developer settings → Fine-grained token, только репозиторий
+# flybed/dashabotanika-site, права Contents: Read-only). В репозиторий токен не коммитить!
+
+package_update: true
+package_upgrade: true
+packages: [git, curl, unzip, debian-keyring, debian-archive-keyring, apt-transport-https, gnupg, ufw]
+
+write_files:
+  - path: /root/.dashabotanika-token
+    permissions: "0600"
+    content: |
+      GITHUB_TOKEN_HERE
+
+runcmd:
+  # --- Firewall: только SSH и веб ---
+  - ufw allow OpenSSH
+  - ufw allow 80/tcp
+  - ufw allow 443
+  - ufw --force enable
+
+  # --- Caddy из официального репозитория ---
+  - curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update && apt-get install -y caddy
+
+  # --- Репозиторий сайта ---
+  - git clone "https://x-access-token:$(cat /root/.dashabotanika-token)@github.com/flybed/dashabotanika-site.git" /srv/dashabotanika
+  - git config --global --add safe.directory /srv/dashabotanika
+
+  # --- PocketBase (последний релиз) ---
+  - useradd --system --home /opt/pocketbase --shell /usr/sbin/nologin pocketbase
+  - mkdir -p /opt/pocketbase/pb_data
+  - |
+    V=$(curl -s https://api.github.com/repos/pocketbase/pocketbase/releases/latest | grep -m1 '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    curl -sL -o /tmp/pb.zip "https://github.com/pocketbase/pocketbase/releases/download/v${V}/pocketbase_${V}_linux_amd64.zip"
+    unzip -o /tmp/pb.zip pocketbase -d /opt/pocketbase && rm /tmp/pb.zip
+  - chown -R pocketbase:pocketbase /opt/pocketbase
+  - cp /srv/dashabotanika/deploy/pocketbase.service /etc/systemd/system/pocketbase.service
+
+  # --- Автообновление сайта из GitHub каждые 5 минут ---
+  - install -m 0755 /srv/dashabotanika/deploy/site-update.sh /usr/local/bin/site-update
+  - cp /srv/dashabotanika/deploy/site-update.service /srv/dashabotanika/deploy/site-update.timer /etc/systemd/system/
+
+  # --- Ежедневный бэкап базы ---
+  - cp /srv/dashabotanika/deploy/pb-backup.service /srv/dashabotanika/deploy/pb-backup.timer /etc/systemd/system/
+
+  - systemctl daemon-reload
+  - systemctl enable --now pocketbase site-update.timer pb-backup.timer
+  - cp /srv/dashabotanika/deploy/Caddyfile /etc/caddy/Caddyfile
+  - mkdir -p /var/log/caddy && chown caddy:caddy /var/log/caddy
+  - systemctl reload caddy || systemctl restart caddy
