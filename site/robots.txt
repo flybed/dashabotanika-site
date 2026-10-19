@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_/
+
+Sitemap: https://dashabotanika.ru/sitemap.xml
