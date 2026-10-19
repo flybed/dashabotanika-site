@@ -154,6 +154,7 @@ function render(){
     h('header',{class:'top'}, h('div',{class:'wrap'},
       h('a',{class:'logo',href:'/',html:LOGO+'<span>DashaBotanika</span>'}),
       h('span',{style:'flex:1'}),
+      socialLinks(),
       accountButton(),
       siteMenu(path)
     )),
@@ -167,6 +168,15 @@ function render(){
   mountEditButton();
 }
 
+/* Dasha's Instagram and Telegram in the top bar; addresses come from the contacts block */
+const IG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></svg>';
+const TG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 4.2 2.9 11.4c-1 .4-1 1.6 0 1.9l4.6 1.5 1.8 5.6c.2.7 1.1.9 1.6.4l2.6-2.4 4.8 3.5c.6.4 1.4.1 1.6-.6l3.1-15.2c.2-.9-.7-1.6-1.5-1.3ZM9.6 14.4l-.4 3.6-1.3-4.1 9.4-6.4-7.7 6.9Z" fill="currentColor"/></svg>';
+function socialLinks(){
+  const c = STATE.contacts || {}, handle = v => String(v||'').trim().replace(/^@/,'');
+  return h('div',{class:'social'},
+    handle(c.instagram) ? h('a',{class:'soc',href:'https://instagram.com/'+handle(c.instagram),target:'_blank',rel:'noopener','aria-label':'Instagram Даши: @'+handle(c.instagram),title:'Instagram @'+handle(c.instagram),html:IG_ICON}) : null,
+    handle(c.telegram) ? h('a',{class:'soc',href:'https://t.me/'+handle(c.telegram),target:'_blank',rel:'noopener','aria-label':'Telegram Даши: @'+handle(c.telegram),title:'Telegram @'+handle(c.telegram),html:TG_ICON}) : null);
+}
 /* burger menu: all sections in a drop-down list, plus cabinet and sign-out */
 function siteMenu(path){
   const btn = h('button',{type:'button',class:'burger','aria-label':'Меню','aria-expanded':'false','aria-controls':'site-menu'}, h('span'),h('span'),h('span'));
@@ -1206,7 +1216,8 @@ function worldSection(){
       return h('div',{class:'dweller st-'+(m.level||1)+(i===0?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%',title:label,'aria-label':label,tabindex:'0'},
         h('span',{class:'em'}, emojiOf(id)), n <= 40 || i===0 || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null);
     }));
-    count.textContent = n ? 'Жителей в мире: '+n+'. Первой поселилась Даша — слон. Каждый новый участник выбирает себе животное или растение и появляется здесь.' : 'Мир скоро оживёт: первой поселится Даша — слон.';
+    const dashaHere = ids.some(id=>COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон');
+    count.textContent = (n ? 'Жителей в мире: '+n+'. ' : '') + (dashaHere ? 'Первой поселилась Даша — слон. ' : 'Скоро здесь поселится Даша — слон. ') + 'Каждый новый участник выбирает себе животное или растение и появляется здесь.';
     cta.replaceChildren(accState()==='member' ? h('p',{class:'hint'},'Вы здесь: ', emojiOf(COM.uid),' ',COM.me.nick,'. Растите в уровнях — и мир будет расти вместе с вами.') : h('button',{type:'button',class:'btn',onclick:()=>openAccount('register')},'Поселиться в мире'));
   });
   return h('section',{class:'band alt',id:'world'}, h('div',{class:'wrap'},
@@ -1352,7 +1363,7 @@ function cabinetHead(){
   live(()=>{
     const me = COM.me; if (!me) return;
     head.replaceChildren(h('div',{class:'mono cab-ava','aria-hidden':'true'}, emojiOf(COM.uid)),
-      h('div',{style:'flex:1;min-width:0'}, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick), h('div',{class:'hint'}, levelName(me.level),' · с нами с ', dt(me.joined))),
+      h('div',{style:'flex:1;min-width:0'}, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick), h('div',{class:'hint'}, levelName(me.level),' · с нами с ', dt(me.joined), COM.verified ? h('span',{class:'mail-ok'},' · ✓ почта подтверждена') : null)),
       h('button',{type:'button',class:'btn ghost small cab-logout',onclick:logout},'Выйти'));
     grow.replaceChildren(growthBlock() || '');
     stats.replaceChildren(statsRow());
@@ -1392,6 +1403,12 @@ function cabinetTabs(tab, tid){
       cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value || pick.value===me.character) return;
         pb.collection('users').update(COM.uid,{character:pick.value}).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
       out.push(
+        h('div',{class:'hint',style:'font-weight:800'},'Почта'),
+        h('div',{class:'mail-row'}, h('b',null,COM.email||'—'),
+          COM.verified ? h('span',{class:'status accepted'},'✓ подтверждена') : h('span',{class:'status declined'},'не подтверждена'),
+          COM.verified ? null : h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
+            pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз')),
+        h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
         h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
         h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf,
         h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:logout},'Выйти из аккаунта')));
