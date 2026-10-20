@@ -809,3 +809,22 @@ footer a{color:inherit}
 .sn-url{font-size:13px;color:#4d5156}
 .sn-title{font-size:19px;color:#1a0dab;line-height:1.3}
 .sn-desc{font-size:14px;color:#4d5156;line-height:1.5}
+
+/* my eco path */
+.eco-path{display:grid;gap:16px}
+.path-head{flex-direction:row;flex-wrap:wrap;align-items:center;gap:18px}
+.path-ava{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font-size:42px;background:color-mix(in srgb,var(--leaf) 22%,var(--surface));flex:none}
+.path-head h3{font-size:24px}
+.path-stats{width:100%}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.badge{display:grid;justify-items:center;text-align:center;gap:4px;padding:14px 10px;border-radius:14px;background:var(--paper);border:1.5px dashed var(--line);opacity:.65}
+.badge.ok{opacity:1;border:1.5px solid var(--leaf);background:color-mix(in srgb,var(--leaf) 14%,var(--surface))}
+.badge-ic{font-size:34px;filter:grayscale(1)}
+.badge.ok .badge-ic{filter:none}
+.badge b{font-size:15px}
+.badge .hint{font-size:12px}
+.tl{list-style:none;margin:0;padding:0 0 0 6px;display:grid;gap:0;border-left:2px solid var(--line)}
+.tl-i{display:flex;gap:12px;align-items:flex-start;padding:10px 0 10px 14px;position:relative}
+.tl-ic{position:absolute;left:-17px;top:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);font-size:16px}
+.tl-i > div{padding-left:18px}
+@media (max-width:640px){.path-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
