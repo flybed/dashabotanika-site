@@ -1926,13 +1926,13 @@ function cabinetHead(){
   return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, nudge, grow, stats));
 }
 function cabinetTabs(tab, tid){
-  let cur = tab || (unreadCount() ? 'chats' : 'things'), lastKey = null, openTid = tid || null, tabBtns = {};
+  let cur = tab || (unreadCount() ? 'chats' : 'path'), lastKey = null, openTid = tid || null, tabBtns = {};
   const openThread = id=>{ openTid = id; paint(true); };
   const body = h('div',{style:'display:grid;gap:16px'});
   const lists = {};
   function build(){
     const me = COM.me;
-    const tabs = [['profile','Мой профиль'],['xp','История очков'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
+    const tabs = [['path','Мой эко путь'],['profile','Мой профиль'],['xp','История очков'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
       .concat(COM.admin ? [['drafts','Черновики'],['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
     if (!tabs.some(([k])=>k===cur)) cur = 'things';
     tabBtns = {};
@@ -1942,6 +1942,7 @@ function cabinetTabs(tab, tid){
     if (cur==='things') out.push(...thingsPanel(lists));
     if (cur==='profile') out.push(profilePanel(), inviteCard());
     if (cur==='xp') out.push(xpHistory());
+    if (cur==='path') out.push(ecoPath());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
@@ -2197,6 +2198,78 @@ function tgCard(){
   function load(){ pb.collection('tg_subs').getFullList({requestKey:null}).then(l=>paint(l[0]||null)).catch(()=>paint(null)); }
   load();
   return box;
+}
+
+/* ---------- «Мой эко путь»: badges and a timeline of what you have done ---------- */
+// the longest run of days in a row with at least one check, over all challenges
+function bestStreak(){
+  const days = new Set();
+  challenges().forEach(ch=>Object.keys(ch.log||{}).forEach(d=>{ if ((ch.log[d]||[]).length) days.add(d); }));
+  Object.keys(HAB.log||{}).forEach(d=>{ if ((HAB.log[d]||[]).length) days.add(d); });
+  let best = 0;
+  [...days].sort().forEach(d=>{ let n = 1, c = d; while (days.has(addDays(c,-1))){ n++; c = addDays(c,-1); } best = Math.max(best, n); });
+  return best;
+}
+function ecoBadges(){
+  const me = COM.me || {}, chs = challenges();
+  const mine = (arr, f) => arr.filter(x=>x[f]===COM.uid).length;
+  const leaves = Math.max(me.leaves||0, leavesTotal()), streak = bestStreak();
+  const done = chs.filter(ch=>chStats(ch).passed).length, reads = Object.keys(COM.reads).length, comments = mine(COM.comments,'author');
+  // [icon, title, how to get it, got?, progress text]
+  return [
+    ['🌱','Первый шаг','Зарегистрироваться и поселиться в мире', true],
+    ['📝','Будем знакомы','Заполнить профиль', profileDone(PROFILE.rec)],
+    ['🏁','Старт','Начать первый эко-челлендж', chs.length > 0],
+    ['🏆','До конца','Пройти челлендж (от 70% отметок)', done > 0],
+    ['🔥','Неделя подряд','7 дней подряд отмечать привычки', streak >= 7, Math.min(streak,7)+' / 7'],
+    ['🍃','50 листочков','50 отметок в челленджах', leaves >= 50, Math.min(leaves,50)+' / 50'],
+    ['🎓','Эко-знаток','Сдать эко-тест на 8 из 10', (STATS.examBest||0) >= 8],
+    ['🎮','Чистый парк','Набрать 50 очков в «Эко-уборке»', (STATS.gameBest||0) >= 50, Math.min(STATS.gameBest||0,50)+' / 50'],
+    ['📖','Читатель','Прочитать 5 статей журнала', reads >= 5, Math.min(reads,5)+' / 5'],
+    ['💬','Голос сообщества','Оставить 5 комментариев', comments >= 5, Math.min(comments,5)+' / 5'],
+    ['📦','Вторая жизнь','Выставить вещь на барахолку', COM.listings.some(l=>l.seller===COM.uid && l.moderation==='approved')],
+    ['💌','Друг природы','Пригласить друга', COM.refs.some(r=>r.inviter===COM.uid)],
+    ['🌳', levelName(3),'Дорасти до третьего уровня', (me.level||1) >= 3]
+  ];
+}
+function ecoPath(){
+  const me = COM.me || {};
+  const timeline = h('ol',{class:'tl'}, h('li',{class:'hint'},'Собираем историю…'));
+  const chs = challenges();
+  const stat = (n, l) => h('div',null, h('b',null,n), h('span',null,l));
+  // events: joined, levels, finished challenges, what the points were for (from the server history)
+  pb.collection('xp_log').getFullList({filter:pb.filter('user = {:u} && initial = false',{u:COM.uid}), sort:'-created', requestKey:null}).catch(()=>[]).then(log=>{
+    const ev = [];
+    ev.push([me.joined||0, '🌱', 'Вы поселились в «Счастливом мире»', '']);
+    (me.history||[]).filter(x=>x.rank > 1).forEach(x=>ev.push([Date.parse(x.at)||0, '🎓', 'Новый уровень: «'+levelName(x.rank)+'»', 'сертификат в кабинете']));
+    chs.filter(ch=>chStats(ch).passed).forEach(ch=>ev.push([Date.parse(chStats(ch).end+'T20:00:00')||0, '🏆', 'Челлендж пройден: '+ch.title, Math.round(chStats(ch).ratio*100)+'% отметок']));
+    chs.filter(ch=>!chStats(ch).over).forEach(ch=>ev.push([Date.parse(ch.start+'T08:00:00')||0, '🏁', 'Начат челлендж: '+ch.title, 'до '+fmtDay(chStats(ch).end)]));
+    const skip = {leaf:1, challenge_done:1, signup:1};
+    log.filter(x=>!skip[x.key]).forEach(x=>{ const [ic] = GROW_WAYS[x.key] || ['✨']; ev.push([tsOf(x), ic, x.title, (x.points>0?'+':'')+x.points+' к росту']); });
+    ev.sort((a,b)=>b[0]-a[0]);
+    timeline.replaceChildren(...ev.slice(0,40).map(([t,ic,title,sub])=>h('li',{class:'tl-i'}, h('span',{class:'tl-ic','aria-hidden':'true'},ic),
+      h('div',null, h('b',null,title), h('div',{class:'hint'}, t ? dt(t) : '', sub ? ' · '+sub : '')))));
+  });
+  const head = h('div',{class:'card path-head'}), badgeBox = h('div',{class:'card'});
+  if (!PROFILE.loaded) loadProfile();
+  // members, profile and challenges arrive a bit later — keep the head and the badges up to date
+  live(()=>{
+    const me = COM.me || {}, badges = ecoBadges(), got = badges.filter(b=>b[3]).length;
+    head.replaceChildren(...paintHead(me));
+    badgeBox.replaceChildren(
+      h('div',{class:'pf-head'}, h('h3',null,'Достижения'), h('span',{class:'status accepted'}, got+' из '+badges.length)),
+      h('div',{class:'badges'}, badges.map(([ic,t,how,ok,prog])=>h('div',{class:'badge'+(ok?' ok':''),title:how},
+        h('span',{class:'badge-ic','aria-hidden':'true'}, ic), h('b',null,t), h('span',{class:'hint'}, ok ? '✓ получено' : (prog || how))))));
+  });
+  function paintHead(me){ return [
+      h('div',{class:'path-ava','aria-hidden':'true'}, emojiOf(COM.uid)),
+      h('div',{style:'flex:1;min-width:0'}, h('div',{class:'eyebrow'},'Мой эко путь'), h('h3',null, me.nick||'', ' — ', levelName(me.level||1)),
+        h('p',{class:'hint'},'С нами с ', dt(me.joined||Date.now()),'. Каждый маленький шаг здесь — уже вклад в чистую планету.')),
+      h('div',{class:'kv path-stats'},
+        stat(me.xp||0, 'очков роста'), stat(chs.filter(ch=>chStats(ch).passed).length, 'челленджей пройдено'),
+        stat(Math.max(me.leaves||0, leavesTotal()), 'отметок-листочков'), stat(bestStreak(), 'дней подряд — рекорд'))]; }
+  return h('div',{class:'eco-path'}, head, badgeBox,
+    h('div',{class:'card'}, h('h3',null,'Хронология'), timeline));
 }
 
 /* ---------- points history: what the points came for (written by the server) ---------- */
