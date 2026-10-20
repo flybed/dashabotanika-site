@@ -472,7 +472,7 @@ const chPoints = () => ((COM.growthRules.find(r=>r.key==='challenge_done')||{}).
 
 function challengesSection(){
   const box = h('div',{class:'chs'});
-  let wizard = null, pages = {};
+  let wizard = null, pages = {}, calMonth = iso(new Date()).slice(0,7), calDay = null;
   function paint(){
     const list = challenges();
     const active = list.filter(ch=>!chStats(ch).over), past = list.filter(ch=>chStats(ch).over).reverse();
@@ -481,7 +481,45 @@ function challengesSection(){
         h('button',{type:'button',class:'btn',onclick:()=>{ wizard = {step:1, goal:null, days:14, startToday:true, habits:[], custom:''}; paint(); }},'+ Создать челлендж'),
         h('p',{class:'hint'},'Выберите цель, срок и привычки. Отмечайте каждый день — и за пройденный челлендж получите +', chPoints(),' очков роста. ', h('a',{href:'/kabinet?tab=settings#tg'},'🔔 Напоминания в Telegram'))),
       ...(active.length ? active.map(card) : (wizard ? [] : [h('div',{class:'empty'},'У вас пока нет челленджей. Создайте первый — например, 14 дней без пластиковых пакетов.')])),
+      list.length ? calendarView() : null,
       past.length ? h('div',null, h('h3',{style:'font-size:20px;margin:10px 0'},'Завершённые'), h('div',{class:'list'}, past.map(pastItem))) : null].filter(Boolean));
+  }
+  // habits calendar: a month at a glance; the colour of a day = share of the day's habits that are checked
+  function dayPlan(d){
+    return challenges().filter(ch=>d >= ch.start && d <= addDays(ch.start, ch.days-1)).map(ch=>({ch, on:new Set((ch.log||{})[d]||[])}));
+  }
+  function calendarView(){
+    const today = iso(new Date()), [y, m] = calMonth.split('-').map(Number);
+    const first = new Date(y, m-1, 1), daysIn = new Date(y, m, 0).getDate(), lead = (first.getDay()+6)%7;
+    const title = first.toLocaleDateString('ru-RU',{month:'long', year:'numeric'});
+    const shift = n => { const d = new Date(y, m-1+n, 1); calMonth = iso(d).slice(0,7); calDay = null; paint(); };
+    let monthChecks = 0, fullDays = 0;
+    const cells = [...Array(lead)].map(()=>h('span',{class:'cal-pad'}));
+    for (let i=1; i<=daysIn; i++){
+      const d = calMonth+'-'+String(i).padStart(2,'0'), plan = dayPlan(d);
+      const total = plan.reduce((s,x)=>s+x.ch.habits.length,0), done = plan.reduce((s,x)=>s+x.ch.habits.filter(hb=>x.on.has(hb.id)).length,0);
+      monthChecks += done; if (total && done===total) fullDays++;
+      const lvl = !total ? '' : done===0 ? (d < today ? ' miss' : '') : done===total ? ' full' : ' part';
+      cells.push(h('button',{type:'button',class:'cal-d'+lvl+(d===today?' today':'')+(d===calDay?' sel':'')+(total?'':' off'),
+        'aria-label':fmtDay(d)+(total ? ': отмечено '+done+' из '+total : ''), disabled:total?null:'',
+        onclick:()=>{ calDay = calDay===d ? null : d; paint(); }}, h('span',null,i), total ? h('i',{style:'--p:'+Math.round(done/total*100)+'%'}) : null));
+    }
+    let detail = null;
+    if (calDay){
+      const plan = dayPlan(calDay), future = calDay > today;
+      detail = h('div',{class:'cal-detail'}, h('b',null, fmtDay(calDay), future ? ' — этот день ещё впереди' : ''),
+        ...plan.map(({ch,on})=>h('div',{class:'cal-ch'}, h('div',{class:'hint'}, goalOf(ch.goal).ic,' ',ch.title),
+          h('div',{class:'cal-habits'}, ch.habits.map(hb=>h('button',{type:'button',class:'chip'+(on.has(hb.id)?' on':''),disabled:future?'':null,'aria-pressed':String(on.has(hb.id)),
+            onclick:()=>{ const set = new Set((ch.log||{})[calDay]||[]); set.has(hb.id) ? set.delete(hb.id) : set.add(hb.id); ch.log = ch.log||{}; if (set.size) ch.log[calDay] = [...set]; else delete ch.log[calDay]; save(); }},
+            on.has(hb.id) ? '✓ ' : '', hb.name))))));
+    }
+    return h('div',{class:'card cal',id:'calendar'},
+      h('div',{class:'cal-head'}, h('button',{type:'button',class:'btn ghost small','aria-label':'Предыдущий месяц',onclick:()=>shift(-1)},'←'),
+        h('h3',null,'Календарь привычек · ', title), h('button',{type:'button',class:'btn ghost small','aria-label':'Следующий месяц',onclick:()=>shift(1)},'→')),
+      h('p',{class:'hint'},'За месяц: ',monthChecks,' ',plural(monthChecks,'отметка','отметки','отметок'),', ',fullDays,' ',plural(fullDays,'день','дня','дней'),' — всё отмечено. Нажмите на день, чтобы посмотреть или дополнить.'),
+      h('div',{class:'cal-grid'}, DOW.map(w=>h('span',{class:'cal-w'},w)), cells),
+      h('div',{class:'cal-legend'}, h('span',null,h('i',{class:'lg full'}),'всё'), h('span',null,h('i',{class:'lg part'}),'частично'), h('span',null,h('i',{class:'lg miss'}),'пропуск')),
+      detail);
   }
   function save(){ saveHabits(); paint(); refresh(); }
   function wizardView(){

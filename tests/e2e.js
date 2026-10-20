@@ -116,6 +116,15 @@ const T = '#cabinet-tabs ';
   await p.waitForTimeout(1500);
   await p.screenshot({path:S+'/03-challenge.png', fullPage:false});
   check('habits saved to account', (await api('GET','/collections/habits/records',null,t)).totalItems===1);
+  // habits calendar: today is coloured, a click shows the day and lets you toggle a habit
+  await p.waitForSelector('#calendar .cal-d.today');
+  check('calendar colours today by checked habits', /\b(part|full)\b/.test(await p.getAttribute('#calendar .cal-d.today','class')));
+  await p.click('#calendar .cal-d.today'); await p.waitForSelector('#calendar .cal-detail');
+  const onBefore = (await p.$$('#calendar .cal-habits .chip.on')).length;
+  await p.locator('#calendar .cal-habits .chip.on').first().click(); await p.waitForTimeout(300);
+  check('a habit can be unchecked from the calendar', (await p.$$('#calendar .cal-habits .chip.on')).length === onBefore-1);
+  await p.locator('#calendar .cal-habits .chip:not(.on)').first().click(); await p.waitForTimeout(300);
+  await p.locator('#calendar').screenshot({path:S+'/20-calendar.png'});
   await p.screenshot({path:S+'/02-cabinet.png', fullPage:true});
   await p.goto(B+'/#journal'); await p.waitForTimeout(400);
   await p.locator('#journal a:has-text("Читать полностью")').first().click(); await p.waitForURL('**/zhurnal/*');
