@@ -912,3 +912,20 @@ footer a{color:inherit}
 .admin-bar .tabs{border-bottom:0;padding-bottom:0}
 .acc-card{gap:10px}
 @media (max-width:860px){.about .ph{justify-self:center;max-width:100%}.about .ph figcaption{text-align:center}}
+/* world map: on phones it is wider than the screen and moves sideways */
+.world-hint{display:none;margin-top:8px}
+.sn-back{left:-4px;right:auto}
+@media (max-width:640px){
+  .world-view{overflow-x:auto;overflow-y:hidden;border-radius:var(--r);border:1px solid var(--line);scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .world-view::-webkit-scrollbar{display:none}
+  .world-view .world{width:900px;max-width:none;aspect-ratio:1000/420;border:0;border-radius:0}
+  /* the map is 900px wide here: sizes in px, still growing with the level */
+  .world-view .dweller .em{font-size:30px}.world-view .dweller.st-2 .em{font-size:33px}.world-view .dweller.st-3 .em{font-size:36px}
+  .world-view .dweller.st-4 .em{font-size:40px}.world-view .dweller.st-5 .em{font-size:44px}
+  .world-view .dweller.first .em{font-size:50px}
+  .world-view .dweller .nm{font-size:11px;max-width:110px}
+  .world-wrap .sn-more{top:calc(50% - 17px)}
+  .world-wrap .sn-back{left:-4px;right:auto}
+  .world-hint{display:block}
+  .world-wrap + .world-hint + .sn-bar{margin-top:6px}
+}

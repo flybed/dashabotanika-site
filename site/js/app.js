@@ -227,24 +227,32 @@ function heroCta(){
     : [h('a',{class:'btn',href:'/kabinet?tab=register'},'Присоединиться'), h('a',{class:'btn ghost',href:'/#sections'},'Что здесь есть')])); });
   return box;
 }
-function sectionsNav(){
-  // on phones the icons scroll sideways: the last one is cut in half, an arrow and a bar below show there is more
-  const row = h('div',{class:'sn-row'}, SECTIONS.map(([ic,t,href])=>h('a',{class:'sn',href}, h('span',{class:'sn-ic','aria-hidden':'true'},ic), h('span',{class:'sn-t'},t))));
+// a row wider than the screen: arrows at the edges and a bar below show it scrolls, and where you are
+function scrollCues(row, label, withBack){
   const thumb = h('i'), bar = h('div',{class:'sn-bar','aria-hidden':'true'}, thumb);
-  const more = h('button',{type:'button',class:'sn-more','aria-label':'Показать ещё разделы',onclick:()=>row.scrollBy({left:row.clientWidth*0.8, behavior:'smooth'})},'›');
+  const go = dir => row.scrollBy({left:dir*row.clientWidth*0.8, behavior:'smooth'});
+  const more = h('button',{type:'button',class:'sn-more','aria-label':label,onclick:()=>go(1)},'›');
+  const back = withBack ? h('button',{type:'button',class:'sn-more sn-back','aria-label':'Назад',onclick:()=>go(-1)},'‹') : null;
   const sync = ()=>{
     const max = row.scrollWidth - row.clientWidth, scrollable = max > 4;
-    bar.hidden = more.hidden = !scrollable;
+    bar.hidden = more.hidden = !scrollable; if (back) back.hidden = !scrollable;
     if (!scrollable) return;
     const part = row.clientWidth / row.scrollWidth;
     thumb.style.width = (part*100)+'%'; thumb.style.left = (row.scrollLeft/max*(1-part)*100)+'%';
     more.classList.toggle('end', row.scrollLeft >= max - 4);
+    if (back) back.classList.toggle('end', row.scrollLeft <= 4);
   };
   row.addEventListener('scroll', sync, {passive:true});
   window.addEventListener('resize', sync);
   requestAnimationFrame(sync);
+  return {more, back, bar, sync};
+}
+function sectionsNav(){
+  // on phones the icons scroll sideways: the last one is cut in half, an arrow and a bar below show there is more
+  const row = h('div',{class:'sn-row'}, SECTIONS.map(([ic,t,href])=>h('a',{class:'sn',href}, h('span',{class:'sn-ic','aria-hidden':'true'},ic), h('span',{class:'sn-t'},t))));
+  const cues = scrollCues(row, 'Показать ещё разделы');
   return h('section',{class:'sections-nav',id:'sections','aria-label':'Разделы сайта'}, h('div',{class:'wrap'},
-    h('div',{class:'sn-wrap'}, row, more), bar));
+    h('div',{class:'sn-wrap'}, row, cues.more), cues.bar));
 }
 
 /* ---------- first steps: a guide like in games — what to do here, one step at a time ---------- */
@@ -1798,9 +1806,13 @@ function worldSection(){
     count.textContent = (n ? 'Жителей в мире: '+n+'. ' : '') + (dashaHere ? 'Первой поселилась Даша — слон. ' : 'Скоро здесь поселится Даша — слон. ') + 'Каждый новый участник выбирает себе животное или растение и появляется здесь.';
     cta.replaceChildren(accState()==='member' ? h('p',{class:'hint'},'Вы здесь: ', emojiOf(COM.uid),' ',COM.me.nick,'. Растите в уровнях — и мир будет расти вместе с вами.') : h('button',{type:'button',class:'btn',onclick:()=>openAccount('register')},'Поселиться в мире'));
   });
+  // on phones the map is wider than the screen and moves sideways; it opens on the middle, where Dasha lives
+  const view = h('div',{class:'world-view'}, box);
+  const cues = scrollCues(view, 'Подвинуть мир вправо', true);
+  requestAnimationFrame(()=>{ view.scrollLeft = (view.scrollWidth - view.clientWidth) * 0.45; cues.sync(); });
   return h('section',{class:'band alt',id:'world'}, h('div',{class:'wrap'},
     sectionHead('Счастливый мир','Наш эко-мир','Каждый участник — животное или растение. Чем больше нас, тем живее мир.'),
-    box, count, cta
+    h('div',{class:'world-wrap sn-wrap'}, view, cues.back, cues.more), h('p',{class:'hint world-hint'},'👆 Двигайте мир пальцем, чтобы увидеть всех жителей'), cues.bar, count, cta
   ));
 }
 
