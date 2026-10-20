@@ -328,7 +328,17 @@ body.editing .ex{display:none}
 
 /* ---------- выбор персонажа ---------- */
 .chars{display:grid;gap:8px}
-.chars-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.chars-row{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.chars-row .char{flex:none;width:92px;scroll-snap-align:start}
+.char[hidden]{display:none}
+.own{display:grid;gap:10px;padding:12px;border:1.5px dashed var(--line);border-radius:14px;margin-top:6px}
+.own.on{border-color:var(--moss);border-style:solid;background:color-mix(in srgb,var(--leaf) 12%,var(--surface))}
+.own-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.own-prev{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:30px;background:var(--surface);border:1px solid var(--line);flex:none}
+.own input{font:inherit;font-size:15px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.own-grid{display:flex;flex-wrap:wrap;gap:4px}
+.own-em{width:40px;height:40px;border-radius:10px;border:1px solid transparent;background:var(--paper);font-size:22px;cursor:pointer}
+.own-em:hover{border-color:var(--moss)}
 .chars-g{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--clay);margin-top:6px}
 .char{display:grid;justify-items:center;gap:2px;padding:8px 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:700}
 .char input{position:absolute;opacity:0;pointer-events:none}
@@ -754,3 +764,23 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 }
 .ref-pick{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .ref-pick select{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+
+/* privacy policy */
+.policy .wrap{display:grid;gap:14px}
+.policy h1{font-size:clamp(32px,5vw,46px)}
+.pol-sec{display:grid;gap:8px;padding:0}
+.pol-sec h2{font-size:22px;margin-top:8px}
+.pol-sec ul{display:grid;gap:6px;padding-left:20px}
+.pol-sec p,.pol-sec li{font-size:16px;line-height:1.6}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:600;line-height:1.5}
+.consent input{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--moss)}
+footer a{color:inherit}
+/* characters: search, rows that scroll sideways, own character */
+.chars-search{font:inherit;font-size:15px;padding:10px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.chars-list{display:grid;gap:4px}
+.chars-sec{display:grid;gap:6px}
+.chars-g span{color:var(--muted);font-weight:700}
+.chars,.chars-list,.chars-sec,.own{min-width:0;max-width:100%}
+.chars-row{max-width:100%;min-width:0}
+.char{position:relative}
+.own-head > div{min-width:170px}

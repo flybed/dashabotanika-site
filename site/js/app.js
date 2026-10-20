@@ -172,7 +172,7 @@ function render(){
     )),
     h('main',null, path !== '/' ? backBar() : null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'},
-      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета'),
+      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/politika'},'Политика конфиденциальности')),
       h('span',{id:'edit-slot'})
     )),
     editBar()
@@ -793,6 +793,52 @@ function seoSettings(){
     h('div',{class:'fields'}, f));
 }
 
+/* ---------- privacy policy (152-ФЗ); operator name and email are edited by Dasha in edit mode ---------- */
+const POLICY_DATE = '20 октября 2026';
+function privacyPage(){
+  STATE.policy = Object.assign({operator:'', email:''}, STATE.policy||{});
+  const pol = STATE.policy;
+  const op = pol.operator || 'владелец сайта dashabotanika.ru', mail = pol.email || STATE.contacts.email || 'dashabotanika.site@yandex.com';
+  const sec = (t, ...body) => h('section',{class:'pol-sec'}, h('h2',null,t), ...body);
+  const ul = items => h('ul',null, items.map(x=>h('li',null,x)));
+  const opIn = h('input',{id:'pol-op',value:pol.operator,placeholder:'ФИО владельца сайта (или ИП, самозанятый)'}); opIn.addEventListener('input',()=>{ pol.operator = opIn.value.trim(); markDirty(); });
+  const mIn = h('input',{id:'pol-mail',value:pol.email,placeholder:'почта для вопросов о данных'}); mIn.addEventListener('input',()=>{ pol.email = mIn.value.trim(); markDirty(); });
+  return h('section',{class:'band policy'}, h('div',{class:'wrap narrow'},
+    h('div',{class:'eyebrow'},'Документы'),
+    h('h1',null,'Политика конфиденциальности'),
+    h('p',{class:'hint'},'Редакция от ',POLICY_DATE,'.'),
+    h('div',{class:'form edit-only'}, h('div',{class:'fields'}, h('label',{for:'pol-op'},'Оператор персональных данных',opIn), h('label',{for:'pol-mail'},'Почта для обращений',mIn))),
+    sec('1. О чём этот документ',
+      h('p',null,'Здесь простыми словами написано, какие данные о вас собирает сайт dashabotanika.ru, зачем и как мы их защищаем. Политика составлена в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».'),
+      h('p',null,'Оператор персональных данных — ', h('b',null,op),'. Связаться по любым вопросам о данных: ', h('a',{href:'mailto:'+mail},mail),'.')),
+    sec('2. Какие данные мы собираем',
+      ul(['При регистрации: адрес электронной почты, пароль (хранится только в зашифрованном виде — его не видит даже администратор), имя на сайте и выбранный персонаж.',
+        'По вашему желанию в профиле: возраст, пол, страна и город, эко-цели.',
+        'То, что вы сами публикуете или отправляете: комментарии, объявления на барахолке и их фото, личные сообщения, обратная связь и предложения статей.',
+        'Ваши результаты на сайте: эко-челленджи и отметки, результаты теста и игры, очки роста и уровни.',
+        'Технические данные: IP-адрес, время посещения, тип браузера и устройства. Они нужны для работы и защиты сайта.'])),
+    sec('3. Зачем',
+      ul(['Чтобы вы могли зарегистрироваться, входить в кабинет и пользоваться им: челленджи, рост персонажа, сертификаты, барахолка, переписка.',
+        'Чтобы отправлять служебные письма: подтверждение почты и восстановление пароля. Рекламных рассылок без вашего отдельного согласия нет.',
+        'Чтобы проверять объявления и защищать сайт от спама и злоупотреблений.',
+        'Чтобы понимать, что на сайте полезно, и делать его лучше (обезличенная статистика посещений).'])),
+    sec('4. На каком основании',
+      h('p',null,'Мы обрабатываем данные с вашего согласия — вы даёте его, отмечая галочку при регистрации. Данные профиля вы указываете только по желанию. Согласие можно отозвать в любой момент (см. раздел 8).')),
+    sec('5. Где и сколько хранятся',
+      h('p',null,'Данные хранятся на серверах в России. Мы храним их, пока у вас есть аккаунт на сайте. После удаления аккаунта данные удаляются в течение 30 дней, включая резервные копии.')),
+    sec('6. Кто ещё может их видеть',
+      ul(['Другие посетители видят только ваше имя на сайте, персонажа, уровень и то, что вы сами опубликовали (комментарии, объявления). Почту и профиль они не видят.',
+        'Администратор и модераторы сайта видят то, что нужно для проверки объявлений и ответов на обратную связь; профиль видит только администратор.',
+        'Мы не продаём и не передаём ваши данные третьим лицам. Исключения — сервисы, без которых сайт не работает: хостинг (серверы сайта), почтовый сервис для отправки служебных писем и сервис статистики Яндекс.Метрика (если подключён), — а также случаи, прямо предусмотренные законом.'])),
+    sec('7. Cookie и хранилище браузера',
+      h('p',null,'Сайт сохраняет в вашем браузере то, что нужно для работы: вход в аккаунт, результаты без регистрации, выбранный город для чистоты воздуха, скрытые подсказки. Сервис статистики может использовать cookie для подсчёта посещений. Отключить cookie можно в настройках браузера — сайт продолжит работать, но вход придётся выполнять заново.')),
+    sec('8. Ваши права',
+      h('p',null,'Вы можете узнать, какие ваши данные у нас есть, исправить их, удалить аккаунт со всеми данными или отозвать согласие. Имя, персонажа и профиль можно изменить в личном кабинете. По остальным вопросам напишите на ', h('a',{href:'mailto:'+mail},mail),' — ответим в течение 10 рабочих дней.')),
+    sec('9. Изменения',
+      h('p',null,'Если политика изменится, новая редакция появится на этой странице с новой датой. Продолжая пользоваться сайтом после изменений, вы соглашаетесь с новой редакцией.'))
+  ));
+}
+
 /* ---------- pages: real addresses for every page, no reloads between them ---------- */
 const PAGES = {
   '/': {title:'DashaBotanika — эко: еда, быт, мода, образ жизни', render:()=>homePage()},
@@ -800,6 +846,7 @@ const PAGES = {
   '/tovary': {title:'Товары, которые делают мир чище — DashaBotanika', render:()=>{ SEC_H1 = true; return [goodsSection(false)]; }},
   '/baraholka': {title:'Барахолка: отдать, обменять, продать — DashaBotanika', render:()=>{ SEC_H1 = true; return [marketSection()]; }},
   '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
+  '/politika': {title:'Политика конфиденциальности — DashaBotanika', render:()=>[privacyPage()]},
 };
 let SEC_H1 = false, PAGE_UNSUBS = [];
 function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] || ART_RE.test(p) ? p : '/'; }
@@ -938,10 +985,10 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, verified:!!r.verified}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||''}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
-function emojiOf(memberId){ const m = COM.members[memberId]; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
+function emojiOf(memberId){ const m = COM.members[memberId]; if (m && m.customEmoji) return m.customEmoji; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
 function levelOf(rank){ return COM.levels.find(l=>l.rank===rank) || null; }
 const levelName = rank => (levelOf(rank) || {}).name || 'Эко малыш';
 const dt = ts => { const d = new Date(ts); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); };
@@ -1340,7 +1387,7 @@ function growthBlock(){
   const n = Math.max(1, COM.levels.length), idx = Math.max(0, COM.levels.findIndex(l=>l.rank===me.level));
   // steps are equal columns: fill from the first column centre to the current one, plus the share done towards the next
   const pathPct = n === 1 ? 100 : (50/n) + (idx + frac) / (n-1) * (100 - 100/n);
-  const ch = charOf(me.character), em = ch ? ch.emoji : '🌱';
+  const ch = charOf(me.character), em = emojiOf(COM.uid), chName = me.customName || (ch && ch.kind!=='custom' ? ch.name : 'Персонаж');
   const have = {min_leaves:Math.max(me.leaves||0, leavesTotal()), min_exam:STATS.examBest||0, min_game:STATS.gameBest||0, min_reviews:postsCount()};
   const extra = next ? [['min_leaves','эко-листочков в трекере'],['min_exam','баллов на эко-экзамене (из 10)'],['min_game','очков в игре «Эко-уборка»'],['min_reviews','комментариев и сообщений Даше']]
     .filter(([k])=>(next[k]||0) > 0).map(([k,l])=>h('div',{class:'lvl-row'+(have[k]>=next[k]?' ok':'')}, h('span',null, have[k]>=next[k] ? '✓ ' : '', l), h('b',null, Math.min(have[k],next[k]),' / ',next[k]))) : [];
@@ -1348,13 +1395,13 @@ function growthBlock(){
   return h('div',{class:'grow'},
     h('div',{class:'grow-pet st-'+me.level},
       h('div',{class:'grow-aura','aria-hidden':'true'}),
-      h('span',{class:'grow-em',role:'img','aria-label':(ch ? ch.name : 'Персонаж')+', уровень «'+levelName(me.level)+'»'}, em),
+      h('span',{class:'grow-em',role:'img','aria-label':chName+', уровень «'+levelName(me.level)+'»'}, em),
       h('div',{class:'grow-deco','aria-hidden':'true'}, ['','','🌱','🌿','🌳','✨'][me.level] || ''),
       h('button',{type:'button',class:'btn grow-cta','aria-expanded':String(GROW_OPEN),'aria-controls':'grow-ways',onclick:()=>{ GROW_OPEN = !GROW_OPEN; refresh(); if (GROW_OPEN) setTimeout(()=>{ const w = document.getElementById('grow-ways'); if (w) w.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50); }}, GROW_OPEN ? 'Свернуть' : '🌱 Растить персонажа')),
     GROW_OPEN ? growWays() : null,
     h('div',{class:'grow-info'},
       h('div',{class:'eyebrow'},'Развивайте своего персонажа'),
-      h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, (ch ? ch.name : 'Персонаж'),' — ', levelName(me.level)),
+      h('h2',{style:'font-size:clamp(26px,4vw,36px)'}, chName,' — ', levelName(me.level)),
       cur && cur.description ? h('p',{class:'muted'}, cur.description) : null,
       h('div',{class:'grow-steps'}, COM.levels.map(l=>h('div',{class:'grow-step'+(l.rank<=me.level?' on':'')+(l.rank===me.level?' now':''),title:l.name+(l.min_xp ? ' — от '+l.min_xp+' очков роста' : '')},
         h('span',{style:'font-size:'+(14+l.rank*4)+'px','aria-hidden':'true'}, em), h('small',null,l.name), h('small',{class:'grow-xp'}, (l.min_xp||0)+' очк.')))),
@@ -1474,7 +1521,7 @@ async function openCert(userId, rank){
   openModal(sheet=>{
     sheet.classList.add('cert-sheet');
     sheet.append(h('div',{class:'cert big'},
-      h('div',{class:'seal',style:'font-size:30px'}, ch ? ch.emoji : '🌱'),
+      h('div',{class:'seal',style:'font-size:30px'}, u.custom_emoji || (ch ? ch.emoji : '🌱')),
       h('div',{class:'eyebrow'},'Сертификат DashaBotanika'),
       h('h2',{style:'font-size:clamp(30px,6vw,44px)'}, lv.name),
       h('p',{class:'muted'},'Подтверждаем, что'),
@@ -1653,22 +1700,65 @@ function openModal(build){
   const f = sheet.querySelector('input,textarea,button:not(.close)'); if (f) f.focus();
 }
 
-function characterPicker(name, selected){
+/* «свой персонаж»: any icon from this palette and any name; the dice picks a ready-made pair */
+const CUSTOM_EMOJI = ['🦒','🦓','🦘','🦙','🐫','🦬','🦛','🐊','🦖','🦕','🐉','🦄','🐸','🐍','🦎','🦞','🦐','🐠','🐡','🦑','🐳','🦃','🐓','🦚','🐣','🦫','🦔','🐛','🕷️','🌴','🌳','🌸','🌹','🌺','🪷','🌾','🍁','🍓','🥑','🥕','🌙','⭐','🌈','☁️','💧','🔥','🌊','🪨'];
+const CUSTOM_IDEAS = [['🦫','Капибара Кира'],['🐉','Дракончик Искра'],['🦄','Единорог Пломбир'],['🐸','Лягушка Квака'],['🌵','Кактус Колючкин'],['☁️','Облачко Пух'],['⭐','Звёздочка Стелла'],['🍄','Гриб Боровичок'],['🦎','Радужный хамелеон'],['🐳','Звёздный кит'],['🥑','Авокадо Авдотья'],['🌈','Радуга-Дуга'],['🐣','Цыплёнок Цып'],['🦖','Динозаврик Дино'],['🪷','Лотос Лиля']];
+const customChar = () => COM.characters.find(c=>c.kind==='custom') || null;
+function characterPicker(name, selected, custom){
   const box = h('div',{class:'chars',role:'radiogroup','aria-label':'Ваш персонаж'});
-  const one = c=>h('label',{class:'char'+(c.id===box.value?' on':'')},
-    h('input',{type:'radio',name,value:c.id,checked:c.id===box.value?'':null,onchange:()=>{ box.value = c.id; paint(); }}),
+  box.value = selected || '';
+  box.custom = custom && custom.emoji ? {emoji:custom.emoji, name:custom.name||''} : null;
+  const mark = ()=>{
+    box.querySelectorAll('.char').forEach(l=>{ const on = l.dataset.id===box.value && !box.custom; l.classList.toggle('on', on); const r = l.querySelector('input'); if (r) r.checked = on; });
+    const own = box.querySelector('.own'); if (own) own.classList.toggle('on', !!box.custom);
+  };
+  const one = c=>h('label',{class:'char','data-id':c.id},
+    h('input',{type:'radio',name,value:c.id,onchange:()=>{ box.value = c.id; box.custom = null; mark(); }}),
     h('span',{class:'em','aria-hidden':'true'},c.emoji), h('span',null,c.name));
-  // characters come in groups (звери, растения, редкие, птицы, необычные), in the order Dasha sorted them
+  // own character: pick an icon, type a name or roll the dice
+  function ownBlock(cc){
+    const prev = h('span',{class:'own-prev','aria-hidden':'true'}, (box.custom && box.custom.emoji) || '✨');
+    const nm = h('input',{maxlength:'30',placeholder:'Имя персонажа, например «Капибара Кира»','aria-label':'Имя своего персонажа',value:(box.custom && box.custom.name)||''});
+    const use = (emoji, nameV)=>{ box.value = cc.id; box.custom = {emoji, name:nameV==null ? nm.value.trim() : nameV}; if (nameV!=null) nm.value = nameV; prev.textContent = emoji; mark(); };
+    nm.addEventListener('input', ()=>{ if (box.custom) box.custom.name = nm.value.trim(); else use(CUSTOM_EMOJI[0]); });
+    const grid = h('div',{class:'own-grid'}, CUSTOM_EMOJI.map(e=>h('button',{type:'button',class:'own-em','aria-label':'Значок '+e,onclick:()=>use(e)},e)));
+    return h('div',{class:'own'},
+      h('div',{class:'own-head'}, prev, h('div',{style:'flex:1;min-width:0'}, h('b',null,'Свой персонаж'), h('div',{class:'hint'},'Выберите значок и придумайте имя — или доверьтесь кубику.')),
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ const [e,n] = CUSTOM_IDEAS[Math.floor(Math.random()*CUSTOM_IDEAS.length)]; use(e, n); }},'🎲 Сгенерировать')),
+      nm, grid);
+  }
+  // search by name: «лев», «птиц», «морск» — matches names and group titles
+  const list = h('div',{class:'chars-list'}), none = h('p',{class:'hint',hidden:true},'Такого персонажа нет — создайте своего ниже ✨');
+  const search = h('input',{type:'search',class:'chars-search',placeholder:'🔍 Найти персонажа: лев, сова, кактус…','aria-label':'Поиск персонажа'});
+  const filter = ()=>{
+    const q = search.value.trim().toLowerCase().replace(/ё/g,'е'); let shown = 0;
+    list.querySelectorAll('.chars-sec').forEach(sec=>{
+      const inGroup = q && sec.dataset.g.toLowerCase().replace(/ё/g,'е').split(/\s+/).some(w=>w.startsWith(q));
+      let n = 0;
+      sec.querySelectorAll('.char').forEach(l=>{ const ok = !q || inGroup || l.dataset.n.split(/[\s-]+/).some(w=>w.startsWith(q)); l.hidden = !ok; if (ok) n++; });
+      sec.hidden = !n; shown += n;
+    });
+    none.hidden = shown > 0;
+  };
+  search.addEventListener('input', filter);
+  search.addEventListener('keydown', e=>{ if (e.key==='Enter') e.preventDefault(); }); // not the registration submit
+  // characters come in groups (звери, растения, редкие, птицы…), each a row you scroll sideways
   const paint = ()=>{
     const groups = [];
-    COM.characters.forEach(c=>{ const g = c.group || ''; let x = groups.find(y=>y.g===g); if (!x) groups.push(x = {g, list:[]}); x.list.push(c); });
-    box.replaceChildren(...groups.flatMap(({g,list})=>[g && groups.length > 1 ? h('div',{class:'chars-g'},g) : null, h('div',{class:'chars-row'}, list.map(one))]));
+    COM.characters.filter(c=>c.kind!=='custom').forEach(c=>{ const g = c.group || ''; let x = groups.find(y=>y.g===g); if (!x) groups.push(x = {g, list:[]}); x.list.push(c); });
+    const cc = customChar();
+    list.replaceChildren(...groups.map(({g,list:cs})=>h('div',{class:'chars-sec','data-g':g},
+      g && groups.length > 1 ? h('div',{class:'chars-g'},g,h('span',null,' · ',cs.length)) : null,
+      h('div',{class:'chars-row'}, cs.map(c=>{ const l = one(c); l.dataset.n = c.name.toLowerCase().replace(/ё/g,'е'); return l; })))));
+    box.replaceChildren(...[COM.characters.length > 12 ? search : null, list, none, cc ? ownBlock(cc) : null].filter(Boolean));
+    mark(); filter();
   };
-  box.value = selected || '';
   // characters may arrive after the form is drawn (page opened straight on /kabinet)
   let seen = -1; live(()=>{ if (COM.characters.length !== seen){ seen = COM.characters.length; paint(); } });
   return box;
 }
+// what to send to the server for the chosen character
+const pickData = pick => ({character:pick.value, custom_emoji:pick.custom ? pick.custom.emoji : '', custom_name:pick.custom ? (pick.custom.name||'').slice(0,30) : ''});
 function authForms(mode){
   const wrap = h('div',{style:'display:grid;gap:14px'});
   function show(m){
@@ -1697,12 +1787,14 @@ function authForms(mode){
     const pass = h('input',{id:'rg-pass',type:'password',autocomplete:'new-password',minlength:'6',required:''});
     const nick = h('input',{id:'rg-nick',maxlength:'30',placeholder:'Например, Лиза из Москвы',autocomplete:'nickname',required:''});
     const pick = characterPicker('rg-char');
+    const consent = h('input',{type:'checkbox',id:'rg-consent',required:''});
     const btn = h('button',{type:'submit',class:'btn'},'Зарегистрироваться');
     const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
       h('div',{class:'fields'}, h('label',{for:'rg-email'},'Почта',email), h('label',{for:'rg-pass'},'Пароль (от 6 символов)',pass)),
       h('label',{for:'rg-nick'},'Как вас подписывать',nick),
       h('div',null, h('div',{style:'font-weight:700;margin-bottom:6px'},'Кем вы будете в «Счастливом мире»?'), pick),
       h('p',{class:'hint'},'Имя и персонажа видят все посетители сайта. Почту не видит никто.'),
+      h('label',{class:'consent'}, consent, h('span',null,'Я согласен(на) на обработку моих персональных данных в соответствии с ', h('a',{href:'/politika',target:'_blank'},'Политикой конфиденциальности'))),
       h('div',null,btn));
     const ref = refOf(), invite = h('div');
     if (ref) live(()=>{ invite.replaceChildren(h('div',{class:'invite-banner'}, h('span',{'aria-hidden':'true'},'🎁'),
@@ -1713,9 +1805,10 @@ function authForms(mode){
       if (v.length < 2){ nick.focus(); toast('Имя должно быть не короче двух букв'); return; }
       if (pass.value.length < 6){ pass.focus(); toast('Пароль — минимум 6 символов'); return; }
       if (!pick.value){ toast('Выберите животное или растение'); return; }
+      if (!consent.checked){ consent.focus(); toast('Отметьте согласие с политикой конфиденциальности'); return; }
       btn.disabled = true;
       try{
-        await pb.collection('users').create({email:email.value.trim(), password:pass.value, passwordConfirm:pass.value, name:v.slice(0,30), character:pick.value, emailVisibility:false});
+        await pb.collection('users').create({email:email.value.trim(), password:pass.value, passwordConfirm:pass.value, name:v.slice(0,30), ...pickData(pick), consent_at:new Date().toISOString(), emailVisibility:false});
         const auth = await pb.collection('users').authWithPassword(email.value.trim(), pass.value);
         if (ref && ref !== auth.record.id){
           try{ await pb.collection('referrals').create({inviter:ref, invited:auth.record.id}); }catch(e){}
@@ -1816,10 +1909,10 @@ function cabinetTabs(tab, tid){
       const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
       f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2) return;
         pb.collection('users').update(COM.uid,{name:v.slice(0,30)}).then(()=>toast('Имя обновлено')).catch(writeErr); });
-      const pick = characterPicker('acc-char', me.character);
+      const pick = characterPicker('acc-char', me.character, {emoji:me.customEmoji, name:me.customName});
       const cf = h('form',{style:'display:grid;gap:8px'}, pick, h('div',null,h('button',{type:'submit',class:'btn ghost small'},'Сменить персонажа')));
-      cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value || pick.value===me.character) return;
-        pb.collection('users').update(COM.uid,{character:pick.value}).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
+      cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value) return;
+        pb.collection('users').update(COM.uid,pickData(pick)).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
       out.push(
         h('div',{class:'hint',style:'font-weight:800'},'Почта'),
         h('div',{class:'mail-row'}, h('b',null,COM.email||'—'),
@@ -2483,7 +2576,7 @@ render();
   COM.ready = true;
   render();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage,exam_best,verified'}, l=>{
+  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,verified'}, l=>{
     const m = {}; l.forEach(r=>{ if (r.role!=='writer' || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){

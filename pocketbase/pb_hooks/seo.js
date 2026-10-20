@@ -119,6 +119,14 @@ function page(path, d, k, app) {
         `<h2>Примеры вопросов</h2><ul>${k.QUESTIONS.map((q) => `<li>${esc(q.q)}</li>`).join("")}</ul>`, true),
     })
   }
+  if (path === "/politika") {
+    return Object.assign(base, {
+      title: "Политика конфиденциальности — DashaBotanika",
+      description: "Какие данные собирает сайт DashaBotanika, зачем, где хранятся и как их изменить или удалить.",
+      crumbs: [["Политика конфиденциальности", "/politika"]],
+      body: `<section class="band"><div class="wrap"><h1>Политика конфиденциальности</h1><p>Какие данные собирает сайт dashabotanika.ru, зачем и как мы их защищаем — в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p></div></section>`,
+    })
+  }
   if (path === "/kabinet") return Object.assign(base, { title: "Личный кабинет — DashaBotanika", noindex: true, crumbs: [["Личный кабинет", "/kabinet"]], body: "<h1>Личный кабинет</h1>" })
   const m = path.match(/^\/zhurnal\/([^/]+)$/)
   if (m) {
