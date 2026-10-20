@@ -882,3 +882,14 @@ footer a{color:inherit}
 .shop input{width:18px;height:18px;accent-color:var(--moss)}
 @media (max-width:640px){.menu-sum{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .menu-sum{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* AI helper */
+.ai-left{margin-top:14px}
+.ai-out{margin-top:14px}
+.ai-wait{flex-direction:row;align-items:center;gap:12px;font-weight:700}
+.ai-spin{display:inline-block;font-size:24px;animation:air-spin 1.4s linear infinite}
+.ai-res{gap:12px;max-width:760px}
+.ai-res-head{display:flex;gap:14px;align-items:center}
+.ai-photo{width:96px;height:96px;object-fit:cover;border-radius:14px;flex:none}
+.ai-text{display:grid;gap:8px;font-size:16px;line-height:1.55}
+.ai-text p{margin:0}
+.ai-li{padding-left:4px}
