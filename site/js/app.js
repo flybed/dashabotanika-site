@@ -479,7 +479,7 @@ function challengesSection(){
     box.replaceChildren(...[
       wizard ? wizardView() : h('div',{class:'ch-new'},
         h('button',{type:'button',class:'btn',onclick:()=>{ wizard = {step:1, goal:null, days:14, startToday:true, habits:[], custom:''}; paint(); }},'+ Создать челлендж'),
-        h('p',{class:'hint'},'Выберите цель, срок и привычки. Отмечайте каждый день — и за пройденный челлендж получите +', chPoints(),' очков роста.')),
+        h('p',{class:'hint'},'Выберите цель, срок и привычки. Отмечайте каждый день — и за пройденный челлендж получите +', chPoints(),' очков роста. ', h('a',{href:'/kabinet?tab=settings#tg'},'🔔 Напоминания в Telegram'))),
       ...(active.length ? active.map(card) : (wizard ? [] : [h('div',{class:'empty'},'У вас пока нет челленджей. Создайте первый — например, 14 дней без пластиковых пакетов.')])),
       past.length ? h('div',null, h('h3',{style:'font-size:20px;margin:10px 0'},'Завершённые'), h('div',{class:'list'}, past.map(pastItem))) : null].filter(Boolean));
   }
@@ -1919,6 +1919,7 @@ function cabinetTabs(tab, tid){
         h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
         h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
         h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf,
+        tgCard(),
         h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:logout},'Выйти из аккаунта')));
     }
     if (cur==='suggest'){
@@ -2086,6 +2087,52 @@ function profilePanel(){
   if (PROFILE.loaded) paint(); else { box.replaceChildren(h('p',{class:'muted'},'Загружаем профиль…')); loadProfile().then(paint); }
   return box;
 }
+/* ---------- Telegram: the member chooses what the bot sends and when ---------- */
+const TG_TOPICS = [
+  ['challenge','🌱 Напоминание о челлендже','каждый день в выбранное время, если что-то ещё не отмечено'],
+  ['nudge','🏁 Предложение начать новый челлендж','по воскресеньям, если сейчас челленджа нет'],
+  ['messages','💬 Новые личные сообщения','сразу, когда вам пишут'],
+  ['articles','📖 Новые статьи в журнале','когда Даша публикует статью'],
+  ['weekly','🌍 Что нового в «Счастливом мире»','по воскресеньям: новые участники, вещи и статьи']
+];
+function tgCard(){
+  const box = h('div',{class:'card tg-card',id:'tg'}, h('p',{class:'muted'},'Загружаем…'));
+  const connect = async btn=>{
+    btn.disabled = true; btn.textContent = 'Готовим ссылку…';
+    try{ const r = await pb.send('/api/tg/link',{method:'POST', requestKey:null}); if (!r.url) throw {response:r}; location.href = r.url; }
+    catch(e){ btn.disabled = false; btn.textContent = 'Подключить Telegram'; toast((e && e.response && e.response.message) || 'Не получилось, попробуйте позже'); }
+  };
+  function paint(sub){
+    const head = h('div',{class:'pf-head'}, h('h3',null,'Уведомления в Telegram'), sub ? h('span',{class:'status accepted'},'✓ подключено') : null);
+    if (!sub){
+      box.replaceChildren(head,
+        h('p',null,'Бот напомнит про челлендж и расскажет, что нового в сообществе. Что именно присылать, вы выберете сами.'),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+          h('button',{type:'button',class:'btn small',onclick:e=>connect(e.currentTarget)},'Подключить Telegram'),
+          h('button',{type:'button',class:'btn ghost small',onclick:load},'Я подключил(а) — обновить')),
+        h('p',{class:'hint'},'Откроется Telegram — нажмите «Start» в боте и вернитесь сюда.'));
+      return;
+    }
+    const want = new Set(sub.topics||[]);
+    const boxes = TG_TOPICS.map(([k,t,d])=>{ const c = h('input',{type:'checkbox',checked:want.has(k)?'':null,'data-k':k}); return h('label',{class:'tg-topic'}, c, h('span',null, h('b',null,t), h('span',{class:'hint'},d))); });
+    const hour = h('select',{'aria-label':'Время напоминания'}, Array.from({length:17},(_,i)=>i+7).map(x=>h('option',{value:x,selected:x===sub.hour?'':null}, String(x).padStart(2,'0')+':00')));
+    const on = h('input',{type:'checkbox',checked:sub.enabled?'':null});
+    const save = h('button',{type:'button',class:'btn small',onclick:()=>{
+      const topics = boxes.map(l=>l.querySelector('input')).filter(c=>c.checked).map(c=>c.dataset.k);
+      pb.collection('tg_subs').update(sub.id,{topics, hour:+hour.value, tz:-new Date().getTimezoneOffset(), enabled:on.checked}).then(r=>{ toast(on.checked && topics.length ? 'Уведомления сохранены' : 'Уведомления выключены'); paint(r); }).catch(writeErr);
+    }},'Сохранить');
+    box.replaceChildren(head,
+      h('label',{class:'tg-topic tg-main'}, on, h('span',null, h('b',null,'Присылать уведомления'))),
+      h('div',{class:'hint',style:'font-weight:800'},'Что присылать'), h('div',{class:'tg-topics'}, boxes),
+      h('label',{class:'tg-hour'},'Во сколько напоминать о челлендже ', hour, h('span',{class:'hint'},' (ваше местное время)')),
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, save,
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отключить Telegram-бота?')) pb.collection('tg_subs').delete(sub.id).then(()=>{ toast('Telegram отключён'); paint(null); }).catch(writeErr); }},'Отключить Telegram')));
+  }
+  function load(){ pb.collection('tg_subs').getFullList({requestKey:null}).then(l=>paint(l[0]||null)).catch(()=>paint(null)); }
+  load();
+  return box;
+}
+
 /* ---------- points history: what the points came for (written by the server) ---------- */
 function xpHistory(){
   const box = h('div',{class:'card xp-hist'}, h('p',{class:'muted'},'Загружаем историю…'));

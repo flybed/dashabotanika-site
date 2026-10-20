@@ -1,0 +1,165 @@
+// Telegram-бот: привязка из кабинета, напоминания о челлендже, раз в неделю — что нового.
+// Токен бота — переменная окружения TG_TOKEN (файл /etc/dashabotanika/telegram.env, см. deploy/pocketbase.service).
+// TG_API меняется только в тестах (подставной сервер вместо api.telegram.org).
+
+const SITE = "https://dashabotanika.ru"
+const token = () => String($os.getenv("TG_TOKEN") || "").trim()
+const apiBase = () => String($os.getenv("TG_API") || "https://api.telegram.org").replace(/\/+$/, "")
+// секрет для заголовка вебхука — из токена, чтобы не хранить ещё один
+const hookSecret = () => $security.sha256("dashabotanika-hook:" + token()).slice(0, 48)
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+
+function call(method, payload) {
+  if (!token()) return null
+  try {
+    const res = $http.send({ url: `${apiBase()}/bot${token()}/${method}`, method: "POST", body: JSON.stringify(payload || {}),
+      headers: { "content-type": "application/json" }, timeout: 15 })
+    return res.json
+  } catch (e) { return null }
+}
+function send(chatId, html, button) {
+  const p = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true }
+  if (button) p.reply_markup = { inline_keyboard: [[{ text: button[0], url: button[1] }]] }
+  return call("sendMessage", p)
+}
+
+let botName = ""
+function username() {
+  if (botName) return botName
+  const r = call("getMe")
+  botName = r && r.ok && r.result ? r.result.username : ""
+  return botName
+}
+function ensureWebhook() {
+  if (!token()) return
+  call("setWebhook", { url: `${SITE}/api/tg/hook`, secret_token: hookSecret(), allowed_updates: ["message"] })
+}
+
+// код для ссылки t.me/<бот>?start=<код>
+function linkFor(app, userId) {
+  const col = app.findCollectionByNameOrId("tg_links")
+  const r = new Record(col)
+  const code = $security.randomString(24)
+  r.set("user", userId); r.set("code", code)
+  app.save(r)
+  const name = username()
+  return name ? `https://t.me/${name}?start=${code}` : ""
+}
+
+function nameOf(app, userId) { try { return app.findRecordById("users", userId).getString("name") } catch (e) { return "" } }
+
+function onMessage(app, msg) {
+  if (!msg || !msg.chat) return
+  const chatId = String(msg.chat.id), text = String(msg.text || "").trim()
+  const m = text.match(/^\/start(?:\s+(\S+))?/)
+  if (m && m[1]) {
+    let link
+    try { link = app.findFirstRecordByFilter("tg_links", "code = {:c}", { c: m[1] }) } catch (e) {}
+    const fresh = link && Date.now() - new Date(link.getString("created").replace(" ", "T")).getTime() < 24 * 3600 * 1000
+    if (!fresh) { send(chatId, "Ссылка устарела. Откройте кабинет на сайте и нажмите «Подключить Telegram» ещё раз.", ["Открыть кабинет", SITE + "/kabinet?tab=settings"]); return }
+    const userId = link.getString("user")
+    let sub
+    try { sub = app.findFirstRecordByFilter("tg_subs", "user = {:u}", { u: userId }) } catch (e) {
+      sub = new Record(app.findCollectionByNameOrId("tg_subs")); sub.set("user", userId); sub.set("hour", 20); sub.set("tz", 180)
+      sub.set("topics", ["challenge", "messages", "weekly"])
+    }
+    sub.set("chat_id", chatId); sub.set("enabled", true)
+    app.save(sub)
+    app.delete(link)
+    send(chatId, `Готово, ${esc(nameOf(app, userId))}! 🌱 Telegram подключён.\n\nЧто присылать и во сколько, выберите в кабинете → «Настройки» → «Уведомления в Telegram». Отключить всё — команда /stop.`, ["Выбрать уведомления", SITE + "/kabinet?tab=settings#tg"])
+    return
+  }
+  if (/^\/stop/.test(text)) {
+    try { app.delete(app.findFirstRecordByFilter("tg_subs", "chat_id = {:c}", { c: chatId })) } catch (e) {}
+    send(chatId, "Напоминания выключены. Чтобы включить снова — кабинет на сайте → «Настройки» → «Подключить Telegram».")
+    return
+  }
+  send(chatId, "Привет! Я бот сайта DashaBotanika 🌍 Напоминаю про эко-челленджи и рассказываю новости сообщества.\n\nЧтобы подключить напоминания, откройте личный кабинет → «Настройки» → «Подключить Telegram».", ["Открыть сайт", SITE + "/kabinet?tab=settings"])
+}
+
+// ---------- напоминания ----------
+function jsonOf(record, field) { try { return JSON.parse(toString(record.get(field))) } catch (e) { return null } }
+function addDays(isoDate, n) { const d = new Date(isoDate + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+
+// что не отмечено сегодня в идущих челленджах
+function openToday(app, userId, today) {
+  let rec
+  try { rec = app.findFirstRecordByFilter("habits", "owner = {:id}", { id: userId }) } catch (e) { return { active: [], open: [] } }
+  const data = jsonOf(rec, "data") || {}
+  const active = [], open = []
+  for (const ch of (Array.isArray(data.challenges) ? data.challenges : [])) {
+    if (!ch || !ch.start) continue
+    const end = addDays(ch.start, Math.max(1, ch.days | 0) - 1)
+    if (today < ch.start || today > end) continue
+    active.push(ch)
+    const done = (ch.log || {})[today] || []
+    for (const h of (ch.habits || [])) if (done.indexOf(h.id) < 0) open.push(h.name)
+  }
+  return { active, open }
+}
+
+function weekNews(app) {
+  const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().replace("T", " ")
+  let members = 0, things = 0, arts = []
+  try { members = app.countRecords("users", $dbx.exp("created >= {:s}", { s: since })) } catch (e) {}
+  try { things = app.countRecords("listings", $dbx.exp("created >= {:s} AND moderation = 'approved'", { s: since })) } catch (e) {}
+  try {
+    const d = jsonOf(app.findFirstRecordByFilter("content", "key = 'site'"), "data") || {}
+    const day = since.slice(0, 10)
+    arts = (d.articles || []).filter((a) => (a.date || "") >= day).slice(0, 3)
+  } catch (e) {}
+  const lines = []
+  if (members) lines.push(`🐾 В мире поселились новые участники: ${members}`)
+  if (things) lines.push(`📦 На барахолке новых вещей: ${things}`)
+  arts.forEach((a) => lines.push(`📖 «${esc(a.title)}»`))
+  return lines
+}
+
+function remindAll(app, force) {
+  if (!token()) return 0
+  let sent = 0
+  for (const sub of app.findRecordsByFilter("tg_subs", "enabled = true", "", 0, 0)) {
+    try {
+      const local = new Date(Date.now() + sub.getInt("tz") * 60000)
+      const today = local.toISOString().slice(0, 10), hour = local.getUTCHours(), sunday = local.getUTCDay() === 0
+      if (!force && (hour !== sub.getInt("hour") || sub.getString("last_sent") === today)) continue
+      const userId = sub.getString("user"), name = esc(nameOf(app, userId)), want = sub.getStringSlice("topics")
+      const t = openToday(app, userId, today)
+      const parts = []
+      if (want.indexOf("challenge") >= 0 && t.open.length) parts.push(`🌱 ${name}, сегодня в челлендже ещё не отмечено:\n${t.open.slice(0, 8).map((n) => "• " + esc(n)).join("\n")}\n\nОтметьте, что получилось, — персонаж подрастёт!`)
+      else if (want.indexOf("nudge") >= 0 && !t.active.length && sunday) parts.push(`🌱 ${name}, новая неделя — хороший повод для нового эко-челленджа. Выберите цель и 3–5 простых привычек.`)
+      if (want.indexOf("weekly") >= 0 && sunday) { const news = weekNews(app); if (news.length) parts.push(`<b>Что нового в «Счастливом мире» за неделю</b>\n${news.join("\n")}`) }
+      if (!parts.length) continue
+      const r = send(sub.getString("chat_id"), parts.join("\n\n"), t.open.length || t.active.length || !sunday ? ["Отметить привычки", SITE + "/kabinet#challenges"] : ["Открыть сайт", SITE + "/"])
+      if (r && r.ok === false && r.error_code === 403) { sub.set("enabled", false) } // человек заблокировал бота
+      sub.set("last_sent", today)
+      app.save(sub)
+      sent++
+    } catch (e) {}
+  }
+  return sent
+}
+
+// ---------- сразу: новое личное сообщение, новая статья ----------
+function subsWith(app, topic, userId) {
+  const f = userId ? "enabled = true && user = {:u}" : "enabled = true"
+  try { return app.findRecordsByFilter("tg_subs", f, "", 0, 0, { u: userId || "" }).filter((s) => s.getStringSlice("topics").indexOf(topic) >= 0) } catch (e) { return [] }
+}
+function onChatMessage(app, msg) {
+  if (!token()) return
+  try {
+    const chat = app.findRecordById("chats", msg.getString("chat")), from = msg.getString("from")
+    const to = [chat.getString("buyer"), chat.getString("seller")].filter((u) => u && u !== from)
+    for (const u of to) for (const sub of subsWith(app, "messages", u)) {
+      send(sub.getString("chat_id"), `💬 Новое сообщение от <b>${esc(nameOf(app, from))}</b>:\n\n${esc(msg.getString("text").slice(0, 300))}`, ["Ответить", `${SITE}/kabinet?tab=chats&t=${chat.id}`])
+    }
+  } catch (e) {}
+}
+function onNewArticles(app, list) {
+  if (!token() || !list.length) return
+  for (const sub of subsWith(app, "articles")) {
+    for (const a of list.slice(0, 3)) send(sub.getString("chat_id"), `📖 Новая статья в журнале DashaBotanika:\n<b>${esc(a.title)}</b>\n\n${esc(String(a.lead || "").slice(0, 250))}`, ["Читать", `${SITE}/zhurnal/${a.slug || a.id}`])
+  }
+}
+
+module.exports = { token, hookSecret, ensureWebhook, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }

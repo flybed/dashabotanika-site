@@ -784,3 +784,12 @@ footer a{color:inherit}
 .chars-row{max-width:100%;min-width:0}
 .char{position:relative}
 .own-head > div{min-width:170px}
+/* Telegram notifications */
+.tg-card{gap:12px}
+.tg-topics{display:grid;gap:6px}
+.tg-topic{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--paper);cursor:pointer}
+.tg-topic input{width:20px;height:20px;flex:none;margin-top:2px;accent-color:var(--moss)}
+.tg-topic > span{display:grid;gap:2px}
+.tg-main{background:color-mix(in srgb,var(--leaf) 14%,var(--surface))}
+.tg-hour{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-weight:700;font-size:14px}
+.tg-hour select{font:inherit;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
