@@ -197,6 +197,11 @@ const T = '#cabinet-tabs ';
   const sum = await p.textContent(T+'.people-sum');
   check('people summary: 2 total, online counted', /2\s*участника/.test(sum) && /онлайн/.test(sum) && (await p.$$(T+'.online-dot.on')).length >= 1);
   await p.screenshot({path:S+'/09-people.png'});
+  // admin records an invitation by hand (the link was opened in another browser)
+  const lizaPick = p.locator(T+'.ref-pick:has(select[aria-label="Кто пригласил Лиза"])');
+  await lizaPick.locator('select').selectOption({label:'Даша'}); await lizaPick.locator('button').click();
+  await p.waitForSelector('.toast:has-text("по приглашению")'); await p.waitForTimeout(600);
+  check('admin can record who invited a member', (await p.textContent(T+'.list')).includes('пришёл(ла) по приглашению: Даша') && !(await p.$('select[aria-label="Кто пригласил Лиза"]')));
   check('approved listing is public', (await api('GET','/collections/listings/records')).totalItems===1);
   // level up -> certificate
   await api('PATCH','/collections/users/records/'+dasha.id,{exam_best:8},t);
