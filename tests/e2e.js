@@ -133,7 +133,7 @@ const T = '#cabinet-tabs ';
   const site = (await api('GET','/collections/content/records?filter='+encodeURIComponent("key='site'"),null,t)).items[0];
   await api('PATCH','/collections/content/records/'+site.id,{data:Object.assign({}, site.data, {seo:{metrika:'12345678', yandex:'abc123', google:'g-Code_9'}})},t);
   const rSeo = await (await fetch(B+'/tovary')).text();
-  check('verification meta and Metrika counter in served pages', rSeo.includes('<meta name="yandex-verification" content="abc123">') && rSeo.includes('<meta name="google-site-verification" content="g-Code_9">') && rSeo.includes('ym(12345678,"init"'));
+  check('verification meta and Metrika counter in served pages', rSeo.includes('<meta name="yandex-verification" content="abc123">') && rSeo.includes('<meta name="google-site-verification" content="g-Code_9">') && rSeo.includes('ym(12345678,"init"') && rSeo.includes('tag.js?id=12345678') && rSeo.includes('webvisor:true'));
   await api('PATCH','/collections/content/records/'+site.id,{data:site.data},t);
   check('goods page says the goods will be on sale soon', rGoods.includes('Скоро эти товары можно будет купить'));
 
