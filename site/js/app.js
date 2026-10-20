@@ -669,7 +669,7 @@ function cafesSection(){
 }
 
 function markRead(articleId){
-  if (!pb || !COM.uid || COM.reads[articleId]) return;
+  if (!pb || !COM.uid || !COM.readsLoaded || COM.reads[articleId]) return; // wait until we know what was read
   COM.reads[articleId] = true;
   pb.collection('reads').create({user:COM.uid, article:articleId}).catch(()=>{});
 }
@@ -696,7 +696,8 @@ const articleUrl = a => '/zhurnal/'+articleSlug(a);
 const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
 function articlePage(path){
   const key = decodeURIComponent(path.split('/')[2]||'');
-  const it = STATE.articles.find(a=>articleSlug(a)===key || String(a.id)===key);
+  // old addresses keep working after the address is changed (old_slugs)
+  const it = STATE.articles.find(a=>articleSlug(a)===key || String(a.id)===key || (a.old_slugs||[]).includes(key));
   if (!it) return {title:'Статья не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'},
     h('h1',null,'Статья не найдена'), h('p',{class:'lead'},'Возможно, её переименовали или убрали. Загляните в журнал — там все статьи.'),
     h('a',{class:'btn',href:'/#journal'},'Все статьи')))]};
@@ -707,14 +708,56 @@ function articlePage(path){
       h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/#journal'},'Журнал')),
       h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null),
       h('h1',null,it.title),
+      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title)) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
       h('div',{class:'art-body'}, it.body),
+      articleEditor(it),
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/#journal'},'← Все статьи')),
       commentsBlock('articles:'+it.id),
       others.length ? h('div',{class:'art-more'}, h('h2',null,'Читайте также'), h('ul',null, others.map(a=>h('li',null, h('a',{href:articleUrl(a)},a.title))))) : null
     ))];
   }};
+}
+
+/* edit mode on the article page: the text itself and how it looks in search and in shared links */
+function articleEditor(it){
+  if (!EDIT.can) return null;
+  const field = (k, label, opts) => {
+    const el = h(opts && opts.area ? 'textarea' : 'input', {id:'ae-'+k, maxlength:opts && opts.max ? String(opts.max+40) : null, placeholder:(opts && opts.ph) || null, style:opts && opts.area ? 'min-height:'+(opts.h||100)+'px' : null});
+    el.value = it[k] || '';
+    const count = opts && opts.max ? h('span',{class:'ae-count'}) : null;
+    const upd = ()=>{ if (count){ const n = el.value.length; count.textContent = n+' / '+opts.max; count.classList.toggle('over', n > opts.max); } paintSnippet(); };
+    el.addEventListener('input', ()=>{ it[k] = el.value.trim() || undefined; if (k==='slug') it[k] = slugify(el.value) || undefined; markDirty(); upd(); });
+    setTimeout(upd);
+    return h('label',{for:'ae-'+k}, h('span',{class:'ae-l'}, label, count), el, opts && opts.hint ? h('span',{class:'hint'},opts.hint) : null);
+  };
+  const snip = h('div',{class:'snippet'});
+  function paintSnippet(){
+    const title = it.seo_title || (it.title+' — DashaBotanika'), desc = it.seo_desc || it.lead || String(it.body||'').slice(0,160);
+    snip.replaceChildren(h('div',{class:'sn-url'},'dashabotanika.ru › zhurnal › ', articleSlug(it)),
+      h('div',{class:'sn-title'}, title.length > 65 ? title.slice(0,62)+'…' : title),
+      h('div',{class:'sn-desc'}, desc.length > 165 ? desc.slice(0,162)+'…' : desc));
+  }
+  // the address changes — keep the old one so links already shared still open the article
+  const slugWas = articleSlug(it);
+  const slugField = field('slug','Адрес страницы',{ph:slugWas, hint:'Латиницей, через дефис. Старый адрес продолжит открывать статью.'});
+  slugField.querySelector('input').addEventListener('change', ()=>{ const now = articleSlug(it); if (now !== slugWas){ it.old_slugs = [...new Set([...(it.old_slugs||[]), slugWas])].filter(x=>x!==now); markDirty(); } });
+  return h('div',{class:'form edit-only art-editor'},
+    h('h3',null,'✏️ Редактировать статью'),
+    field('title','Заголовок'), field('lead','Короткое описание',{area:true,h:70}), field('body','Текст',{area:true,h:320}),
+    h('h3',{style:'margin-top:10px'},'🔎 Для поиска и ссылок'),
+    h('p',{class:'hint'},'Если оставить пустым, сайт возьмёт заголовок и короткое описание статьи.'),
+    field('seo_title','Заголовок в поиске',{max:60, ph:it.title+' — DashaBotanika', hint:'До 60 знаков, главный запрос — в начале. Например: «Куда сдать батарейки в Новосибирске: 5 мест».'}),
+    field('seo_desc','Описание в поиске',{area:true,h:70,max:160, hint:'До 160 знаков: о чём статья и чем она полезна.'}),
+    slugField,
+    h('div',{class:'ae-l'},'Так статья будет выглядеть в Яндексе и Google'), snip,
+    h('div',{class:'ae-l'},'Картинка превью'),
+    h('p',{class:'hint'},'Видна в начале статьи, в журнале и в превью ссылки в Telegram, VK и WhatsApp. Лучше горизонтальная, от 1200×630.'),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+      uploadBtn(it.image ? 'Заменить картинку' : 'Загрузить картинку', nid=>{ it.image = nid; }),
+      it.image ? h('button',{type:'button',class:'btn ghost small edit-only',onclick:()=>{ delete it.image; markDirty(); render(); }},'Убрать картинку') : null),
+    h('p',{class:'hint'},'После правок нажмите «Сохранить изменения» внизу экрана.'));
 }
 
 function journalSection(){
@@ -726,6 +769,7 @@ function journalSection(){
       const more = h('a',{class:'linkish',href:articleUrl(it)},'Читать полностью');
       return h('article',{class:'card'},
         delBtn('articles',it.id),
+        it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, '')) : null,
         h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
         h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
         h('p',{class:'muted',style:'font-size:15px'},it.lead),
@@ -2659,7 +2703,7 @@ render();
   if (COM.uid){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
     watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
-    pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); refresh(); }).catch(()=>{});
+    pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); COM.readsLoaded = true; refresh(); }).catch(()=>{});
     if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
     startPresence();
     if (COM.admin) watch('drafts',{sort:'-created'}, l=>{ COM.drafts = l; });

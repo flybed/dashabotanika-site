@@ -11,7 +11,7 @@ const PHOTO = path.join(__dirname, '..', 'site', 'img', 'owl.webp');
 async function su(){ const r = await fetch(B+'/api/collections/_superusers/auth-with-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identity:SU[0],password:SU[1]})}); return (await r.json()).token; }
 async function api(method, p, body, token){ const r = await fetch(B+'/api'+p,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:token}:{})},body:body?JSON.stringify(body):undefined}); return r.json(); }
 const errs = [];
-function watchPage(p, tag){ p.route('https://mc.yandex.ru/**', r=>r.fulfill({body:'', contentType:'text/javascript'})); p.on('pageerror', e=>errs.push(tag+' pageerror: '+e.message)); p.on('console', m=>{ if (m.type()==='error' && !/fonts\.g/.test(m.text())) errs.push(tag+' console: '+m.text()); }); }
+function watchPage(p, tag){ if (process.env.DEBUG_HTTP){ p.on('response', r=>{ if (r.status()>=400) console.log('HTTP', tag, r.status(), r.request().method(), r.url()); }); p.on('requestfailed', r=>console.log('FAILED-REQ', tag, r.url())); } p.route('https://mc.yandex.ru/**', r=>r.fulfill({body:'', contentType:'text/javascript'})); p.on('pageerror', e=>errs.push(tag+' pageerror: '+e.message)); p.on('console', m=>{ if (m.type()==='error' && !/fonts\.g/.test(m.text())) errs.push(tag+' console: '+m.text()); }); }
 function check(name, cond){ console.log((cond ? 'PASS ' : 'FAIL ')+name); if (!cond) errs.push('check failed: '+name); }
 async function register(p, email, nick, charName){
   await p.click('.acc-btn');
@@ -169,6 +169,20 @@ const T = '#cabinet-tabs ';
   check('published draft opens as an article page', new URL(p.url()).pathname==='/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey' && (await p.textContent('#article h1')).includes('5 идей'));
   const smap2 = await (await fetch(B+'/sitemap.xml')).text(), dr2 = await api('GET','/collections/drafts/records/'+dr.id,null,t);
   check('published article is in the sitemap and the draft is marked', smap2.includes('/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey') && dr2.status==='published');
+  // SEO fields of an article: own search title and description, new address (old one keeps working), cover picture
+  await p.goto(B+'/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey', {waitUntil:'networkidle'});
+  await p.click('#edit-slot button'); await p.waitForSelector('#ae-seo_title');
+  await p.fill('#ae-seo_title','Чем заменить пищевую плёнку: 5 идей для кухни');
+  await p.fill('#ae-seo_desc','Восковые салфетки, крышки и контейнеры вместо плёнки — что выбрать и сколько это экономит.');
+  await p.fill('#ae-slug','plenka-zamena'); await p.locator('#ae-slug').blur();
+  check('search snippet preview follows the fields', (await p.textContent('.snippet')).includes('5 идей для кухни') && (await p.textContent('.snippet')).includes('plenka-zamena'));
+  const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.click('.art-editor button:has-text("Загрузить картинку")')]);
+  await chooser.setFiles(PHOTO); await p.waitForSelector('.toast:has-text("Фото добавлено")');
+  await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
+  const rArt = await (await fetch(B+'/zhurnal/plenka-zamena')).text(), rOld = await fetch(B+'/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey');
+  check('server page uses the SEO title, description and cover; the old address still opens', rArt.includes('<title>Чем заменить пищевую плёнку: 5 идей для кухни</title>') && rArt.includes('content="Восковые салфетки') && /property="og:image" content="https:\/\/dashabotanika\.ru\/api\/files\/photos\//.test(rArt) && rOld.status===200 && (await rOld.text()).includes('href="https://dashabotanika.ru/zhurnal/plenka-zamena"'));
+  await p.goto(B+'/zhurnal/plenka-zamena', {waitUntil:'networkidle'});
+  check('article shows its cover picture', !!(await p.$('#article .art-cover img')));
   await p.goto(B+'/');
   await p.click('#edit-slot button'); await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
   // second user, mobile

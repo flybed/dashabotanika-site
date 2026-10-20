@@ -130,16 +130,19 @@ function page(path, d, k, app) {
   if (path === "/kabinet") return Object.assign(base, { title: "Личный кабинет — DashaBotanika", noindex: true, crumbs: [["Личный кабинет", "/kabinet"]], body: "<h1>Личный кабинет</h1>" })
   const m = path.match(/^\/zhurnal\/([^/]+)$/)
   if (m) {
-    const a = arts.find((x) => articleSlug(x) === m[1] || String(x.id) === m[1])
+    // старые адреса (old_slugs) тоже открывают статью, canonical — на новый
+    const a = arts.find((x) => articleSlug(x) === m[1] || String(x.id) === m[1] || (x.old_slugs || []).indexOf(m[1]) >= 0)
     if (!a) return null
     const url = `/zhurnal/${articleSlug(a)}`
-    const desc = cut(a.lead || a.body, 200)
+    // свои заголовок и описание для поиска (поля SEO в редакторе статьи), иначе — из статьи
+    const desc = cut(a.seo_desc || a.lead || a.body, 200)
+    const image = a.image ? (/^https?:/.test(a.image) ? a.image : ORIGIN + a.image) : null
     return Object.assign(base, {
-      title: `${a.title} — DashaBotanika`, description: desc, type: "article", canonical: url,
+      title: a.seo_title || `${a.title} — DashaBotanika`, description: desc, type: "article", canonical: url, image,
       crumbs: [["Журнал", "/#journal"], [a.title, url]],
-      ld: [{ "@type": "Article", headline: a.title, description: desc, datePublished: a.date || undefined, inLanguage: "ru",
+      ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, datePublished: a.date || undefined, inLanguage: "ru", image: image || undefined,
         author: { "@type": "Person", name: (d.about || {}).name || "Даша" }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }],
-      body: `<article class="band"><div class="wrap"><p><a href="/#journal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}<p class="lead">${esc(a.lead)}</p>\n${paras(a.body)}</div></article>`,
+      body: `<article class="band"><div class="wrap"><p><a href="/#journal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${paras(a.body)}</div></article>`,
     })
   }
   return null
@@ -158,16 +161,17 @@ function setMeta(html, attr, key, value) {
 // Коды Даша вписывает на сайте в режиме редактирования (блок «Контакты» → «Поиск и счётчики»).
 // Коды DashaBotanika по умолчанию; то, что вписано на сайте в «Поиск и счётчики», важнее.
 const SEO_DEFAULTS = { metrika: "113698267", yandex: "ef883b413e657642", google: "KxORCH26NU9GhHVw-usOPKJZQInhI4STy9_pEc33Wk0" }
-function counters(seo) {
+function counters(seo, tpl) {
   const own = seo || {}
   seo = Object.assign({}, SEO_DEFAULTS)
   for (const k in own) if (String(own[k] || "").trim()) seo[k] = own[k]
   const code = (v) => String(v || "").trim().replace(/[^A-Za-z0-9_-]/g, "")
   let out = ""
-  if (code(seo.yandex)) out += `<meta name="yandex-verification" content="${code(seo.yandex)}">\n`
-  if (code(seo.google)) out += `<meta name="google-site-verification" content="${code(seo.google)}">\n`
+  tpl = tpl || ""
+  if (code(seo.yandex) && tpl.indexOf(`content="${code(seo.yandex)}"`) < 0) out += `<meta name="yandex-verification" content="${code(seo.yandex)}">\n`
+  if (code(seo.google) && tpl.indexOf(`content="${code(seo.google)}"`) < 0) out += `<meta name="google-site-verification" content="${code(seo.google)}">\n`
   const id = String(seo.metrika || "").replace(/\D/g, "")
-  if (id) {
+  if (id && tpl.indexOf(`ym(${id},"init"`) < 0) {
     out += `<script>(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();` +
       `for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}` +
       `k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})` +
@@ -188,10 +192,12 @@ function render(app, path) {
   let html = tpl.replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(p.title)}</title>`)
     .replace(/<link rel="canonical" href="[^"]*">/, `<link rel="canonical" href="${esc(url)}">`)
   if (p.description) { html = setMeta(html, "name", "description", p.description); html = setMeta(html, "property", "og:description", p.description) }
+  if (p.image) html = setMeta(html, "property", "og:image", p.image)
   html = setMeta(html, "property", "og:url", url)
   html = setMeta(html, "property", "og:title", p.title)
   html = setMeta(html, "property", "og:type", p.type)
-  html = html.replace("</head>", () => counters(d.seo) + "</head>")
+  // коды по умолчанию уже есть в site/index.html; добавляем только другие, вписанные на сайте
+  html = html.replace("</head>", () => counters(d.seo, html) + "</head>")
   if (p.noindex) html = html.replace("</head>", `<meta name="robots" content="noindex">\n</head>`)
   const ld = p.ld.slice()
   if (p.crumbs) ld.push({ "@type": "BreadcrumbList", itemListElement: [["Главная", "/"]].concat(p.crumbs).map(([name, u], i) => ({ "@type": "ListItem", position: i + 1, name, item: ORIGIN + u })) })
