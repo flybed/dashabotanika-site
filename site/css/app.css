@@ -752,3 +752,5 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
   .steps:not(.all) .step.later{display:none}
   .steps-all{display:inline}
 }
+.ref-pick{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ref-pick select{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}

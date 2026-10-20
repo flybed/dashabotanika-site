@@ -166,4 +166,14 @@ function recomputeInviter(app, userId) {
   try { recompute(app, app.findFirstRecordByFilter("referrals", "invited = {:id}", { id: userId }).getString("inviter")) } catch (e) {}
 }
 
-module.exports = { recompute, recomputeAll, recomputeInviter }
+// Участники без истории очков (зарегистрировались до её появления) — пересчитать, чтобы прежние очки
+// записались одной записью «до появления истории».
+function backfillHistory(app) {
+  try {
+    const have = {}
+    for (const s of app.findRecordsByFilter("xp_state", "id != ''", "", 0, 0)) have[s.getString("user")] = true
+    for (const u of app.findRecordsByFilter("users", "id != ''", "", 0, 0)) if (!have[u.id]) recompute(app, u.id)
+  } catch (e) {}
+}
+
+module.exports = { recompute, recomputeAll, recomputeInviter, backfillHistory }

@@ -36,3 +36,7 @@ onBootstrap((e) => {
   e.next()
   require(`${__hooks}/levels.js`).recomputeAll(e.app)
 })
+
+// Новые миграции применяются уже после bootstrap, поэтому пересчёт при запуске может не увидеть
+// только что созданную историю очков. Раз в минуту дозаполняем историю тем, у кого её ещё нет.
+cronAdd("xp-history-backfill", "* * * * *", () => { require(`${__hooks}/levels.js`).backfillHistory($app) })

@@ -33,5 +33,16 @@ import json, urllib.request as u
 us = json.load(u.urlopen('http://127.0.0.1:8096/api/collections/users/records?fields=name,character,level,xp'))['items']
 ok = len(us) == 3 and all(x['character'] and x['xp'] >= 40 for x in us)
 print(('PASS' if ok else 'FAIL') + ' upgrade from the previous version keeps members, characters and growth')
-raise SystemExit(0 if ok else 1)
+# points history: everything earned before the upgrade shows up right after the start
+r = u.Request('http://127.0.0.1:8096/api/collections/_superusers/auth-with-password', method='POST', data=json.dumps({'identity':'su@test.local','password':'Passw0rd123'}).encode(), headers={'Content-Type':'application/json'})
+t = json.load(u.urlopen(r))['token']
+ids = {x['id']: x['xp'] for x in json.load(u.urlopen(u.Request('http://127.0.0.1:8096/api/collections/users/records?fields=id,xp', headers={'Authorization':t})))['items']}
+import time
+for _ in range(16):  # the history is filled in by a job that runs every minute
+    log = json.load(u.urlopen(u.Request('http://127.0.0.1:8096/api/collections/xp_log/records?perPage=500', headers={'Authorization':t})))['items']
+    hist = all(sum(e['points'] for e in log if e['user'] == i) == xp for i, xp in ids.items())
+    if hist: break
+    time.sleep(5)
+print(('PASS' if hist else 'FAIL') + ' points history has the earlier points of every member')
+raise SystemExit(0 if ok and hist else 1)
 PY

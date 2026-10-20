@@ -1276,7 +1276,19 @@ function paintModeration(el){
         h('button',{type:'button',class:'btn ghost small',onclick:()=>set({moderation:'rejected', reason:reason.value.trim().slice(0,200)}).then(()=>toast('Отклонено')).catch(writeErr)},'Отклонить')));
   }) : [h('p',{class:'hint'},'Новых объявлений на проверку нет.')]));
 }
+// admin: say who invited this member (when the invitation link was opened in another browser)
+function refPicker(id){
+  const sel = h('select',{'aria-label':'Кто пригласил '+nameOf(id)}, h('option',{value:''},'Кто пригласил? —'),
+    Object.keys(COM.members).filter(x=>x!==id).map(x=>h('option',{value:x},nameOf(x))));
+  const btn = h('button',{type:'button',class:'btn ghost small',onclick:()=>{
+    if (!sel.value) { sel.focus(); return; }
+    btn.disabled = true;
+    pb.collection('referrals').create({inviter:sel.value, invited:id}).then(()=>toast('Записано: '+nameOf(id)+' пришёл(ла) по приглашению '+nameOf(sel.value)), e=>{ btn.disabled = false; writeErr(e); });
+  }},'Записать приглашение');
+  return h('div',{class:'ref-pick'}, sel, btn);
+}
 function paintPeople(el){
+  if (el.querySelector('select:focus')) return; // do not reset a choice in progress
   const now = Date.now();
   const seen = id => COM.presence[id] || 0;
   const ids = Object.keys(COM.members).sort((a,b)=>(seen(b)-seen(a)) || ((COM.members[b].joined||0)-(COM.members[a].joined||0)));
@@ -1295,6 +1307,7 @@ function paintPeople(el){
         h('div',{class:'hint'}, seenLabel(seen(id)), ' · с нами с ', dt(m.joined), m.verified ? ' · ✓ почта' : ' · почта не подтверждена',
           (()=>{ const r = COM.refs.find(x=>x.invited===id); return r ? ' · пришёл(ла) по приглашению: '+nameOf(r.inviter) : ''; })(),
           (()=>{ const n = COM.refs.filter(x=>x.inviter===id).length; return n ? ' · пригласил(а): '+n : ''; })()),
+        !COM.refs.some(x=>x.invited===id) && Object.keys(COM.members).length > 1 ? refPicker(id) : null,
         id!==COM.uid && m.role!=='admin' ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
           pb.collection('users').update(id,{role: isMod ? 'member' : 'moderator'}).then(()=>toast(isMod ? 'Модератор снят' : 'Назначен модератором')).catch(writeErr);
         }}, isMod ? 'Снять модератора' : 'Сделать модератором')) : null);
