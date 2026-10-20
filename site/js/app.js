@@ -1863,10 +1863,43 @@ const AQI_LEVELS = [
 ];
 const aqiLevel = v => AQI_LEVELS.find(l=>v < l[0]) || AQI_LEVELS[AQI_LEVELS.length-1];
 const AIR_KEY = 'db-air-city';
+// sun over the city; the haze thickens with the index (--smog: 0 clean … 1 very dirty)
+const AIR_ART = '<svg viewBox="0 0 400 400" role="img" aria-label="Солнце над городом и дымка смога">'+
+  '<defs><clipPath id="air-c"><circle cx="200" cy="200" r="180"/></clipPath>'+
+  '<linearGradient id="air-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9FD0E6"/><stop offset=".7" stop-color="#E8F2EA"/><stop offset="1" stop-color="#F6EFD9"/></linearGradient>'+
+  '<radialGradient id="air-sun" cx="40%" cy="38%" r="70%"><stop offset="0" stop-color="#FFF3B0"/><stop offset=".55" stop-color="#F7C948"/><stop offset="1" stop-color="#E9A23B"/></radialGradient>'+
+  '<radialGradient id="air-glow"><stop offset="0" stop-color="#FFE08A" stop-opacity=".75"/><stop offset="1" stop-color="#FFE08A" stop-opacity="0"/></radialGradient>'+
+  '<linearGradient id="air-haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A89A86" stop-opacity="0"/><stop offset=".55" stop-color="#9C8E79" stop-opacity=".75"/><stop offset="1" stop-color="#8A7C68" stop-opacity=".9"/></linearGradient>'+
+  '<filter id="air-blur" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="7"/></filter></defs>'+
+  '<circle cx="200" cy="200" r="190" fill="#86A85C" opacity=".14"/>'+
+  '<g clip-path="url(#air-c)">'+
+    '<rect width="400" height="400" fill="url(#air-sky)"/>'+
+    '<rect class="air-dim" width="400" height="400" fill="#B9AE9A"/>'+
+    '<circle cx="250" cy="140" r="110" fill="url(#air-glow)"/>'+
+    '<g class="air-rays" style="transform-origin:250px 140px">'+Array.from({length:12},(_,i)=>'<rect x="246" y="62" width="8" height="22" rx="4" fill="#F4B740" transform="rotate('+(i*30)+' 250 140)"/>').join('')+'</g>'+
+    '<circle class="air-sunball" cx="250" cy="140" r="44" fill="url(#air-sun)"/>'+
+    '<path d="M234 146q4 6 10 0M256 146q4 6 10 0" stroke="#9A5B1E" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+    '<path class="air-smile" d="M241 162q9 8 18 0" stroke="#9A5B1E" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+    '<path class="air-frown" d="M241 166q9 -7 18 0" stroke="#9A5B1E" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+    '<circle cx="232" cy="156" r="5" fill="#F29C6B" opacity=".6"/><circle cx="268" cy="156" r="5" fill="#F29C6B" opacity=".6"/>'+
+    '<g class="air-cloud"><path d="M70 120c0-14 12-24 26-22 6-12 24-14 33-4 14-2 24 8 22 20 8 4 6 16-4 16H78c-10 0-14-6-8-10z" fill="#fff" opacity=".9"/></g>'+
+    '<path d="M20 300h40v-70h30v40h22v-90h36v120h18v-60h34v60h20v-100h40v100h18v-50h30v50h20v-80h34v110H20z" fill="#5E7F55"/>'+
+    '<g fill="#F6EFD9" opacity=".75">'+[[100,180],[100,200],[124,180],[124,200],[124,220],[226,220],[226,240],[246,220],[246,240],[350,240],[350,260]].map(([x,y])=>'<rect x="'+x+'" y="'+y+'" width="8" height="10" rx="1.5"/>').join('')+'</g>'+
+    '<path d="M0 312c60-14 120-6 200-12s140-12 200-2v102H0z" fill="#86A85C"/>'+
+    '<g transform="translate(64 296)"><rect x="-3" y="-4" width="6" height="22" fill="#6B4B2E"/><circle cy="-16" r="18" fill="#3A6234"/><circle cx="12" cy="-6" r="12" fill="#4E7A43"/></g>'+
+    '<g class="air-smog">'+
+      '<rect y="150" width="400" height="250" fill="url(#air-haze)"/>'+
+      '<g class="air-drift" filter="url(#air-blur)" fill="#8F826E">'+
+        '<ellipse cx="90" cy="236" rx="120" ry="22"/><ellipse cx="300" cy="226" rx="130" ry="20"/><ellipse cx="510" cy="236" rx="120" ry="22"/>'+
+        '<ellipse cx="180" cy="276" rx="150" ry="24" opacity=".8"/><ellipse cx="480" cy="276" rx="150" ry="24" opacity=".8"/></g>'+
+      '<g class="air-dots" fill="#6E6252">'+[[60,200],[130,170],[210,190],[290,175],[340,205],[160,240],[250,250],[320,262],[95,262]].map(([x,y],i)=>'<circle cx="'+x+'" cy="'+y+'" r="'+(2+i%3)+'"/>').join('')+'</g>'+
+    '</g>'+
+  '</g></svg>';
 const AIR_PARTS = [['pm2_5','PM2.5','мелкая пыль'],['pm10','PM10','пыль'],['nitrogen_dioxide','NO₂','выхлопы машин'],['ozone','O₃','озон']];
 function airSection(){
   const input = h('input',{id:'air-city',type:'search',placeholder:'Например, Новосибирск',autocomplete:'address-level2','aria-label':'Город'});
   const out = h('div',{class:'air-out','aria-live':'polite'});
+  const sec = h('section',{class:'band alt',id:'air'});
   let seq = 0;
   async function show(name){
     name = String(name||'').trim(); if (!name) return;
@@ -1890,7 +1923,9 @@ function airSection(){
       const start = Math.max(0, times.findIndex(t=>t >= (cur.time||'')));
       const next = vals.slice(start, start+24).map((x,i)=>[times[start+i], x]).filter(([,x])=>x != null);
       const max = Math.max(60, ...next.map(([,x])=>x));
+      sec.style.setProperty('--smog', Math.min(1, v/100).toFixed(2)); sec.dataset.air = v >= 60 ? 'bad' : 'ok';
       out.replaceChildren(h('div',{class:'air-card',style:'--aq:'+color},
+        h('button',{type:'button',class:'air-x',title:'Закрыть','aria-label':'Закрыть результат',onclick:close},'×'),
         h('div',{class:'air-main'},
           h('div',{class:'air-num'}, h('b',null,v), h('span',null,'индекс')),
           h('div',null,
@@ -1907,16 +1942,20 @@ function airSection(){
       if (my === seq) out.replaceChildren(h('p',{class:'empty'},'Не удалось получить данные о воздухе. Попробуйте чуть позже.'));
     }
   }
+  function close(){ seq++; out.replaceChildren(); input.value = ''; sec.style.removeProperty('--smog'); delete sec.dataset.air; try{ localStorage.removeItem(AIR_KEY); }catch(e){} }
   const form = h('form',{class:'air-form',onsubmit:e=>{ e.preventDefault(); show(input.value); }}, input, h('button',{class:'btn',type:'submit'},'Узнать'));
   let saved = null; try{ saved = localStorage.getItem(AIR_KEY); }catch(e){}
   if (saved) setTimeout(()=>show(saved), 0);
-  return h('section',{class:'band alt',id:'air'}, h('div',{class:'wrap'},
-    sectionHead('Чистота воздуха','Чем дышит ваш город?','Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки.'),
-    form,
-    h('div',{class:'chips air-chips'}, ['Москва','Санкт-Петербург','Новосибирск','Екатеринбург','Казань'].map(c=>h('button',{type:'button',class:'chip',onclick:()=>show(c)},c))),
-    out,
-    h('p',{class:'hint air-src'},'Европейский индекс качества воздуха (0–20 отлично, больше 100 опасно). Данные: ', h('a',{href:'https://open-meteo.com/',target:'_blank',rel:'noopener'},'Open-Meteo'),' и служба мониторинга атмосферы Copernicus (CAMS).')
+  sec.append(h('div',{class:'wrap air-grid'},
+    h('div',{class:'air-main-col'},
+      sectionHead('Чистота воздуха','Чем дышит ваш город?','Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки.'),
+      form,
+      h('div',{class:'chips air-chips'}, ['Москва','Санкт-Петербург','Новосибирск','Екатеринбург','Казань'].map(c=>h('button',{type:'button',class:'chip',onclick:()=>show(c)},c))),
+      out,
+      h('p',{class:'hint air-src'},'Европейский индекс качества воздуха (0–20 отлично, больше 100 опасно). Данные: ', h('a',{href:'https://open-meteo.com/',target:'_blank',rel:'noopener'},'Open-Meteo'),' и служба мониторинга атмосферы Copernicus (CAMS).')),
+    h('div',{class:'air-art',html:AIR_ART})
   ));
+  return sec;
 }
 
 function gameSection(){

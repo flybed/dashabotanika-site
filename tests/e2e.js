@@ -47,6 +47,7 @@ const T = '#cabinet-tabs ';
   await p.waitForSelector('#air .air-card', {timeout:5000});
   check('air quality: city found, index, level and forecast', (await p.textContent('#air .air-card')).includes('Новосибирск') && (await p.textContent('#air .air-num b'))==='33' && (await p.textContent('#air .air-label')).includes('Хороший') && (await p.$$('#air .air-bars i')).length===24);
   await p.locator('#air').screenshot({path:S+'/01b-air.png'});
+  await p.click('#air .air-x'); check('air result can be closed', !(await p.$('#air .air-card')) && !!(await p.$('#air .air-art svg')));
   check('goods preview says the goods will be on sale soon', (await p.textContent('#goods')).includes('Скоро эти товары можно будет купить'));
   check('home shows 4 products and "Смотреть больше"', (await p.$$('#goods .product')).length===4 && !!(await p.$('#goods a[href="/tovary"]')));
   await p.screenshot({path:S+'/01-home.png'});
