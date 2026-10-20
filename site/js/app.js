@@ -36,7 +36,7 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 const NAV_GROUPS = [
   ['Сообщество', [['/#world','Счастливый мир'],['/#journal','Журнал'],['/baraholka','Барахолка'],['/#feedback','Обратная связь']]],
   ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/#game','Игра «Эко-уборка»'],['/#calc','Переработка и сортировка']]],
-  ['Жить экологично', [['/tovary','Товары'],['/#food','Еда'],['/#fashion','Мода'],['/#cafes','Кафе'],['/#air','Чистота воздуха']]]
+  ['Жить экологично', [['/tovary','Товары'],['/#food','Еда'],['/#menu','Конструктор меню'],['/#fashion','Мода'],['/#cafes','Кафе'],['/#air','Чистота воздуха']]]
 ];
 // the same sections as round icons under the first screen
 const SECTIONS = [['🌍','Мир','/#world'],['🏁','Челленджи','/kabinet#challenges'],['🎓','Эко-тест','/eko-test'],['🎮','Игра','/#game'],['🌤️','Воздух','/#air'],['♻️','Переработка','/#calc'],
@@ -962,7 +962,7 @@ window.addEventListener('popstate', ()=>{ INNER_STEPS = Math.max(0, INNER_STEPS-
 
 function homePage(){
   // people first (who we are, the community, how to start), then games and tests, then everyday eco
-  return [hero(), sectionsNav(), firstSteps(), aboutSection(), worldSection(), examTeaser(), gameSection(), sortGuide(), airSection(), calcSection(), goodsSection(true), foodSection(), fashionSection(), cafesSection(), marketTeaser(), journalSection(), helperSection(), feedbackSection(), contactsSection()];
+  return [hero(), sectionsNav(), firstSteps(), aboutSection(), worldSection(), examTeaser(), gameSection(), sortGuide(), airSection(), calcSection(), goodsSection(true), foodSection(), menuSection(), fashionSection(), cafesSection(), marketTeaser(), journalSection(), helperSection(), feedbackSection(), contactsSection()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
@@ -1788,19 +1788,124 @@ function worldSection(){
   ));
 }
 
+/* ---------- menu builder: a week of simple eco dishes for your goal and diet, with a shopping list ---------- */
+// m: b/l/d — завтрак/обед/ужин; d: vegan | veg | fish | meat; has: what is inside (for «без …»); g: goals it suits
+const DISHES = [
+  ['Овсянка с яблоком и корицей','b','vegan',['gluten'],['eco','light','energy'],['овсяные хлопья','яблоки','корица','растительное молоко'],10],
+  ['Сырники с ягодами','b','veg',['dairy','gluten','eggs'],['energy'],['творог','яйца','мука','ягоды'],25],
+  ['Тост с авокадо и яйцом','b','veg',['gluten','eggs'],['energy'],['цельнозерновой хлеб','авокадо','яйца'],10],
+  ['Гречневая каша с тыквой','b','vegan',[],['eco','light'],['гречка','тыква','корица'],20],
+  ['Йогурт с гранолой и ягодами','b','veg',['dairy','gluten','nuts'],['light'],['йогурт','гранола','ягоды'],5],
+  ['Омлет со шпинатом и помидорами','b','veg',['eggs'],['light','energy'],['яйца','шпинат','помидоры'],10],
+  ['Смузи-боул банан и шпинат','b','vegan',['gluten'],['light','eco'],['бананы','шпинат','овсяные хлопья','растительное молоко'],5],
+  ['Пшённая каша с тыквой','b','vegan',[],['eco','energy'],['пшено','тыква','растительное молоко'],30],
+  ['Творог с сезонными фруктами','b','veg',['dairy'],['light'],['творог','яблоки','груши'],5],
+  ['Бутерброд с хумусом и огурцом','b','vegan',['gluten'],['eco'],['цельнозерновой хлеб','хумус','огурцы'],5],
+  ['Чечевичный суп с морковью','l','vegan',[],['eco','energy','light'],['красная чечевица','морковь','лук','томаты'],35],
+  ['Борщ без мяса','l','vegan',[],['eco'],['свёкла','капуста','картофель','морковь','лук'],60],
+  ['Тыквенный крем-суп','l','vegan',[],['eco','light'],['тыква','лук','морковь','бульон из очистков'],45],
+  ['Булгур с овощами и нутом','l','vegan',['gluten'],['energy','eco'],['булгур','нут','перец','кабачки'],25],
+  ['Куриный суп с лапшой','l','meat',['gluten'],['energy'],['курица','лапша','морковь','лук'],50],
+  ['Плов с курицей','l','meat',[],['energy'],['рис','курица','морковь','лук'],60],
+  ['Салат с киноа, свёклой и фетой','l','veg',['dairy'],['light'],['киноа','свёкла','сыр фета','руккола'],25],
+  ['Уха из трески','l','fish',['fish'],['light','energy'],['треска','картофель','морковь','лук'],40],
+  ['Овощное рагу с фасолью','l','vegan',[],['eco','light'],['кабачки','баклажаны','перец','фасоль','томаты'],40],
+  ['Паста с томатами и фасолью','l','vegan',['gluten'],['eco','energy'],['паста','томаты','фасоль','базилик'],20],
+  ['Запечённые корнеплоды с хумусом','d','vegan',[],['eco','light'],['тыква','морковь','свёкла','хумус'],40],
+  ['Гречка с грибами и луком','d','vegan',[],['eco','energy'],['гречка','грибы','лук'],25],
+  ['Минтай на пару с брокколи','d','fish',['fish'],['light'],['минтай','брокколи','лимон'],25],
+  ['Котлеты из чечевицы с салатом','d','vegan',[],['eco','energy'],['красная чечевица','морковь','лук','капуста'],35],
+  ['Курица с запечёнными овощами','d','meat',[],['energy'],['курица','картофель','морковь','свёкла'],45],
+  ['Фриттата с кабачком и сыром','d','veg',['eggs','dairy'],['light'],['яйца','кабачки','перец','сыр'],20],
+  ['Тофу с овощами и рисом','d','vegan',[],['eco','energy'],['тофу','капуста','морковь','перец','рис'],20],
+  ['Перцы, фаршированные рисом и овощами','d','vegan',[],['eco'],['перец','рис','морковь','томаты'],50],
+  ['Тушёная капуста с фасолью','d','vegan',[],['eco','light'],['капуста','фасоль','морковь','томаты'],40],
+  ['Тёплый салат с курицей и овощами','d','meat',[],['light','energy'],['курица','салат','огурцы','помидоры'],20]
+].map(([n,m,d,has,g,ing,t],i)=>({id:i, n, m, d, has, g, ing, t}));
+const MEALS = [['b','Завтрак'],['l','Обед'],['d','Ужин']];
+const DIETS = [['all','Всё ем'],['veg','Вегетарианское'],['vegan','Веганское']];
+const MENU_GOALS = [['eco','🌍 Меньше следа'],['light','🥗 Лёгкость'],['energy','⚡ Энергия']];
+const NO_OPTS = [['dairy','без молочного'],['gluten','без глютена'],['eggs','без яиц'],['nuts','без орехов'],['fish','без рыбы']];
+const leavesOf = d => d.d==='vegan' ? 3 : d.d==='meat' ? 1 : 2;
+const MENU_KEY = 'db-menu-v1';
+function menuSection(){
+  let st = {goal:'eco', diet:'all', no:[], days:7, menu:null, got:[]};
+  try{ Object.assign(st, JSON.parse(localStorage.getItem(MENU_KEY)||'{}')); }catch(e){}
+  const keep = ()=>{ try{ localStorage.setItem(MENU_KEY, JSON.stringify(st)); }catch(e){} };
+  const box = h('div',{class:'menu-b'});
+  const seasonal = SEASON[new Date().getMonth()][1].map(x=>x.split(' ')[0].slice(0,5));
+  const isSeasonal = ing => seasonal.some(w=>ing.toLowerCase().includes(w));
+  const fits = d => (st.diet==='all' || (st.diet==='veg' ? d.d==='vegan' || d.d==='veg' : d.d==='vegan')) && !d.has.some(x=>st.no.includes(x));
+  const score = d => (d.g.includes(st.goal) ? 3 : 0) + d.ing.filter(isSeasonal).length + (st.goal==='eco' ? leavesOf(d) : 0) + Math.random()*2.5;
+  function pick(meal, used){
+    const pool = DISHES.filter(d=>d.m===meal && fits(d));
+    if (!pool.length) return null;
+    const fresh = pool.filter(d=>!used.has(d.id));
+    return (fresh.length ? fresh : pool).map(d=>[score(d),d]).sort((a,b)=>b[0]-a[0])[0][1].id;
+  }
+  function build(){
+    const used = new Set();
+    st.menu = [...Array(st.days)].map(()=>MEALS.map(([m])=>{ const id = pick(m, used); if (id!=null) used.add(id); return id; }));
+    st.got = []; keep(); paint();
+  }
+  function swap(di, mi){
+    const used = new Set(st.menu.flat());
+    const pool = DISHES.filter(d=>d.m===MEALS[mi][0] && fits(d) && d.id!==st.menu[di][mi]);
+    if (!pool.length){ toast('Других подходящих блюд нет'); return; }
+    const fresh = pool.filter(d=>!used.has(d.id)), list = fresh.length ? fresh : pool;
+    st.menu[di][mi] = list[Math.floor(Math.random()*list.length)].id; keep(); paint();
+  }
+  const chips = (opts, cur, set, multi) => h('div',{class:'chips menu-chips'}, opts.map(([k,l])=>h('button',{type:'button',class:'chip'+((multi ? cur.includes(k) : cur===k)?' on':''),
+    'aria-pressed':String(multi ? cur.includes(k) : cur===k), onclick:()=>{ set(k); keep(); paint(); }}, l)));
+  function paint(){
+    const form = h('div',{class:'menu-form card'},
+      h('div',{class:'menu-l'},'Цель'), chips(MENU_GOALS, st.goal, k=>{ st.goal = k; }),
+      h('div',{class:'menu-l'},'Питание'), chips(DIETS, st.diet, k=>{ st.diet = k; }),
+      h('div',{class:'menu-l'},'Исключить'), chips(NO_OPTS, st.no, k=>{ st.no = st.no.includes(k) ? st.no.filter(x=>x!==k) : st.no.concat(k); }, true),
+      h('div',{class:'menu-l'},'Срок'), chips([[3,'3 дня'],[7,'Неделя']], st.days, k=>{ st.days = k; }),
+      h('div',null, h('button',{type:'button',class:'btn',onclick:build}, st.menu ? '🔄 Собрать заново' : '✨ Собрать меню')));
+    if (!st.menu){ box.replaceChildren(form); return; }
+    const dish = id => DISHES[id];
+    const all = st.menu.flat().filter(x=>x!=null).map(dish);
+    const plant = all.filter(d=>d.d==='vegan' || d.d==='veg').length, avg = all.length ? all.reduce((s,d)=>s+leavesOf(d),0)/all.length : 0;
+    const counts = {};
+    all.forEach(d=>d.ing.forEach(i=>{ counts[i] = (counts[i]||0)+1; }));
+    const shop = Object.keys(counts).sort((a,b)=>counts[b]-counts[a] || a.localeCompare(b,'ru'));
+    const table = h('div',{class:'menu-days'}, st.menu.map((day,di)=>h('div',{class:'menu-day card'},
+      h('b',{class:'menu-dn'},'День ',di+1),
+      day.map((id,mi)=>{ const d = id==null ? null : dish(id);
+        return h('div',{class:'menu-m'}, h('span',{class:'hint'},MEALS[mi][1]),
+          d ? h('div',{class:'menu-dish'}, h('span',null,d.n), h('span',{class:'hint'},'⏱ ',d.t,' мин · ', h('span',{class:'leaves','aria-label':'эко-оценка '+leavesOf(d)+' из 3'},'❦'.repeat(leavesOf(d))))) : h('span',{class:'hint'},'нет подходящих блюд'),
+          d ? h('button',{type:'button',class:'menu-swap',title:'Заменить блюдо','aria-label':'Заменить «'+d.n+'»',onclick:()=>swap(di,mi)},'↻') : null); }))));
+    const shopList = h('ul',{class:'shop'}, shop.map(i=>{ const on = st.got.includes(i);
+      return h('li',null, h('label',{class:on?'on':''}, h('input',{type:'checkbox',checked:on?'':null,onchange:()=>{ st.got = on ? st.got.filter(x=>x!==i) : st.got.concat(i); keep(); paint(); }}),
+        h('span',null,i, isSeasonal(i) ? ' 🍂' : '', counts[i] > 1 ? h('span',{class:'hint'},' ×',counts[i]) : null))); }));
+    box.replaceChildren(form,
+      h('div',{class:'kv menu-sum'}, h('div',null,h('b',null,plant,' из ',all.length),h('span',null,'растительных блюд')), h('div',null,h('b',null,'❦ ',avg.toFixed(1)),h('span',null,'средняя эко-оценка из 3')),
+        h('div',null,h('b',null,shop.filter(isSeasonal).length),h('span',null,'сезонных продуктов в списке'))),
+      table,
+      h('div',{class:'card'}, h('div',{class:'pf-head'}, h('h3',null,'🛒 Список покупок'), h('span',{class:'hint'}, st.got.length,' из ',shop.length,' куплено')),
+        h('p',{class:'hint'},'🍂 — сезонный продукт: вкуснее, дешевле и с меньшим следом. Количество зависит от того, на сколько человек готовите.'), shopList));
+  }
+  paint();
+  return h('section',{class:'band alt',id:'menu'}, h('div',{class:'wrap'},
+    sectionHead('Конструктор меню','Меню на неделю за минуту','Выберите цель и тип питания — соберём простое меню из сезонных продуктов и список покупок. Любое блюдо можно заменить.'),
+    box));
+}
+
 /* ---------- smart helper (AI) — in development ---------- */
 function helperSection(){
   const cards = [
     ['🥗','Фото еды','Загрузите фото тарелки — помощник подскажет, как сделать блюдо полезнее, и посчитает, сколько воды и углеродного следа вы сэкономили.'],
     ['♻️','Фото упаковки','Сфотографируйте упаковку — узнаете, куда её сдать, нужно ли мыть, и получите идеи, как использовать её дома повторно.'],
-    ['🍽️','Рецепты под диету','Конструктор питания соберёт рацион под вашу цель — экология, похудение, здоровье — и предложит рецепты.']
+    ['🍽️','Рецепты под диету','Уже работает: конструктор меню собирает меню на неделю под цель и тип питания.', '/#menu']
   ];
   return h('section',{class:'band',id:'helper'}, h('div',{class:'wrap'},
     sectionHead('Умный помощник','Эко-помощник на основе ИИ','Скоро здесь можно будет загрузить фото и получить совет. Раздел в разработке.'),
-    h('div',{class:'grid g3'}, cards.map(([ic,t,d])=>h('article',{class:'card'},
-      h('div',{style:'display:flex;justify-content:space-between;align-items:center'}, h('span',{style:'font-size:34px','aria-hidden':'true'},ic), h('span',{class:'tag',style:'background:var(--sun);color:#2A1C05'},'В разработке')),
+    h('div',{class:'grid g3'}, cards.map(([ic,t,d,link])=>h('article',{class:'card'},
+      h('div',{style:'display:flex;justify-content:space-between;align-items:center'}, h('span',{style:'font-size:34px','aria-hidden':'true'},ic), link ? h('span',{class:'tag'},'Работает') : h('span',{class:'tag',style:'background:var(--sun);color:#2A1C05'},'В разработке')),
       h('h3',{style:'font-size:20px'},t), h('p',{class:'muted',style:'font-size:15px;flex:1'},d),
-      h('button',{type:'button',class:'btn ghost small',disabled:'',style:'align-self:flex-start;opacity:.6;cursor:not-allowed'},'Скоро')
+      link ? h('a',{class:'btn small',href:link,style:'align-self:flex-start'},'Открыть конструктор') : h('button',{type:'button',class:'btn ghost small',disabled:'',style:'align-self:flex-start;opacity:.6;cursor:not-allowed'},'Скоро')
     )))
   ));
 }

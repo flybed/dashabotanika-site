@@ -62,6 +62,17 @@ const T = '#cabinet-tabs ';
   check('goods preview says the goods will be on sale soon', (await p.textContent('#goods')).includes('Скоро эти товары можно будет купить'));
   await p.click('#calc button:has-text("Пока не сдаю")');
   check('calculator: "not recycling yet" sets zeros and encourages', (await p.textContent('#calc .result')).includes('Пока ноль') && (await p.inputValue('#calc-pet'))==='0');
+  // menu builder: vegan, without gluten, 3 days — only fitting dishes, a dish can be swapped, shopping list
+  await p.click('#menu .chip:has-text("Веганское")'); await p.click('#menu .chip:has-text("без глютена")'); await p.click('#menu .chip:has-text("3 дня")');
+  await p.click('#menu button:has-text("Собрать меню")');
+  const menuText = await p.textContent('#menu .menu-days');
+  check('menu builder: 3 days, only vegan dishes without gluten', (await p.$$('#menu .menu-day')).length===3 && !/Сырники|Курин|курицей|Тост|Омлет|Паста|Булгур|Овсянка|Минтай|Уха|Фриттата|фетой/.test(menuText));
+  const first = await p.textContent('#menu .menu-day .menu-dish span');
+  await p.locator('#menu .menu-swap').first().click();
+  check('a dish can be swapped', (await p.textContent('#menu .menu-day .menu-dish span')) !== first);
+  await p.locator('#menu .shop input').first().check();
+  check('shopping list with ticks', (await p.$$('#menu .shop li')).length > 5 && (await p.$$('#menu .shop label.on')).length===1);
+  await p.locator('#menu').screenshot({path:S+'/21-menu.png'});
   check('home shows 4 products and "Смотреть больше"', (await p.$$('#goods .product')).length===4 && !!(await p.$('#goods a[href="/tovary"]')));
   await p.screenshot({path:S+'/01-home.png'});
   check('Instagram and Telegram links in the top bar', !!(await p.$('header a.soc[href="https://instagram.com/dashabotanika"]')) && !!(await p.$('header a.soc[href="https://t.me/dashabotanikarecipes"]')));
