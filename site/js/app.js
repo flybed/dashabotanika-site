@@ -150,7 +150,7 @@ function sectionHead(eyebrow, title, lead){
 function render(){
   LIVE = [];
   PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = [];
-  const path = currentPath(), page = PAGES[path];
+  const path = currentPath(), page = pageOf(path);
   document.title = page.title;
   SEC_H1 = false;
   app.replaceChildren(
@@ -620,24 +620,50 @@ function likeBtn(target){
   });
   return b;
 }
+/* every article has its own address: /zhurnal/<slug> (the server gives search engines the same page, see pb_hooks/seo.js) */
+const ART_RE = /^\/zhurnal\/[^/]+$/;
+const TRANSLIT = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya'};
+const slugify = s => String(s||'').toLowerCase().split('').map(c=>TRANSLIT[c]!==undefined ? TRANSLIT[c] : c).join('').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80);
+const articleSlug = a => a.slug || slugify(a.title) || String(a.id);
+const articleUrl = a => '/zhurnal/'+articleSlug(a);
+const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
+function articlePage(path){
+  const key = decodeURIComponent(path.split('/')[2]||'');
+  const it = STATE.articles.find(a=>articleSlug(a)===key || String(a.id)===key);
+  if (!it) return {title:'Статья не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'},
+    h('h1',null,'Статья не найдена'), h('p',{class:'lead'},'Возможно, её переименовали или убрали. Загляните в журнал — там все статьи.'),
+    h('a',{class:'btn',href:'/#journal'},'Все статьи')))]};
+  return {title:it.title+' — DashaBotanika', render:()=>{
+    live(()=>{ if (COM.uid) markRead(it.id); });
+    const others = STATE.articles.filter(a=>a!==it).slice(0,3);
+    return [h('article',{class:'band art-page',id:'article'}, h('div',{class:'wrap narrow'},
+      h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/#journal'},'Журнал')),
+      h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null),
+      h('h1',null,it.title),
+      it.lead ? h('p',{class:'lead'},it.lead) : null,
+      it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
+      h('div',{class:'art-body'}, it.body),
+      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/#journal'},'← Все статьи')),
+      commentsBlock('articles:'+it.id),
+      others.length ? h('div',{class:'art-more'}, h('h2',null,'Читайте также'), h('ul',null, others.map(a=>h('li',null, h('a',{href:articleUrl(a)},a.title))))) : null
+    ))];
+  }};
+}
+
 function journalSection(){
   const items = STATE.articles;
-  const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
   return h('section',{class:'band alt',id:'journal'}, h('div',{class:'wrap'},
     sectionHead('Журнал','Новости и статьи','Заметки об экологичной жизни. Есть тема или новость? Предложите её в личном кабинете, лучшие появятся здесь.'),
     h('div',{style:'margin:-12px 0 24px'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>openAccount('suggest')},'Предложить новость или статью')),
     items.length ? h('div',{class:'grid g3'}, items.map(it=>{
-      let open = false;
-      const body = h('div',{class:'art-body',hidden:true}, it.body);
-      const more = h('button',{type:'button',class:'linkish',style:'justify-self:start','aria-expanded':'false'},'Читать полностью');
-      more.addEventListener('click',()=>{ open=!open; body.hidden=!open; more.textContent=open?'Свернуть':'Читать полностью'; more.setAttribute('aria-expanded',String(open)); if (open) markRead(it.id); });
+      const more = h('a',{class:'linkish',href:articleUrl(it)},'Читать полностью');
       return h('article',{class:'card'},
         delBtn('articles',it.id),
         h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
-        h('h3',{style:'font-size:22px'},it.title),
+        h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
         h('p',{class:'muted',style:'font-size:15px'},it.lead),
         it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
-        body, h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, more, likeBtn('articles:'+it.id)),
+        h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, more, likeBtn('articles:'+it.id)),
         commentsBlock('articles:'+it.id)
       );
     })) : h('div',{class:'empty'},'Статьи скоро появятся.'),
@@ -699,7 +725,8 @@ const PAGES = {
   '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
 };
 let SEC_H1 = false, PAGE_UNSUBS = [];
-function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] ? p : '/'; }
+function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] || ART_RE.test(p) ? p : '/'; }
+const pageOf = path => PAGES[path] || articlePage(path);
 function scrollToHash(hash){
   const el = hash && hash.length > 1 && !/^#(cert|verify|reset|email)\//.test(hash) ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
   if (el) el.scrollIntoView(); else window.scrollTo(0,0);
@@ -1741,8 +1768,15 @@ function accountButton(){
   const b = h('a',{class:'btn small acc-btn',href:'/kabinet'});
   live(()=>{
     const st = accState();
-    if (st==='member'){ const n = unreadCount() + (COM.admin ? pendingListings().length + COM.feedback.filter(f=>!f.status).length : 0); b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean)); }
-    else b.replaceChildren('Войти');
+    if (st==='member'){
+      // the number = what waits for you: unread messages and, for admins, listings to check and new feedback
+      const parts = [[unreadCount(),'непрочитанные сообщения']].concat(COM.admin ? [[pendingListings().length,'объявления на проверке'],[COM.feedback.filter(f=>!f.status).length,'новая обратная связь']] : []).filter(([k])=>k);
+      const n = parts.reduce((s,[k])=>s+k,0);
+      b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean));
+      if (n){ b.title = 'Ждёт внимания: '+parts.map(([k,t])=>t+' — '+k).join(', '); b.setAttribute('aria-label','Кабинет. '+b.title); }
+      else { b.removeAttribute('title'); b.removeAttribute('aria-label'); }
+    }
+    else { b.replaceChildren('Войти'); b.removeAttribute('title'); b.removeAttribute('aria-label'); }
   });
   return b;
 }
