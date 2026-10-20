@@ -25,10 +25,11 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV"].forEach((name) => {
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS"].forEach((name) => {
     const m = src.match(new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
   })
+  out.NAV = out.NAV_GROUPS.reduce((all, g) => all.concat(g[1] || []), [])
   return out
 }
 

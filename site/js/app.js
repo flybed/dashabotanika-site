@@ -32,7 +32,15 @@ const uid = () => Math.random().toString(36).slice(2,9);
 const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z" fill="currentColor" opacity=".9"/><path d="M5 19 13 11" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
 /* ---------- static content ---------- */
-const NAV = [['/#world','Мир'],['/#calc','Переработка'],['/#air','Воздух'],['/eko-test','Эко-тест'],['/#game','Игра «Эко-уборка»'],['/tovary','Товары'],['/#fashion','Мода'],['/#food','Еда'],['/#cafes','Кафе'],['/baraholka','Барахолка'],['/#journal','Журнал'],['/#feedback','Обратная связь']];
+// menu in three groups; the server reads this list too (pb_hooks/seo.js) to give search engines the links
+const NAV_GROUPS = [
+  ['Сообщество', [['/#world','Счастливый мир'],['/#journal','Журнал'],['/baraholka','Барахолка'],['/#feedback','Обратная связь']]],
+  ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/#game','Игра «Эко-уборка»'],['/#calc','Переработка и сортировка']]],
+  ['Жить экологично', [['/tovary','Товары'],['/#food','Еда'],['/#fashion','Мода'],['/#cafes','Кафе'],['/#air','Чистота воздуха']]]
+];
+// the same sections as round icons under the first screen
+const SECTIONS = [['🌍','Мир','/#world'],['🏁','Челленджи','/kabinet#challenges'],['🎓','Эко-тест','/eko-test'],['🎮','Игра','/#game'],['🌤️','Воздух','/#air'],['♻️','Переработка','/#calc'],
+  ['🛍️','Товары','/tovary'],['📦','Барахолка','/baraholka'],['🥗','Еда','/#food'],['👗','Мода','/#fashion'],['☕','Кафе','/#cafes'],['📖','Журнал','/#journal']];
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -186,7 +194,7 @@ function siteMenu(path){
   const btn = h('button',{type:'button',class:'burger','aria-label':'Меню','aria-expanded':'false','aria-controls':'site-menu'}, h('span'),h('span'),h('span'));
   const tail = h('div',{class:'menu-tail'});
   const panel = h('nav',{class:'menu',id:'site-menu','aria-label':'Разделы сайта',hidden:true},
-    NAV.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t)), tail);
+    NAV_GROUPS.map(([g, items])=>h('div',{class:'menu-g'}, h('div',{class:'menu-gt'},g), items.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t)))), tail);
   live(()=>{
     tail.replaceChildren(...(accState()==='member'
       ? [h('a',{href:'/kabinet','aria-current':path==='/kabinet'?'page':null},'Личный кабинет'), h('button',{type:'button',class:'menu-out',onclick:logout},'Выйти из аккаунта')]
@@ -205,11 +213,61 @@ function hero(){
       h('div',{class:'brand'},'DashaBotanika'),
       h('h1',{html:'Эко: еда, быт, <em>мода</em>, образ жизни!'}),
       h('div',{class:'slogan',html:'Разумный человек — счастливая планета<svg viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 9c60-6 130-8 294-2" stroke="var(--sun)" stroke-width="4" fill="none" stroke-linecap="round"/></svg>'}),
-      h('p',{class:'hero-intro'},'Без занудства и чувства вины, о простых шагах, которые делают жизнь вкуснее, красивее и чище. Посчитайте пользу от переработки, сыграйте в эко-уборку, сдайте эко-экзамен и загляните на барахолку.'),
-      h('div',{class:'chips'}, [['/#game','Сыграть в эко-уборку'],['/eko-test','Сдать эко-экзамен'],['/#calc','Посчитать пользу'],['/kabinet#challenges','Начать эко-челлендж']].map(([href,t])=>h('a',{class:'chip',href},t)))
+      h('p',{class:'hero-intro'},'Сообщество людей, которые делают жизнь вкуснее, красивее и чище — маленькими шагами, без занудства и чувства вины. Выберите своего персонажа, поселитесь в «Счастливом мире» и растите его вместе с полезными привычками.'),
+      heroCta()
     ),
     heroArt()
   ));
+}
+
+function heroCta(){
+  const box = h('div',{class:'hero-cta'});
+  live(()=>{ box.replaceChildren(...(accState()==='member'
+    ? [h('a',{class:'btn',href:'/kabinet'},'Мой кабинет'), h('a',{class:'btn ghost',href:'/#steps'},'Первые шаги')]
+    : [h('a',{class:'btn',href:'/kabinet?tab=register'},'Присоединиться'), h('a',{class:'btn ghost',href:'/#sections'},'Что здесь есть')])); });
+  return box;
+}
+function sectionsNav(){
+  return h('section',{class:'sections-nav',id:'sections','aria-label':'Разделы сайта'}, h('div',{class:'wrap'},
+    h('div',{class:'sn-row'}, SECTIONS.map(([ic,t,href])=>h('a',{class:'sn',href}, h('span',{class:'sn-ic','aria-hidden':'true'},ic), h('span',{class:'sn-t'},t))))));
+}
+
+/* ---------- first steps: a guide like in games — what to do here, one step at a time ---------- */
+const STEPS_HIDE = 'db-steps-hidden';
+function firstSteps(){
+  const sec = h('section',{class:'band steps-band',id:'steps'});
+  live(()=>{
+    let hidden = false; try{ hidden = localStorage.getItem(STEPS_HIDE)==='1'; }catch(e){}
+    const member = accState()==='member';
+    const steps = [
+      ['🌱','Зарегистрироваться и выбрать персонажа','signup', member, '/kabinet?tab=register','Присоединиться'],
+      ['📝','Заполнить профиль','profile_complete', member && profileDone(PROFILE.rec), '/kabinet?tab=profile#cabinet-tabs','Заполнить'],
+      ['🎓','Пройти эко-тест','exam_passed', (STATS.examBest||0) > 0, '/eko-test','Пройти'],
+      ['🏁','Начать свой эко-челлендж','challenge_done', member && challenges().length > 0, '/kabinet#challenges','Начать'],
+      ['🎮','Сыграть в «Эко-уборку»','game', (STATS.gameBest||0) > 0, '/#game','Играть'],
+      ['🌍','Написать соседу в «Счастливом мире»','', member && Object.keys(COM.threads).length > 0, '/#world','В мир'],
+      ['💌','Пригласить друга','invite_friend', member && COM.refs.some(r=>r.inviter===COM.uid), member ? '/kabinet?tab=profile#invite' : '/kabinet?tab=register','Пригласить']
+    ];
+    const done = steps.filter(x=>x[3]).length, next = steps.find(x=>!x[3]), todo = steps.filter(x=>!x[3]).map(x=>x[1]);
+    if (hidden || !next){ sec.replaceChildren(); sec.hidden = true; return; }
+    sec.hidden = false;
+    const pts = key => { const r = COM.growthRules.find(x=>x.key===key); return r && r.points ? ' +'+r.points : ''; };
+    const guide = member ? emojiOf(COM.uid) : '🦔';
+    sec.replaceChildren(h('div',{class:'wrap'}, h('div',{class:'steps card'},
+      h('div',{class:'steps-head'},
+        h('div',{class:'steps-guide','aria-hidden':'true'}, guide),
+        h('div',{class:'steps-say'},
+          h('div',{class:'eyebrow'},'Первые шаги · ',done,' из ',steps.length),
+          h('p',{class:'steps-bubble'}, done === 0 ? 'Привет! Я покажу, что здесь делать. Начнём с персонажа — он будет расти вместе с вашими привычками.' : 'Отлично, так держать! Следующий шаг: «'+next[1]+'».'),
+          h('div',{class:'steps-bar'}, h('i',{style:'width:'+Math.round(done/steps.length*100)+'%'})))),
+      h('ol',{class:'steps-list'}, steps.map(([ic,t,key,ok,href,cta])=>h('li',{class:'step'+(ok?' ok':'')+(next[1]===t?' next':'')+(ok || todo.indexOf(t) > 2 ? ' later' : '')},
+        h('span',{class:'step-ic','aria-hidden':'true'}, ok ? '✓' : ic),
+        h('span',{class:'step-t'}, t, ok ? null : h('span',{class:'step-pts'}, pts(key))),
+        ok ? null : h('a',{class:'btn small'+(next[1]===t?'':' ghost'),href},cta)))),
+      todo.length + done > 3 ? h('button',{type:'button',class:'linkish steps-all',onclick:e=>{ const box = e.currentTarget.closest('.steps'); box.classList.toggle('all'); e.currentTarget.textContent = box.classList.contains('all') ? 'Свернуть' : 'Все шаги ('+steps.length+')'; }},'Все шаги ('+steps.length+')') : null,
+      h('button',{type:'button',class:'linkish steps-hide',onclick:()=>{ try{ localStorage.setItem(STEPS_HIDE,'1'); }catch(e){} refresh(); }},'Скрыть подсказки'))));
+  });
+  return sec;
 }
 
 /* ---------- photos & natural elements ---------- */
@@ -777,7 +835,8 @@ document.addEventListener('click', e=>{
 window.addEventListener('popstate', ()=>{ INNER_STEPS = Math.max(0, INNER_STEPS-1); closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
-  return [hero(), calcSection(), sortGuide(), examTeaser(), worldSection(), goodsSection(true), gameSection(), airSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
+  // people first (who we are, the community, how to start), then games and tests, then everyday eco
+  return [hero(), sectionsNav(), firstSteps(), aboutSection(), worldSection(), examTeaser(), gameSection(), goodsSection(true), airSection(), calcSection(), sortGuide(), foodSection(), fashionSection(), cafesSection(), marketTeaser(), journalSection(), helperSection(), feedbackSection(), contactsSection()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
