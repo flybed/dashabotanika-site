@@ -893,3 +893,9 @@ footer a{color:inherit}
 .ai-text{display:grid;gap:8px;font-size:16px;line-height:1.55}
 .ai-text p{margin:0}
 .ai-li{padding-left:4px}
+/* cabinet: my tabs, then a separate site-management row */
+.admin-bar{display:grid;gap:8px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--sun) 14%,var(--surface));border:1.5px dashed color-mix(in srgb,var(--sun) 60%,var(--line))}
+.admin-l{font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#7A5A12}
+.admin-l .hint{text-transform:none;letter-spacing:0;font-weight:600}
+.admin-bar .tabs{border-bottom:0;padding-bottom:0}
+.acc-card{gap:10px}
