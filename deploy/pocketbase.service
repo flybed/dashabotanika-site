@@ -7,6 +7,8 @@ Type=simple
 User=pocketbase
 Group=pocketbase
 WorkingDirectory=/opt/pocketbase
+# токен Telegram-бота (TG_TOKEN=…), файл root:root 600, в репозиторий не попадает; «-» — можно без него
+EnvironmentFile=-/etc/dashabotanika/telegram.env
 ExecStart=/opt/pocketbase/pocketbase serve --http=127.0.0.1:8090 --dir=/opt/pocketbase/pb_data --migrationsDir=/srv/dashabotanika/pocketbase/pb_migrations --hooksDir=/srv/dashabotanika/pocketbase/pb_hooks
 Restart=on-failure
 RestartSec=5
