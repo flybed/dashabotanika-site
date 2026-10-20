@@ -11,7 +11,7 @@
 | `pocketbase/pb_migrations/` | Схема базы: коллекции, правила доступа, стартовый контент, персонажи и уровни. Применяется автоматически при перезапуске PocketBase |
 | `pocketbase/pb_hooks/` | Серверная логика: автоматическое повышение уровня (`levels.js`, `levels.pb.js`) |
 | `deploy/` | Caddyfile, systemd-юниты, `cloud-init.yaml` / `bootstrap.sh`, автообновление из GitHub, бэкап |
-| `tests/` | `api_test.py` — правила доступа и уровни; `e2e.js` — сквозная проверка в браузере |
+| `tests/` | `api_test.py` — правила доступа и уровни; `e2e.js` — сквозная проверка в браузере; `upgrade_test.sh` — обновление базы с участниками с прошлой версии |
 | `legacy/artifact-version.html` | Исходная версия сайта (артефакт claude.ai) — эталон, не редактируется |
 | `docs/ROADMAP.md` | Новые функции, SEO, решения |
 
@@ -69,5 +69,6 @@ pocketbase superuser upsert admin@test.local Passw0rd123 --dir=/tmp/pb
 python3 tests/api_test.py                       # правила доступа и уровни
 caddy run --config <Caddyfile с :8088 → site/ и /api → 8099>
 BASE=http://localhost:8088 node tests/e2e.js ./shots   # браузер (нужен playwright)
+PB=pocketbase sh tests/upgrade_test.sh origin/main         # обновление живой базы: запускать перед каждым выкладыванием изменений в pocketbase/
 ```
 Обе проверки рассчитаны на чистую базу.

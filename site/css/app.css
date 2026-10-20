@@ -327,7 +327,9 @@ body.editing .ex{display:none}
 .dweller:hover .em,.dweller:focus-visible .em{transform:scale(1.25)}
 
 /* ---------- выбор персонажа ---------- */
-.chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.chars{display:grid;gap:8px}
+.chars-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.chars-g{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--clay);margin-top:6px}
 .char{display:grid;justify-items:center;gap:2px;padding:8px 4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;font-size:13px;font-weight:700}
 .char input{position:absolute;opacity:0;pointer-events:none}
 .char .em{font-size:28px;line-height:1.1}
