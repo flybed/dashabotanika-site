@@ -2097,17 +2097,27 @@ const TG_TOPICS = [
 ];
 function tgCard(){
   const box = h('div',{class:'card tg-card',id:'tg'}, h('p',{class:'muted'},'Загружаем…'));
+  // Telegram opens in a new tab (opened right on the click, so the browser does not block it);
+  // the card checks by itself when the member has pressed «Start»
+  let waitTimer = null;
+  const waitForLink = ()=>{
+    clearInterval(waitTimer); let n = 0;
+    waitTimer = setInterval(()=>{ if (!box.isConnected || ++n > 100){ clearInterval(waitTimer); return; }
+      pb.collection('tg_subs').getFullList({requestKey:null}).then(l=>{ if (l[0]){ clearInterval(waitTimer); paint(l[0]); toast('Telegram подключён! Выберите, что присылать'); } }).catch(()=>{}); }, 3000);
+  };
   const connect = async btn=>{
     const note = box.querySelector('.tg-note');
+    const tab = window.open('', '_blank');
     btn.disabled = true; btn.textContent = 'Готовим ссылку…'; if (note) note.hidden = true;
     try{
       const r = await pb.send('/api/tg/link',{method:'POST', requestKey:null});
       if (!r.url) throw {response:r};
-      btn.textContent = 'Открываем Telegram…';
-      if (note){ note.hidden = false; note.className = 'tg-note hint'; note.replaceChildren('Если Telegram не открылся, ', h('a',{href:r.url,target:'_blank',rel:'noopener'},'нажмите сюда'),'. В боте нажмите «Start», потом вернитесь и нажмите «Я подключил(а) — обновить».'); }
-      location.href = r.url;
-      setTimeout(()=>{ btn.disabled = false; btn.textContent = 'Подключить Telegram'; }, 3000);
+      if (tab) tab.location.href = r.url;
+      if (note){ note.hidden = false; note.className = 'tg-note hint'; note.replaceChildren('Telegram открылся в новой вкладке — нажмите там «Start». Эта страница сама увидит подключение. Если вкладка не открылась, ', h('a',{href:r.url,target:'_blank',rel:'noopener'},'нажмите сюда'),'.'); }
+      btn.disabled = false; btn.textContent = 'Подключить Telegram';
+      waitForLink();
     }catch(e){
+      if (tab) tab.close();
       btn.disabled = false; btn.textContent = 'Подключить Telegram';
       const msg = (e && e.response && e.response.message) || 'Не получилось связаться с сайтом, попробуйте позже.';
       if (note){ note.hidden = false; note.className = 'tg-note tg-err'; note.textContent = msg; } else toast(msg);
