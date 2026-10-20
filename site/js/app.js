@@ -1559,11 +1559,18 @@ function openModal(build){
 
 function characterPicker(name, selected){
   const box = h('div',{class:'chars',role:'radiogroup','aria-label':'Ваш персонаж'});
-  const paint = ()=>box.replaceChildren(...COM.characters.map(c=>h('label',{class:'char'+(c.id===box.value?' on':'')},
+  const one = c=>h('label',{class:'char'+(c.id===box.value?' on':'')},
     h('input',{type:'radio',name,value:c.id,checked:c.id===box.value?'':null,onchange:()=>{ box.value = c.id; paint(); }}),
-    h('span',{class:'em','aria-hidden':'true'},c.emoji), h('span',null,c.name))));
+    h('span',{class:'em','aria-hidden':'true'},c.emoji), h('span',null,c.name));
+  // characters come in groups (звери, растения, редкие, птицы, необычные), in the order Dasha sorted them
+  const paint = ()=>{
+    const groups = [];
+    COM.characters.forEach(c=>{ const g = c.group || ''; let x = groups.find(y=>y.g===g); if (!x) groups.push(x = {g, list:[]}); x.list.push(c); });
+    box.replaceChildren(...groups.flatMap(({g,list})=>[g && groups.length > 1 ? h('div',{class:'chars-g'},g) : null, h('div',{class:'chars-row'}, list.map(one))]));
+  };
   box.value = selected || '';
-  paint();
+  // characters may arrive after the form is drawn (page opened straight on /kabinet)
+  let seen = -1; live(()=>{ if (COM.characters.length !== seen){ seen = COM.characters.length; paint(); } });
   return box;
 }
 function authForms(mode){
