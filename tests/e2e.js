@@ -234,7 +234,7 @@ const T = '#cabinet-tabs ';
   check('cabinet nudges to fill in the profile', (await q.textContent('#cabinet')).includes('Заполните профиль'));
   await q.goto(B+'/kabinet?tab=settings', {waitUntil:'networkidle'}); await q.waitForSelector('#tg button:has-text("Подключить Telegram")');
   await q.click('#tg button:has-text("Подключить Telegram")');
-  check('Telegram card in settings; without a bot token the site says so', !!(await q.waitForSelector('.toast:has-text("Бот ещё не подключён")',{timeout:4000}).catch(()=>null)));
+  check('Telegram card in settings; without a bot token the card says why', !!(await q.waitForSelector('#tg .tg-err:has-text("нет токена")',{timeout:4000}).catch(()=>null)));
   await q.goto(B+'/kabinet?tab=profile', {waitUntil:'networkidle'}); await q.waitForSelector('#pf-age');
   await q.fill('#pf-age','29'); await q.selectOption('#pf-gender','Женский'); await q.fill('#pf-country','Россия'); await q.fill('#pf-city','Новосибирск');
   await q.click('.pf-goals .chip:has-text("Меньше мусора")'); await q.click('.pf-goals .chip:has-text("Питаться")');

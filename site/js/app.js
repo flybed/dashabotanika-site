@@ -2098,9 +2098,20 @@ const TG_TOPICS = [
 function tgCard(){
   const box = h('div',{class:'card tg-card',id:'tg'}, h('p',{class:'muted'},'Загружаем…'));
   const connect = async btn=>{
-    btn.disabled = true; btn.textContent = 'Готовим ссылку…';
-    try{ const r = await pb.send('/api/tg/link',{method:'POST', requestKey:null}); if (!r.url) throw {response:r}; location.href = r.url; }
-    catch(e){ btn.disabled = false; btn.textContent = 'Подключить Telegram'; toast((e && e.response && e.response.message) || 'Не получилось, попробуйте позже'); }
+    const note = box.querySelector('.tg-note');
+    btn.disabled = true; btn.textContent = 'Готовим ссылку…'; if (note) note.hidden = true;
+    try{
+      const r = await pb.send('/api/tg/link',{method:'POST', requestKey:null});
+      if (!r.url) throw {response:r};
+      btn.textContent = 'Открываем Telegram…';
+      if (note){ note.hidden = false; note.className = 'tg-note hint'; note.replaceChildren('Если Telegram не открылся, ', h('a',{href:r.url,target:'_blank',rel:'noopener'},'нажмите сюда'),'. В боте нажмите «Start», потом вернитесь и нажмите «Я подключил(а) — обновить».'); }
+      location.href = r.url;
+      setTimeout(()=>{ btn.disabled = false; btn.textContent = 'Подключить Telegram'; }, 3000);
+    }catch(e){
+      btn.disabled = false; btn.textContent = 'Подключить Telegram';
+      const msg = (e && e.response && e.response.message) || 'Не получилось связаться с сайтом, попробуйте позже.';
+      if (note){ note.hidden = false; note.className = 'tg-note tg-err'; note.textContent = msg; } else toast(msg);
+    }
   };
   function paint(sub){
     const head = h('div',{class:'pf-head'}, h('h3',null,'Уведомления в Telegram'), sub ? h('span',{class:'status accepted'},'✓ подключено') : null);
@@ -2110,7 +2121,8 @@ function tgCard(){
         h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
           h('button',{type:'button',class:'btn small',onclick:e=>connect(e.currentTarget)},'Подключить Telegram'),
           h('button',{type:'button',class:'btn ghost small',onclick:load},'Я подключил(а) — обновить')),
-        h('p',{class:'hint'},'Откроется Telegram — нажмите «Start» в боте и вернитесь сюда.'));
+        h('p',{class:'hint'},'Откроется Telegram — нажмите «Start» в боте и вернитесь сюда.'),
+        h('p',{class:'tg-note',hidden:true,role:'status'}));
       return;
     }
     const want = new Set(sub.topics||[]);
