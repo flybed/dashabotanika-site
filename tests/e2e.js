@@ -11,7 +11,7 @@ const PHOTO = path.join(__dirname, '..', 'site', 'img', 'owl.webp');
 async function su(){ const r = await fetch(B+'/api/collections/_superusers/auth-with-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identity:SU[0],password:SU[1]})}); return (await r.json()).token; }
 async function api(method, p, body, token){ const r = await fetch(B+'/api'+p,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:token}:{})},body:body?JSON.stringify(body):undefined}); return r.json(); }
 const errs = [];
-function watchPage(p, tag){ p.on('pageerror', e=>errs.push(tag+' pageerror: '+e.message)); p.on('console', m=>{ if (m.type()==='error' && !/fonts\.g/.test(m.text())) errs.push(tag+' console: '+m.text()); }); }
+function watchPage(p, tag){ p.route('https://mc.yandex.ru/**', r=>r.fulfill({body:'', contentType:'text/javascript'})); p.on('pageerror', e=>errs.push(tag+' pageerror: '+e.message)); p.on('console', m=>{ if (m.type()==='error' && !/fonts\.g/.test(m.text())) errs.push(tag+' console: '+m.text()); }); }
 function check(name, cond){ console.log((cond ? 'PASS ' : 'FAIL ')+name); if (!cond) errs.push('check failed: '+name); }
 async function register(p, email, nick, charName){
   await p.click('.acc-btn');
@@ -131,6 +131,8 @@ const T = '#cabinet-tabs ';
   check('home and goods pages carry their text for search engines', /<div id="app">[\s\S]*Начать путь в экологии[\s\S]*Рецепты без отходов/.test(rHome) && /<title>Товары[^<]*<\/title>/.test(rGoods) && /<h1>Товары/.test(rGoods));
   // verification codes and the Metrika counter go into every page served
   const site = (await api('GET','/collections/content/records?filter='+encodeURIComponent("key='site'"),null,t)).items[0];
+  const rDef = await (await fetch(B+'/')).text();
+  check('our Metrika, Yandex and Google codes are there by default', rDef.includes('ym(113698267,"init"') && rDef.includes('content="ef883b413e657642"') && rDef.includes('content="KxORCH26NU9GhHVw-usOPKJZQInhI4STy9_pEc33Wk0"'));
   await api('PATCH','/collections/content/records/'+site.id,{data:Object.assign({}, site.data, {seo:{metrika:'12345678', yandex:'abc123', google:'g-Code_9'}})},t);
   const rSeo = await (await fetch(B+'/tovary')).text();
   check('verification meta and Metrika counter in served pages', rSeo.includes('<meta name="yandex-verification" content="abc123">') && rSeo.includes('<meta name="google-site-verification" content="g-Code_9">') && rSeo.includes('ym(12345678,"init"') && rSeo.includes('tag.js?id=12345678') && rSeo.includes('webvisor:true'));

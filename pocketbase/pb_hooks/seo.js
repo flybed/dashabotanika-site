@@ -156,8 +156,12 @@ function setMeta(html, attr, key, value) {
 
 // Подтверждение прав в Яндекс.Вебмастере и Google Search Console и счётчик Яндекс.Метрики.
 // Коды Даша вписывает на сайте в режиме редактирования (блок «Контакты» → «Поиск и счётчики»).
+// Коды DashaBotanika по умолчанию; то, что вписано на сайте в «Поиск и счётчики», важнее.
+const SEO_DEFAULTS = { metrika: "113698267", yandex: "ef883b413e657642", google: "KxORCH26NU9GhHVw-usOPKJZQInhI4STy9_pEc33Wk0" }
 function counters(seo) {
-  seo = seo || {}
+  const own = seo || {}
+  seo = Object.assign({}, SEO_DEFAULTS)
+  for (const k in own) if (String(own[k] || "").trim()) seo[k] = own[k]
   const code = (v) => String(v || "").trim().replace(/[^A-Za-z0-9_-]/g, "")
   let out = ""
   if (code(seo.yandex)) out += `<meta name="yandex-verification" content="${code(seo.yandex)}">\n`
