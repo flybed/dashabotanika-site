@@ -32,7 +32,7 @@ const uid = () => Math.random().toString(36).slice(2,9);
 const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z" fill="currentColor" opacity=".9"/><path d="M5 19 13 11" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
 /* ---------- static content ---------- */
-const NAV = [['/#world','Мир'],['/#calc','Переработка'],['/eko-test','Эко-тест'],['/tovary','Товары'],['/#fashion','Мода'],['/#food','Еда'],['/#cafes','Кафе'],['/baraholka','Барахолка'],['/#journal','Журнал'],['/#feedback','Обратная связь']];
+const NAV = [['/#world','Мир'],['/#calc','Переработка'],['/#air','Воздух'],['/eko-test','Эко-тест'],['/tovary','Товары'],['/#fashion','Мода'],['/#food','Еда'],['/#cafes','Кафе'],['/baraholka','Барахолка'],['/#journal','Журнал'],['/#feedback','Обратная связь']];
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -712,8 +712,18 @@ function contactsSection(){
       const right = link ? h('a',{class:'btn small',href:link(c[k]),target:'_blank',rel:'noopener'},'Открыть') : (()=>{ const b=h('button',{type:'button',class:'btn ghost small'},'Копировать'); b.addEventListener('click',()=>copy(b,val)); return b; })();
       return h('div',{class:'card contact'}, h('div',{style:'min-width:0'}, h('div',{class:'eyebrow',style:'color:var(--muted)'},l), h('div',{class:'val'},val)), right); }))
       : h('div',{class:'empty'},'Контакты скоро появятся.'),
-    h('div',{class:'form edit-only'}, h('div',{class:'fields'},editInputs), h('label',{for:'contact-note'},'Подпись над контактами',note))
+    h('div',{class:'form edit-only'}, h('div',{class:'fields'},editInputs), h('label',{for:'contact-note'},'Подпись над контактами',note)),
+    seoSettings()
   ));
+}
+/* codes for Yandex Webmaster / Google Search Console and the Yandex Metrika counter; the server puts them into every page */
+function seoSettings(){
+  STATE.seo = Object.assign({metrika:'', yandex:'', google:''}, STATE.seo||{});
+  const f = [['metrika','Номер счётчика Яндекс.Метрики','например, 98765432'],['yandex','Код подтверждения Яндекс.Вебмастера','из мета-тега yandex-verification'],['google','Код подтверждения Google Search Console','из мета-тега google-site-verification']]
+    .map(([k,l,ph])=>{ const el = h('input',{id:'seo-'+k,value:STATE.seo[k],placeholder:ph}); el.addEventListener('input',()=>{ STATE.seo[k] = el.value.trim(); markDirty(); }); return h('label',{for:'seo-'+k},l,el); });
+  return h('div',{class:'form edit-only',style:'margin-top:20px'}, h('h3',null,'Поиск и счётчики'),
+    h('p',{class:'hint'},'Вставьте только сам код (буквы и цифры из content="…"). Заработает после «Сохранить» и обновления страницы.'),
+    h('div',{class:'fields'}, f));
 }
 
 /* ---------- pages: real addresses for every page, no reloads between them ---------- */
@@ -736,7 +746,7 @@ function go(url){
   const changed = (u.pathname.replace(/\/+$/,'') || '/') !== currentPath() || u.search !== location.search;
   closeModal();
   history.pushState(null,'',u.pathname+u.search+u.hash);
-  if (changed) render();
+  if (changed){ render(); if (window.ym && window.METRIKA_ID) ym(window.METRIKA_ID,'hit',location.href,{title:document.title}); }
   scrollToHash(u.hash);
 }
 function goTo(id){ go('/#'+id); }
@@ -751,7 +761,7 @@ document.addEventListener('click', e=>{
 window.addEventListener('popstate', ()=>{ closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
-  return [hero(), calcSection(), sortGuide(), examTeaser(), worldSection(), goodsSection(true), gameSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
+  return [hero(), calcSection(), sortGuide(), examTeaser(), worldSection(), goodsSection(true), gameSection(), airSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
@@ -796,6 +806,7 @@ function goodsSection(preview){
   const items = preview ? STATE.products.slice(0,4) : STATE.products;
   return h('section',{class:'band',id:'goods'}, h('div',{class:'wrap'},
     sectionHead('Быт','Товары, которые делают мир чище','Вещи, которые один раз покупаешь и годами не производишь мусор. Главное правило — сначала доносить то, что уже есть дома.'),
+    h('div',{class:'soon-banner'}, h('span',{'aria-hidden':'true'},'🛍️'), 'Скоро эти товары можно будет купить'),
     items.length ? h('div',{class:'grid g4'}, items.map(productCard)) : h('div',{class:'empty'},'Здесь пока пусто.'),
     preview ? h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/tovary'},'Смотреть больше')) : addForm('products','Новый товар')
   ));
@@ -1784,6 +1795,73 @@ function accountButton(){
 /* ---------- game: eco clean-up ---------- */
 const BINS = [{k:'plastic',l:'Пластик',c:'#E0AE36'},{k:'paper',l:'Бумага',c:'#3E78B2'},{k:'glass',l:'Стекло',c:'#3B8F55'},{k:'metal',l:'Металл',c:'#858D95'},{k:'battery',l:'Батарейки',c:'#C0533D'}];
 const LITTER = [['plastic','Бутылка ПЭТ'],['plastic','Флакон от шампуня'],['paper','Газета'],['paper','Картонная коробка'],['glass','Стеклянная банка'],['glass','Бутылка из стекла'],['metal','Банка из-под газировки'],['metal','Консервная банка'],['battery','Батарейка']];
+/* ---------- air quality in any city (Open-Meteo: free, no key; data from Copernicus CAMS) ---------- */
+const AQI_LEVELS = [
+  [20,'Отличный','#3B8F55','Отличный день для прогулки, пробежки и проветривания.'],
+  [40,'Хороший','#86A85C','Можно спокойно гулять и проветривать.'],
+  [60,'Умеренный','#E0AE36','Чувствительным людям лучше не заниматься спортом у дорог.'],
+  [80,'Плохой','#E07B39','Сократите долгие прогулки, проветривайте ненадолго.'],
+  [100,'Очень плохой','#C0533D','Лучше остаться дома, закрыть окна, включить очиститель воздуха.'],
+  [Infinity,'Опасный','#7E2E4F','Не выходите без необходимости, окна держите закрытыми.']
+];
+const aqiLevel = v => AQI_LEVELS.find(l=>v < l[0]) || AQI_LEVELS[AQI_LEVELS.length-1];
+const AIR_KEY = 'db-air-city';
+const AIR_PARTS = [['pm2_5','PM2.5','мелкая пыль'],['pm10','PM10','пыль'],['nitrogen_dioxide','NO₂','выхлопы машин'],['ozone','O₃','озон']];
+function airSection(){
+  const input = h('input',{id:'air-city',type:'search',placeholder:'Например, Новосибирск',autocomplete:'address-level2','aria-label':'Город'});
+  const out = h('div',{class:'air-out','aria-live':'polite'});
+  let seq = 0;
+  async function show(name){
+    name = String(name||'').trim(); if (!name) return;
+    input.value = name;
+    const my = ++seq;
+    out.replaceChildren(h('p',{class:'muted'},'Смотрим, чем дышит ',name,'…'));
+    try{
+      const g = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=ru&format=json&name='+encodeURIComponent(name))).json();
+      const place = g.results && g.results[0];
+      if (my !== seq) return;
+      if (!place){ out.replaceChildren(h('p',{class:'empty'},'Не нашли такой город. Проверьте название — например, «Казань» или «Kazan».')); return; }
+      const q = 'latitude='+place.latitude+'&longitude='+place.longitude+'&timezone=auto&forecast_days=2&current=european_aqi,'+AIR_PARTS.map(x=>x[0]).join(',')+'&hourly=european_aqi';
+      const a = await (await fetch('https://air-quality-api.open-meteo.com/v1/air-quality?'+q)).json();
+      if (my !== seq) return;
+      const cur = a.current || {};
+      if (cur.european_aqi == null) throw new Error('no data');
+      try{ localStorage.setItem(AIR_KEY, place.name); }catch(e){}
+      const v = Math.round(cur.european_aqi), [,label,color,tip] = aqiLevel(v);
+      // next 24 hours from now
+      const times = (a.hourly && a.hourly.time) || [], vals = (a.hourly && a.hourly.european_aqi) || [];
+      const start = Math.max(0, times.findIndex(t=>t >= (cur.time||'')));
+      const next = vals.slice(start, start+24).map((x,i)=>[times[start+i], x]).filter(([,x])=>x != null);
+      const max = Math.max(60, ...next.map(([,x])=>x));
+      out.replaceChildren(h('div',{class:'air-card',style:'--aq:'+color},
+        h('div',{class:'air-main'},
+          h('div',{class:'air-num'}, h('b',null,v), h('span',null,'индекс')),
+          h('div',null,
+            h('div',{class:'air-place'}, place.name, place.admin1 && place.admin1 !== place.name ? ', '+place.admin1 : '', place.country ? ' · '+place.country : ''),
+            h('div',{class:'air-label'},'Воздух: ',label),
+            h('p',null,tip))),
+        h('div',{class:'air-parts'}, AIR_PARTS.map(([k,n,d])=>cur[k]==null ? null : h('div',null, h('b',null,Math.round(cur[k])), ' мкг/м³', h('span',null,n+' — '+d)))),
+        next.length ? h('div',{class:'air-day'}, h('div',{class:'air-day-t'},'Прогноз на сутки'),
+          h('div',{class:'air-bars',role:'img','aria-label':'Прогноз индекса на 24 часа: от '+Math.round(Math.min(...next.map(([,x])=>x)))+' до '+Math.round(Math.max(...next.map(([,x])=>x)))},
+            next.map(([t,x])=>h('i',{title:t.slice(11,16)+' — '+Math.round(x)+' ('+aqiLevel(x)[1].toLowerCase()+')',style:'height:'+Math.max(6,Math.round(x/max*100))+'%;background:'+aqiLevel(x)[2]}))),
+          h('div',{class:'air-day-x'}, h('span',null,'сейчас'), h('span',null,'+12 ч'), h('span',null,'+24 ч'))) : null
+      ));
+    }catch(e){
+      if (my === seq) out.replaceChildren(h('p',{class:'empty'},'Не удалось получить данные о воздухе. Попробуйте чуть позже.'));
+    }
+  }
+  const form = h('form',{class:'air-form',onsubmit:e=>{ e.preventDefault(); show(input.value); }}, input, h('button',{class:'btn',type:'submit'},'Узнать'));
+  let saved = null; try{ saved = localStorage.getItem(AIR_KEY); }catch(e){}
+  if (saved) setTimeout(()=>show(saved), 0);
+  return h('section',{class:'band alt',id:'air'}, h('div',{class:'wrap'},
+    sectionHead('Чистота воздуха','Чем дышит ваш город?','Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки.'),
+    form,
+    h('div',{class:'chips air-chips'}, ['Москва','Санкт-Петербург','Новосибирск','Екатеринбург','Казань'].map(c=>h('button',{type:'button',class:'chip',onclick:()=>show(c)},c))),
+    out,
+    h('p',{class:'hint air-src'},'Европейский индекс качества воздуха (0–20 отлично, больше 100 опасно). Данные: ', h('a',{href:'https://open-meteo.com/',target:'_blank',rel:'noopener'},'Open-Meteo'),' и служба мониторинга атмосферы Copernicus (CAMS).')
+  ));
+}
+
 function gameSection(){
   // on phones the park is portrait: the start screen fits and items are bigger under the finger
   const narrow = window.innerWidth < 640;

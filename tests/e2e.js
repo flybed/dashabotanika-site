@@ -40,6 +40,14 @@ const T = '#cabinet-tabs ';
   check('home order: calc, sorting guide, exam, world, goods, game', order.slice(1,7).join()==='calc,sort,exam,world,goods,game' && !order.includes('habits'));
   await p.click('#sort .sg-item:has-text("Батарейки")');
   check('sorting guide shows the chosen material', (await p.textContent('#sort .sg-card')).includes('Батарейки') && (await p.textContent('#sort .sg-card')).includes('Куда сдавать'));
+  await p.route('https://geocoding-api.open-meteo.com/**', r=>r.fulfill({json:{results:[{name:'Новосибирск',admin1:'Новосибирская область',country:'Россия',latitude:55.03,longitude:82.92}]}}));
+  await p.route('https://air-quality-api.open-meteo.com/**', r=>{ const hrs = Array.from({length:48},(_,i)=>'2026-10-20T'+String(i%24).padStart(2,'0')+':00');
+    r.fulfill({json:{current:{time:'2026-10-20T00:00',european_aqi:33,pm2_5:8.4,pm10:14.2,nitrogen_dioxide:21,ozone:40},hourly:{time:hrs,european_aqi:hrs.map((_,i)=>20+i)}}}); });
+  await p.fill('#air-city','Новосибирск'); await p.click('#air button:has-text("Узнать")');
+  await p.waitForSelector('#air .air-card', {timeout:5000});
+  check('air quality: city found, index, level and forecast', (await p.textContent('#air .air-card')).includes('Новосибирск') && (await p.textContent('#air .air-num b'))==='33' && (await p.textContent('#air .air-label')).includes('Хороший') && (await p.$$('#air .air-bars i')).length===24);
+  await p.locator('#air').screenshot({path:S+'/01b-air.png'});
+  check('goods preview says the goods will be on sale soon', (await p.textContent('#goods')).includes('Скоро эти товары можно будет купить'));
   check('home shows 4 products and "Смотреть больше"', (await p.$$('#goods .product')).length===4 && !!(await p.$('#goods a[href="/tovary"]')));
   await p.screenshot({path:S+'/01-home.png'});
   check('Instagram and Telegram links in the top bar', !!(await p.$('header a.soc[href="https://instagram.com/dashabotanika"]')) && !!(await p.$('header a.soc[href="https://t.me/dashabotanikarecipes"]')));
@@ -102,6 +110,13 @@ const T = '#cabinet-tabs ';
   check('unknown address answers 404, cabinet is noindex, sitemap lists articles', r404.status===404 && rKab.includes('name="robots" content="noindex"') && smap.includes('https://dashabotanika.ru'+artPath));
   const rHome = await (await fetch(B+'/')).text(), rGoods = await (await fetch(B+'/tovary')).text();
   check('home and goods pages carry their text for search engines', /<div id="app">[\s\S]*Начать путь в экологии[\s\S]*Рецепты без отходов/.test(rHome) && /<title>Товары[^<]*<\/title>/.test(rGoods) && /<h1>Товары/.test(rGoods));
+  // verification codes and the Metrika counter go into every page served
+  const site = (await api('GET','/collections/content/records?filter='+encodeURIComponent("key='site'"),null,t)).items[0];
+  await api('PATCH','/collections/content/records/'+site.id,{data:Object.assign({}, site.data, {seo:{metrika:'12345678', yandex:'abc123', google:'g-Code_9'}})},t);
+  const rSeo = await (await fetch(B+'/tovary')).text();
+  check('verification meta and Metrika counter in served pages', rSeo.includes('<meta name="yandex-verification" content="abc123">') && rSeo.includes('<meta name="google-site-verification" content="g-Code_9">') && rSeo.includes('ym(12345678,"init"'));
+  await api('PATCH','/collections/content/records/'+site.id,{data:site.data},t);
+  check('goods page says the goods will be on sale soon', rGoods.includes('Скоро эти товары можно будет купить'));
   check('read + like grew the character', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1);
   // a finished challenge with all checks gives +50 (server decides)
   const hr0 = (await api('GET','/collections/habits/records',null,t)).items[0];

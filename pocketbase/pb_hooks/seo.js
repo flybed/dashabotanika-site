@@ -71,6 +71,7 @@ function homeHtml(d, k) {
     sec("world", "Счастливый мир", "Наш эко-мир", "Каждый участник — животное или растение. Чем больше нас, тем живее мир."),
     sec("goods", "Быт", "Товары, которые делают мир чище", "Вещи, которые один раз покупаешь и годами не производишь мусор.",
       productsHtml((d.products || []).slice(0, 4)) + `<p><a href="/tovary">Смотреть больше</a></p>`),
+    sec("air", "Чистота воздуха", "Чем дышит ваш город?", "Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки."),
     sec("game", "Игра", "Эко-уборка", "Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер."),
     sec("fashion", "Модная экология", "Одежда и аксессуары", "Самая экологичная вещь та, что уже висит в вашем шкафу.",
       k.FASHION_TIPS.map(([t, x]) => `<h3>${esc(t)}</h3><p>${esc(x)}</p>`).join("\n") +
@@ -95,7 +96,7 @@ function page(path, d, k, app) {
       title: "Товары, которые делают мир чище — DashaBotanika",
       description: "Многоразовые вещи, которые один раз покупаешь и годами не производишь мусор: " + (d.products || []).slice(0, 5).map((p) => p.title).join(", ") + ".",
       crumbs: [["Товары", "/tovary"]],
-      body: sec("goods", "Быт", "Товары, которые делают мир чище", "Главное правило — сначала доносить то, что уже есть дома.", productsHtml(d.products || []), true),
+      body: sec("goods", "Быт", "Товары, которые делают мир чище", "Главное правило — сначала доносить то, что уже есть дома.", "<p><b>Скоро эти товары можно будет купить</b></p>" + productsHtml(d.products || []), true),
     })
   }
   if (path === "/baraholka") {
@@ -144,6 +145,26 @@ function setMeta(html, attr, key, value) {
   return re.test(html) ? html.replace(re, `$1${esc(value)}$2`) : html.replace("</head>", `<meta ${attr}="${key}" content="${esc(value)}">\n</head>`)
 }
 
+// Подтверждение прав в Яндекс.Вебмастере и Google Search Console и счётчик Яндекс.Метрики.
+// Коды Даша вписывает на сайте в режиме редактирования (блок «Контакты» → «Поиск и счётчики»).
+function counters(seo) {
+  seo = seo || {}
+  const code = (v) => String(v || "").trim().replace(/[^A-Za-z0-9_-]/g, "")
+  let out = ""
+  if (code(seo.yandex)) out += `<meta name="yandex-verification" content="${code(seo.yandex)}">\n`
+  if (code(seo.google)) out += `<meta name="google-site-verification" content="${code(seo.google)}">\n`
+  const id = String(seo.metrika || "").replace(/\D/g, "")
+  if (id) {
+    out += `<script>(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();` +
+      `for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}` +
+      `k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})` +
+      `(window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");` +
+      `ym(${id},"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,defer:true});window.METRIKA_ID=${id};</script>\n` +
+      `<noscript><div><img src="https://mc.yandex.ru/watch/${id}" style="position:absolute;left:-9999px" alt=""></div></noscript>\n`
+  }
+  return out
+}
+
 function render(app, path) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl), k = constants()
@@ -156,6 +177,7 @@ function render(app, path) {
   html = setMeta(html, "property", "og:url", url)
   html = setMeta(html, "property", "og:title", p.title)
   html = setMeta(html, "property", "og:type", p.type)
+  html = html.replace("</head>", () => counters(d.seo) + "</head>")
   if (p.noindex) html = html.replace("</head>", `<meta name="robots" content="noindex">\n</head>`)
   const ld = p.ld.slice()
   if (p.crumbs) ld.push({ "@type": "BreadcrumbList", itemListElement: [["Главная", "/"]].concat(p.crumbs).map(([name, u], i) => ({ "@type": "ListItem", position: i + 1, name, item: ORIGIN + u })) })
