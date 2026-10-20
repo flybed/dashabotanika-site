@@ -52,6 +52,18 @@ function habitsOf(app, userId) {
 
 const count = (app, coll, where) => app.countRecords(coll, $dbx.hashExp(where))
 
+// Профиль заполнен полностью: возраст, пол, страна, город и хотя бы одна эко-цель.
+function profileComplete(app, userId) {
+  try {
+    const p = app.findFirstRecordByFilter("profiles", "owner = {:id}", { id: userId })
+    return p.getInt("age") > 0 && !!p.getString("gender") && !!p.getString("country").trim() && !!p.getString("city").trim() && p.getStringSlice("goals").length > 0 ? 1 : 0
+  } catch (e) { return 0 }
+}
+// Друзья по приглашению засчитываются, когда подтвердили почту — так не накрутить фейками.
+function friendsInvited(app, userId) {
+  try { return app.findRecordsByFilter("referrals", "inviter = {:id} && invited.verified = true", "", 0, 0, { id: userId }).length } catch (e) { return 0 }
+}
+
 // Сколько раз участник выполнил каждое действие из growth_rules.
 function actionsOf(app, user, hb) {
   const id = user.id
@@ -67,6 +79,9 @@ function actionsOf(app, user, hb) {
     feedback: count(app, "feedback", { author: id }),
     listing_approved: count(app, "listings", { seller: id, moderation: "approved" }),
     deal_done: count(app, "listings", { seller: id, status: "gone" }),
+    profile_complete: profileComplete(app, id),
+    invited: count(app, "referrals", { invited: id }),
+    invite_friend: friendsInvited(app, id),
   }
 }
 
@@ -114,4 +129,9 @@ function recomputeAll(app) {
   for (const u of users) recompute(app, u.id)
 }
 
-module.exports = { recompute, recomputeAll }
+// Пересчитать того, кто пригласил участника (когда участник подтвердил почту).
+function recomputeInviter(app, userId) {
+  try { recompute(app, app.findFirstRecordByFilter("referrals", "invited = {:id}", { id: userId }).getString("inviter")) } catch (e) {}
+}
+
+module.exports = { recompute, recomputeAll, recomputeInviter }

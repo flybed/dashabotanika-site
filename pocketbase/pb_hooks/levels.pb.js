@@ -6,7 +6,11 @@
 // Обработчики PocketBase не видят переменные верхнего уровня — модуль подключаем внутри каждого.
 
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.id) }, "users")
-onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.id) }, "users")
+onRecordAfterUpdateSuccess((e) => { e.next(); const L = require(`${__hooks}/levels.js`); L.recompute(e.app, e.record.id); L.recomputeInviter(e.app, e.record.id) }, "users")
+
+onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("owner")) }, "profiles")
+onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("owner")) }, "profiles")
+onRecordAfterCreateSuccess((e) => { e.next(); const L = require(`${__hooks}/levels.js`); L.recompute(e.app, e.record.getString("invited")); L.recompute(e.app, e.record.getString("inviter")) }, "referrals")
 
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("owner")) }, "habits")
 onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("owner")) }, "habits")
