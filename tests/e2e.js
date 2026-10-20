@@ -117,6 +117,7 @@ const T = '#cabinet-tabs ';
   check('verification meta and Metrika counter in served pages', rSeo.includes('<meta name="yandex-verification" content="abc123">') && rSeo.includes('<meta name="google-site-verification" content="g-Code_9">') && rSeo.includes('ym(12345678,"init"'));
   await api('PATCH','/collections/content/records/'+site.id,{data:site.data},t);
   check('goods page says the goods will be on sale soon', rGoods.includes('Скоро эти товары можно будет купить'));
+
   check('read + like grew the character', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1);
   // a finished challenge with all checks gives +50 (server decides)
   const hr0 = (await api('GET','/collections/habits/records',null,t)).items[0];
@@ -126,6 +127,24 @@ const T = '#cabinet-tabs ';
   await api('PATCH','/collections/habits/records/'+hr0.id,{data:Object.assign({}, hr0.data, {challenges:(hr0.data.challenges||[]).concat([done])})},t);
   await p.waitForTimeout(800);
   check('passed challenge gives +50 and 7 checks', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1 + 7*2 + 50);
+  // article helper (role writer) sends a draft; Dasha fixes it in the cabinet and publishes
+  const chars = (await api('GET','/collections/characters/records')).items;
+  const wr = await api('POST','/collections/users/records',{email:'writer@test.local',password:'secret1234',passwordConfirm:'secret1234',name:'Помощник',character:chars[0].id});
+  await api('PATCH','/collections/users/records/'+wr.id,{role:'writer'},t);
+  const wt = (await api('POST','/collections/users/auth-with-password',{identity:'writer@test.local',password:'secret1234'})).token;
+  const dr = await api('POST','/collections/drafts/records',{author:wr.id,cat:'Статья',title:'Чем заменить пищевую плёнку',lead:'Пять простых замен.',body:'Восковые салфетки, крышки, контейнеры.\n\nВторой абзац статьи.',keywords:'чем заменить пищевую плёнку',sources:'https://example.org'},wt);
+  const wPub = await fetch(B+'/api/collections/drafts/records/'+dr.id,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:wt},body:JSON.stringify({status:'published'})});
+  const wList = await api('GET','/collections/drafts/records',null,wt);
+  check('writer can add drafts and see own, but cannot publish', !!dr.id && wPub.status>=400 && wList.totalItems===1);
+  await p.goto(B+'/kabinet?tab=drafts', {waitUntil:'networkidle'}); await p.waitForTimeout(500);
+  check('cabinet shows the new draft with a count', (await p.textContent('.tabs')).includes('Черновики (1)') && (await p.textContent('#cabinet-tabs')).includes('Чем заменить пищевую плёнку'));
+  check('article helper is not a world dweller', !(await p.textContent('header')).includes('Помощник'));
+  await p.click('#cabinet-tabs button:has-text("Читать и править")');
+  await p.fill('.draft-ed input', 'Чем заменить пищевую плёнку: 5 идей');
+  await p.click('.draft-ed button:has-text("Опубликовать")'); await p.waitForURL('**/zhurnal/*', {timeout:8000});
+  check('published draft opens as an article page', new URL(p.url()).pathname==='/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey' && (await p.textContent('#article h1')).includes('5 идей'));
+  const smap2 = await (await fetch(B+'/sitemap.xml')).text(), dr2 = await api('GET','/collections/drafts/records/'+dr.id,null,t);
+  check('published article is in the sitemap and the draft is marked', smap2.includes('/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey') && dr2.status==='published');
   await p.goto(B+'/');
   await p.click('#edit-slot button'); await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
   // second user, mobile
