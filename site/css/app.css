@@ -911,3 +911,4 @@ footer a{color:inherit}
 .admin-l .hint{text-transform:none;letter-spacing:0;font-weight:600}
 .admin-bar .tabs{border-bottom:0;padding-bottom:0}
 .acc-card{gap:10px}
+@media (max-width:860px){.about .ph{justify-self:center;max-width:100%}.about .ph figcaption{text-align:center}}
