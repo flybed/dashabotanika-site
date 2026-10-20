@@ -32,6 +32,13 @@ const T = '#cabinet-tabs ';
   await z.screenshot({path:S+'/00-splash.png'});
   await z.waitForSelector('#splash', {state:'detached', timeout:5000});
   await z.reload(); check('splash only once per visit', !(await z.$('#splash')));
+  // on a phone the section icons scroll sideways: an arrow and a bar show it, the arrow hides at the end
+  await z.goto(B+'/', {waitUntil:'networkidle'}); await z.waitForTimeout(400);
+  check('phone: section icons show they scroll (arrow + bar)', await z.isVisible('#sections .sn-more') && await z.isVisible('#sections .sn-bar'));
+  await z.locator('#sections').screenshot({path:S+'/22-sections-phone.png'});
+  await z.click('#sections .sn-more'); await z.waitForTimeout(700); await z.click('#sections .sn-more').catch(()=>{}); await z.waitForTimeout(700);
+  await z.$eval('#sections .sn-row', r=>{ r.scrollLeft = r.scrollWidth; }); await z.waitForTimeout(300);
+  check('the arrow hides at the end of the row', await z.$eval('#sections .sn-more', b=>b.classList.contains('end')));
   await z.goto(B+'/kabinet?tab=register', {waitUntil:'networkidle'}); await z.waitForTimeout(500);
   const groups = await z.$$eval('.chars-g', g=>g.map(x=>x.textContent));
   check('registration opened by a link shows all 51 characters in groups', (await z.$$('.char')).length===51 && ['Звери','Редкие и исчезающие','Птицы','Морские','Необычные'].every(g=>groups.some(x=>x.startsWith(g))));
