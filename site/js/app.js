@@ -1287,6 +1287,46 @@ function threadView(tid, back){
 }
 let MODAL_UNSUBS = [];
 
+/* ---------- picked for you: listings that fit the city and the eco goals from the profile ---------- */
+const GOAL_WORDS = {
+  'Меньше мусора и пластика':['многоразов','шопер','сумк','бутыл','контейнер','термос','кружк','ланч','сетк','мешоч','банк'],
+  'Научиться сортировать отходы':['контейнер','ведр','короб','органайзер','корзин','ящик'],
+  'Покупать осознанно: меньше и лучше':['ремонт','винтаж','качеств','почти нов','новый','как нов'],
+  'Питаться экологичнее':['кухн','посуд','кастрюл','сковород','блендер','банк','контейнер','тарел','книга рецеп','мультиварк'],
+  'Экономить воду и энергию':['лампа','светодиод','насадк','лейк','сушилк','обогрев','утеплит'],
+  'Экологичный гардероб':['плать','куртк','пальто','джинс','рубаш','юбк','свитер','обув','ботин','кроссов','сумк','шарф','костюм','одежд','кофт'],
+  'Здоровье и чистый воздух':['растени','цвет','горшк','очистит','велосипед','самокат','коврик','спорт','гантел'],
+  'Научить детей заботиться о планете':['детск','игрушк','книг','конструктор','пазл','настольн','коляск','самокат'],
+  'Пока просто интересуюсь':[]
+};
+function pickedForYou(){
+  const p = PROFILE.rec; if (!p) return [];
+  const city = String(p.city||'').trim().toLowerCase(), goals = p.goals||[];
+  return publicListings().filter(l=>l.seller!==COM.uid && l.status!=='reserved').map(l=>{
+    const text = [l.title,l.note,l.condition].join(' ').toLowerCase(), why = [];
+    let score = 0;
+    if (city && String(l.city||'').toLowerCase().includes(city)){ score += 3; why.push('📍 в вашем городе'); }
+    goals.forEach(g=>{ if ((GOAL_WORDS[g]||[]).some(w=>text.includes(w))){ score += 2; why.push('🎯 '+g.toLowerCase()); } });
+    if (l.kind==='Отдам даром'){ score += 1; why.push('🎁 даром'); }
+    return {l, score, why};
+  }).filter(x=>x.score >= 2).sort((a,b)=>b.score-a.score || b.l.ts-a.l.ts).slice(0,3);
+}
+function pickedBlock(){
+  const box = h('div',{class:'picked'});
+  if (accState()==='member' && !PROFILE.loaded) loadProfile();
+  live(()=>{
+    if (accState()!=='member'){ box.replaceChildren(); return; }
+    if (!PROFILE.loaded){ box.replaceChildren(); return; }
+    if (!profileDone(PROFILE.rec)){ box.replaceChildren(h('div',{class:'card picked-hint'}, h('span',{'aria-hidden':'true',style:'font-size:26px'},'🎯'),
+      h('div',{style:'flex:1;min-width:200px'}, h('b',null,'Подберём вещи для вас'), h('div',{class:'hint'},'Укажите в профиле город и эко-цели — покажем подходящие объявления.')),
+      h('a',{class:'btn small',href:'/kabinet?tab=profile#cabinet-tabs'},'Заполнить профиль'))); return; }
+    const list = pickedForYou();
+    box.replaceChildren(h('h3',{style:'margin-bottom:12px'},'🎯 Подобрано для вас'),
+      list.length ? h('div',{class:'grid g3'}, list.map(({l,why})=>{ const c = userListingCard(l); c.classList.add('picked-card'); c.prepend(h('div',{class:'picked-why'}, why.slice(0,3).map(w=>h('span',null,w)))); return c; }))
+        : h('p',{class:'hint'},'Пока нет вещей под ваш город и цели — загляните позже или посмотрите всё ниже.'));
+  });
+  return box;
+}
 function marketSection(){
   const items = STATE.market;
   const userGrid = h('div');
@@ -1311,6 +1351,7 @@ function marketSection(){
       [['1','Выставьте вещь','В личном кабинете: фото, описание и цена. Объявление появится после проверки.'],
        ['2','Договоритесь','Нажмите «Хочу купить» или «Хочу забрать» и обсудите детали в личных сообщениях.'],
        ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Оплата напрямую, сайт деньги не принимает.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
+    pickedBlock(),
     h('h3',{style:'margin-bottom:14px'},'От Даши'),
     items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
       delBtn('market',it.id), exMark(it),

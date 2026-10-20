@@ -308,6 +308,14 @@ const T = '#cabinet-tabs ';
   check('invite card says the points were counted for the friend', (await q.textContent('#invite')).includes('Очки начислены за 1 из 1'));
   const late = await fetch(B+'/api/collections/referrals/records',{method:'POST',headers:{'Content-Type':'application/json',Authorization:(await api('POST','/collections/users/auth-with-password',{identity:'friend@test.local',password:'secret1234'})).token},body:JSON.stringify({inviter:dasha.id, invited:fr.id})});
   check('a second invitation for the same person is refused', late.status >= 400);
+  // picked for you: without a profile — a hint; with the goal «less waste» — Liza's reusable bag
+  await r3.goto(B+'/baraholka', {waitUntil:'networkidle'}); await r3.waitForTimeout(500);
+  check('market asks to fill the profile to pick items', (await r3.textContent('.picked')).includes('Подберём вещи для вас'));
+  const ft = (await api('POST','/collections/users/auth-with-password',{identity:'friend@test.local',password:'secret1234'})).token;
+  await api('POST','/collections/profiles/records',{owner:fr.id, age:30, gender:'Мужской', country:'Россия', city:'Москва', goals:['Меньше мусора и пластика']},ft);
+  await r3.goto(B+'/baraholka', {waitUntil:'networkidle'}); await r3.waitForTimeout(800);
+  const picked = await r3.textContent('.picked');
+  check('market picks items for the goals from the profile', picked.includes('Подобрано для вас') && picked.includes('Многоразовый шопер') && picked.includes('меньше мусора'));
   await q.goto(B+'/baraholka', {waitUntil:'networkidle'}); await q.screenshot({path:S+'/11-market-mobile.png'});
   q.once('dialog', d=>d.accept());
   await q.goto(B+'/', {waitUntil:'networkidle'}); await q.click('.burger');
