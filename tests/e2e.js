@@ -47,7 +47,7 @@ const T = '#cabinet-tabs ';
   const p = await c1.newPage(); watchPage(p,'dasha');
   await p.goto(B+'/', {waitUntil:'networkidle'});
   const order = await p.$$eval('main > section', s=>s.map(x=>x.id));
-  check('home order: people first — sections, first steps, about, world, exam, game; recycling lower', order.slice(0,7).join()==='top,sections,steps,about,world,exam,game' && order.indexOf('calc') > order.indexOf('goods') && !order.includes('habits'));
+  check('home order: people first — sections, first steps, about, world, exam, game, eco path; goods after the calculator; no second photo in about', order.slice(0,7).join()==='top,sections,steps,about,world,exam,game' && order[7]==='sort' && order.indexOf('goods') > order.indexOf('calc') && !(await p.$('#about .gallery')) && !order.includes('habits'));
   check('sections as round icons and first steps for a guest', (await p.$$('#sections .sn')).length===12 && (await p.textContent('#steps')).includes('0 из 7') && !!(await p.$('.hero-cta a[href="/kabinet?tab=register"]')));
   await p.click('#sort .sg-item:has-text("Батарейки")');
   check('sorting guide shows the chosen material', (await p.textContent('#sort .sg-card')).includes('Батарейки') && (await p.textContent('#sort .sg-card')).includes('Куда сдавать'));
