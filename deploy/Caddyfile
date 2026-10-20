@@ -15,11 +15,40 @@ dashabotanika.ru {
 		reverse_proxy 127.0.0.1:8090
 	}
 
+	# Карта сайта со всеми статьями журнала — её собирает PocketBase (pb_hooks/seo.js)
+	handle /sitemap.xml {
+		rewrite * /api/seo/sitemap
+		reverse_proxy 127.0.0.1:8090
+	}
+
+	# Страницы сайта (адреса без расширения файла) — сразу с текстом, заголовком и описанием
+	# для поисковиков и превью ссылок. Скрипт сайта потом рисует страницу как обычно.
+	@page {
+		method GET
+		not path_regexp \.[A-Za-z0-9]+$
+	}
+	handle @page {
+		rewrite * /api/seo/page
+		reverse_proxy 127.0.0.1:8090 {
+			header_up X-Seo-Path {http.request.orig_uri.path}
+		}
+	}
+
 	# Статический сайт из репозитория
 	handle {
 		root * /srv/dashabotanika/site
 		try_files {path} /index.html
 		file_server
+	}
+
+	# Если PocketBase недоступен — страница всё равно открывается (без готового текста)
+	handle_errors {
+		@down expression `{err.status_code} in [502, 503, 504]`
+		handle @down {
+			root * /srv/dashabotanika/site
+			rewrite * /index.html
+			file_server
+		}
 	}
 
 	@img path /img/*

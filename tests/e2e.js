@@ -91,9 +91,17 @@ const T = '#cabinet-tabs ';
   check('habits saved to account', (await api('GET','/collections/habits/records',null,t)).totalItems===1);
   await p.screenshot({path:S+'/02-cabinet.png', fullPage:true});
   await p.goto(B+'/#journal'); await p.waitForTimeout(400);
-  await p.locator('#journal button:has-text("Читать полностью")').first().click();
-  await p.locator('#journal .like').first().click(); await p.waitForTimeout(1200);
-  check('like counted on article', (await p.locator('#journal .like').first().textContent()).includes('1'));
+  await p.locator('#journal a:has-text("Читать полностью")').first().click(); await p.waitForURL('**/zhurnal/*');
+  check('article has its own page with h1 and text', /^\/zhurnal\/[a-z0-9-]+$/.test(new URL(p.url()).pathname) && !!(await p.$('#article h1')) && (await p.textContent('#article .art-body')).length > 100 && /DashaBotanika/.test(await p.title()));
+  await p.locator('#article .like').click(); await p.waitForTimeout(1200);
+  check('like counted on article', (await p.locator('#article .like').textContent()).includes('1'));
+  // search engines get ready text: title, description, h1 and the article itself without running scripts
+  const artPath = new URL(p.url()).pathname, raw = await (await fetch(B+artPath)).text();
+  check('server page for an article has title, canonical, h1, text and Article markup', raw.includes('<link rel="canonical" href="https://dashabotanika.ru'+artPath+'">') && /<div id="app">[\s\S]*<h1>[^<]+<\/h1>[\s\S]*<p>/.test(raw) && raw.includes('"@type":"Article"') && raw.includes('/js/app.js'));
+  const r404 = await fetch(B+'/no-such-page'), rKab = await (await fetch(B+'/kabinet')).text(), smap = await (await fetch(B+'/sitemap.xml')).text();
+  check('unknown address answers 404, cabinet is noindex, sitemap lists articles', r404.status===404 && rKab.includes('name="robots" content="noindex"') && smap.includes('https://dashabotanika.ru'+artPath));
+  const rHome = await (await fetch(B+'/')).text(), rGoods = await (await fetch(B+'/tovary')).text();
+  check('home and goods pages carry their text for search engines', /<div id="app">[\s\S]*Начать путь в экологии[\s\S]*Рецепты без отходов/.test(rHome) && /<title>Товары[^<]*<\/title>/.test(rGoods) && /<h1>Товары/.test(rGoods));
   check('read + like grew the character', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1);
   // a finished challenge with all checks gives +50 (server decides)
   const hr0 = (await api('GET','/collections/habits/records',null,t)).items[0];
