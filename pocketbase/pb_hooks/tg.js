@@ -9,14 +9,19 @@ const apiBase = () => String($os.getenv("TG_API") || "https://api.telegram.org")
 const hookSecret = () => $security.sha256("dashabotanika-hook:" + token()).slice(0, 48)
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
+// последняя ошибка Telegram — чтобы в кабинете было видно, что не так (токен, сеть)
+let lastError = ""
 function call(method, payload) {
   if (!token()) return null
   try {
     const res = $http.send({ url: `${apiBase()}/bot${token()}/${method}`, method: "POST", body: JSON.stringify(payload || {}),
-      headers: { "content-type": "application/json" }, timeout: 15 })
-    return res.json
-  } catch (e) { return null }
+      headers: { "content-type": "application/json" }, timeout: 8 })
+    const j = res.json
+    if (!j || j.ok === false) lastError = (j && j.description) || ("ответ " + res.statusCode)
+    return j
+  } catch (e) { lastError = "нет связи с api.telegram.org"; return null }
 }
+const errorText = () => lastError
 function send(chatId, html, button) {
   const p = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true }
   if (button) p.reply_markup = { inline_keyboard: [[{ text: button[0], url: button[1] }]] }
@@ -30,9 +35,12 @@ function username() {
   botName = r && r.ok && r.result ? r.result.username : ""
   return botName
 }
-function ensureWebhook() {
-  if (!token()) return
-  call("setWebhook", { url: `${SITE}/api/tg/hook`, secret_token: hookSecret(), allowed_updates: ["message"] })
+// вебхук ставим один раз после запуска (и потом по расписанию), а не при каждой привязке
+let hookSet = false
+function ensureWebhook(force) {
+  if (!token() || (hookSet && !force)) return
+  const r = call("setWebhook", { url: `${SITE}/api/tg/hook`, secret_token: hookSecret(), allowed_updates: ["message"] })
+  hookSet = !!(r && r.ok)
 }
 
 // код для ссылки t.me/<бот>?start=<код>
@@ -162,4 +170,4 @@ function onNewArticles(app, list) {
   }
 }
 
-module.exports = { token, hookSecret, ensureWebhook, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }
+module.exports = { errorText, token, hookSecret, ensureWebhook, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }

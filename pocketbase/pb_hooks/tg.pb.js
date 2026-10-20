@@ -4,10 +4,14 @@
 // кабинет просит ссылку для привязки: t.me/<бот>?start=<одноразовый код>
 routerAdd("POST", "/api/tg/link", (e) => {
   const tg = require(`${__hooks}/tg.js`)
-  if (!tg.token()) return e.json(200, { url: "", message: "Бот ещё не подключён к сайту" })
-  tg.ensureWebhook()
+  if (!tg.token()) return e.json(200, { url: "", reason: "no_token", message: "Бот ещё не подключён к сайту: на сервере нет токена (файл /etc/dashabotanika/telegram.env)." })
   const url = tg.linkFor(e.app, e.auth.id)
-  if (!url) return e.json(502, { message: "Telegram сейчас не отвечает, попробуйте позже" })
+  if (!url) {
+    const err = tg.errorText()
+    const hint = /unauthorized|not found/i.test(err) ? "похоже, токен неверный — проверьте его в @BotFather и положите заново" : "сервер не смог связаться с Telegram"
+    return e.json(200, { url: "", reason: "telegram", message: "Telegram не ответил: " + hint + (err ? " (" + err + ")." : ".") })
+  }
+  tg.ensureWebhook()
   return e.json(200, { url })
 }, $apis.requireAuth("users"))
 
@@ -24,7 +28,7 @@ routerAdd("POST", "/api/tg/run", (e) => e.json(200, { sent: require(`${__hooks}/
 
 // раз в час: у кого сейчас выбранное время — напоминание; вебхук обновляем время от времени
 cronAdd("tg-remind", "7 * * * *", () => { require(`${__hooks}/tg.js`).remindAll($app, false) })
-cronAdd("tg-webhook", "17 */6 * * *", () => { require(`${__hooks}/tg.js`).ensureWebhook() })
+cronAdd("tg-webhook", "17 */6 * * *", () => { require(`${__hooks}/tg.js`).ensureWebhook(true) })
 
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/tg.js`).onChatMessage(e.app, e.record) }, "messages")
 
