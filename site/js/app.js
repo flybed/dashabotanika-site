@@ -32,7 +32,7 @@ const uid = () => Math.random().toString(36).slice(2,9);
 const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Z" fill="currentColor" opacity=".9"/><path d="M5 19 13 11" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
 /* ---------- static content ---------- */
-const NAV = [['/#world','Мир'],['/#calc','Переработка'],['/#air','Воздух'],['/eko-test','Эко-тест'],['/tovary','Товары'],['/#fashion','Мода'],['/#food','Еда'],['/#cafes','Кафе'],['/baraholka','Барахолка'],['/#journal','Журнал'],['/#feedback','Обратная связь']];
+const NAV = [['/#world','Мир'],['/#calc','Переработка'],['/#air','Воздух'],['/eko-test','Эко-тест'],['/#game','Игра «Эко-уборка»'],['/tovary','Товары'],['/#fashion','Мода'],['/#food','Еда'],['/#cafes','Кафе'],['/baraholka','Барахолка'],['/#journal','Журнал'],['/#feedback','Обратная связь']];
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -53,6 +53,7 @@ const MATERIALS = [
    tips:['Батарейки нельзя выбрасывать в общий мусор: в них тяжёлые металлы.','Боксы для батареек есть во многих супермаркетах и магазинах электроники.','Перед сдачей заклейте контакты литиевых батарей скотчем.']}
 ];
 const PRESETS = {
+  'Пока не сдаю': {paper:0,pet:0,hdpe:0,glass:0,alu:0,tin:0,textile:0,bat:0},
   'Я одна': {paper:.5,pet:3,hdpe:1,glass:1,alu:2,tin:1,textile:0,bat:1},
   'Типичная семья': {paper:1.5,pet:6,hdpe:2,glass:3,alu:4,tin:1,textile:1,bat:2},
   'Большая семья': {paper:3,pet:12,hdpe:4,glass:6,alu:8,tin:3,textile:2,bat:4}
@@ -100,7 +101,7 @@ const SEASON = [
   ['Дек',['капуста','корнеплоды','квашеная капуста','мандарины','хурма','гранаты']]
 ];
 const RECIPES = [
-  ['Бульон из очистков','30 минут',['Складывайте в пакет в морозилке луковую шелуху, морковные хвостики, стебли петрушки и укропа.','Когда наберётся полный пакет, залейте 2 л воды, добавьте лавровый лист и перец горошком.','Варите 40 минут на слабом огне и процедите. Бульон хранится в холодильнике до 4 дней.']],
+  ['Бульон из очистков','45 минут',['Складывайте в пакет в морозилке луковую шелуху, морковные хвостики, стебли петрушки и укропа.','Когда наберётся полный пакет, залейте 2 л воды, добавьте лавровый лист и перец горошком.','Варите 40 минут на слабом огне и процедите. Бульон хранится в холодильнике до 4 дней.']],
   ['Чипсы из яблочной кожуры','20 минут',['Кожуру от 4–5 яблок перемешайте с ложкой мёда и щепоткой корицы.','Разложите в один слой на противне с пергаментом.','Сушите при 120° 15–20 минут, пока не станут хрустящими.']],
   ['Тыквенный суп и семечки','45 минут',['Мякоть тыквы запеките с луком и морковью при 200° 25 минут, пробейте блендером с бульоном.','Семечки отмойте от волокон, обсушите, сбрызните маслом и посолите.','Обжарьте семечки в духовке при 160° 15 минут и посыпьте ими суп.']]
 ];
@@ -161,7 +162,7 @@ function render(){
       accountButton(),
       siteMenu(path)
     )),
-    h('main',null, ...page.render()),
+    h('main',null, path !== '/' ? backBar() : null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'},
       h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета'),
       h('span',{id:'edit-slot'})
@@ -298,7 +299,7 @@ const ECO_LADDER = [
   {ic:'🚫', t:'Откажитесь', d:'То, что можно просто убрать из жизни — самый простой и самый полезный шаг.', ex:['Пакеты на кассе','Одноразовые стаканы и трубочки','Бумажные чеки — берите электронные','Рекламные листовки и пробники'], link:null},
   {ic:'🔁', t:'Замените многоразовым', d:'Один раз купили — годами не производите мусор.', ex:['Шопер','Своя кружка и бутылка','Контейнеры для еды','Сетки для овощей'], link:['/tovary','Многоразовые товары']},
   {ic:'🫙', t:'Используйте повторно', d:'Дайте вещам вторую жизнь дома или отдайте тем, кому они нужнее.', ex:['Банки — под крупы','Коробки — для хранения','Одежду — обменять или отдать','Сломанное — починить'], link:['/baraholka','В барахолку']},
-  {ic:'♻️', t:'Переработайте', d:'То, что осталось, сдайте во вторсырьё — как, смотрите в схеме ниже.', ex:['Бумага','Пластик','Стекло','Металл'], link:['#sort-scheme','К схеме сортировки']}
+  {ic:'♻️', t:'Переработайте', d:'То, что осталось, сдайте во вторсырьё — как, смотрите в схеме ниже.', ex:['Бумага','Пластик','Стекло','Металл'], link:null}
 ];
 function sortGuide(){
   let cur = 'paper';
@@ -355,6 +356,14 @@ function calcSection(){
       kg+=mass; co2+=mass*m.co2; kwh+=mass*(m.kwh||0); water+=mass*(m.water||0); trees+=mass*(m.trees||0);
     }
     const km = co2/0.17, fridge = kwh/1.2;
+    if (!kg && !bat){
+      res.replaceChildren(h('div',{class:'zero'},
+        h('div',{style:'font-size:40px','aria-hidden':'true'},'🌱'),
+        h('div',{class:'big',style:'font-size:28px'},'Пока ноль — и это нормально'),
+        h('p',null,'Начните с одного шага: например, сдавайте только батарейки или пластиковые бутылки. Даже 3 бутылки в неделю — это около 6 кг пластика в год, который не окажется на свалке.'),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/#sort'},'С чего начать'), h('a',{class:'btn ghost small',href:'/kabinet#challenges'},'Взять челлендж'))));
+      return;
+    }
     res.replaceChildren(
       h('div',null, h('div',{style:'font-weight:800;opacity:.85'},'За год вы не дадите выбросить в атмосферу'), h('div',{class:'big'},fmt(co2),' кг'), h('div',{style:'opacity:.85'},'CO₂-эквивалента')),
       h('div',{class:'tiles'},
@@ -423,7 +432,7 @@ function challengesSection(){
     let body;
     if (w.step===1){
       body = [h('h3',null,'Зачем вам этот челлендж?'),
-        h('div',{class:'ch-goals'}, CH_GOALS.map(x=>h('button',{type:'button',class:'ch-goal'+(w.goal===x.k?' on':''),onclick:()=>{ w.goal = x.k; w.habits = x.habits.slice(0,4).map(n=>({id:'h'+uid(), name:n})); w.step = 2; paint(); }},
+        h('div',{class:'ch-goals'}, CH_GOALS.map(x=>h('button',{type:'button',class:'ch-goal'+(w.goal===x.k?' on':''),onclick:()=>{ if (w.goal !== x.k && !w.touched) w.habits = x.habits.slice(0,4).map(n=>({id:'h'+uid(), name:n})); w.goal = x.k; w.step = 2; paint(); }},
           h('span',{class:'ic','aria-hidden':'true'},x.ic), h('b',null,x.l), h('small',null,x.d))))];
     } else if (w.step===2){
       body = [h('h3',null,'Сколько дней?'),
@@ -434,12 +443,12 @@ function challengesSection(){
     } else {
       const chosen = new Set(w.habits.map(x=>x.name));
       const inp = h('input',{maxlength:'60',placeholder:'Своя привычка, например «Без доставки на этой неделе»','aria-label':'Своя привычка'});
-      const addCustom = ()=>{ const v = inp.value.trim(); if (!v) return; if (!chosen.has(v)) w.habits.push({id:'h'+uid(), name:v.slice(0,60)}); paint(); };
+      const addCustom = ()=>{ const v = inp.value.trim(); if (!v) return; if (!chosen.has(v)) w.habits.push({id:'h'+uid(), name:v.slice(0,60)}); w.touched = true; paint(); };
       inp.addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); addCustom(); } });
       body = [h('h3',null,'Привычки челленджа'),
         h('p',{class:'hint'},'Мы подобрали привычки под цель «',g.l,'». Уберите лишние, добавьте из подсказок или свои. Лучше 3–5 привычек, которые реально выполнять.'),
-        h('div',{class:'ch-chosen'}, w.habits.length ? w.habits.map(x=>h('span',{class:'tag ch-tag'}, x.name, h('button',{type:'button',class:'x','aria-label':'Убрать «'+x.name+'»',onclick:()=>{ w.habits = w.habits.filter(y=>y.id!==x.id); paint(); }},'×'))) : h('span',{class:'hint'},'Пока пусто — добавьте хотя бы одну привычку.')),
-        h('div',{class:'ch-sugg'}, g.habits.filter(n=>!chosen.has(n)).map(n=>h('button',{type:'button',class:'chip',onclick:()=>{ w.habits.push({id:'h'+uid(), name:n}); paint(); }},'+ ',n))),
+        h('div',{class:'ch-chosen'}, w.habits.length ? w.habits.map(x=>h('span',{class:'tag ch-tag'}, x.name, h('button',{type:'button',class:'x','aria-label':'Убрать «'+x.name+'»',onclick:()=>{ w.habits = w.habits.filter(y=>y.id!==x.id); w.touched = true; paint(); }},'×'))) : h('span',{class:'hint'},'Пока пусто — добавьте хотя бы одну привычку.')),
+        h('div',{class:'ch-sugg'}, g.habits.filter(n=>!chosen.has(n)).map(n=>h('button',{type:'button',class:'chip',onclick:()=>{ w.habits.push({id:'h'+uid(), name:n}); w.touched = true; paint(); }},'+ ',n))),
         h('div',{class:'addrow'}, inp, h('button',{type:'button',class:'btn ghost',onclick:addCustom},'Добавить свою')),
         h('div',{class:'ch-nav'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>{ w.step = 2; paint(); }},'← Назад'),
           h('button',{type:'button',class:'btn',onclick:()=>{
@@ -741,11 +750,18 @@ function scrollToHash(hash){
   const el = hash && hash.length > 1 && !/^#(cert|verify|reset|email)\//.test(hash) ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
   if (el) el.scrollIntoView(); else window.scrollTo(0,0);
 }
+// how many steps the visitor made inside the site: "Назад" goes back if there is where to, otherwise home
+let INNER_STEPS = 0;
+function backBar(){
+  return h('div',{class:'wrap backbar'},
+    h('button',{type:'button',class:'back-btn',onclick:()=>{ if (INNER_STEPS > 0) history.back(); else go('/'); }},'← Назад'),
+    h('a',{href:'/',class:'back-home'},'На главную'));
+}
 function go(url){
   const u = new URL(url, location.origin);
   const changed = (u.pathname.replace(/\/+$/,'') || '/') !== currentPath() || u.search !== location.search;
   closeModal();
-  history.pushState(null,'',u.pathname+u.search+u.hash);
+  history.pushState(null,'',u.pathname+u.search+u.hash); INNER_STEPS++;
   if (changed){ render(); if (window.ym && window.METRIKA_ID) ym(window.METRIKA_ID,'hit',location.href,{title:document.title}); }
   scrollToHash(u.hash);
 }
@@ -758,7 +774,7 @@ document.addEventListener('click', e=>{
   if (!href.startsWith('/') || href.startsWith('//') || /^\/(api|_|img|css|js)\//.test(href)) return;
   e.preventDefault(); go(href);
 });
-window.addEventListener('popstate', ()=>{ closeModal(); render(); scrollToHash(location.hash); });
+window.addEventListener('popstate', ()=>{ INNER_STEPS = Math.max(0, INNER_STEPS-1); closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
   return [hero(), calcSection(), sortGuide(), examTeaser(), worldSection(), goodsSection(true), gameSection(), airSection(), fashionSection(), foodSection(), cafesSection(), marketTeaser(), helperSection(), journalSection(), feedbackSection(), aboutSection(), contactsSection()];
@@ -854,7 +870,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], refs:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -1283,11 +1299,13 @@ const GROW_WAYS = {
   challenge_done:['🏁','/kabinet#challenges','Создать челлендж'], leaf:['🍃','/kabinet#challenges','Отметить привычки'],
   exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/#game','Играть'], article_read:['📖','/#journal','Читать журнал'],
   like:['♥','/#journal','К статьям'], comment:['💬','/#journal','Обсудить'], feedback:['💡','/#feedback','Написать Даше'],
-  listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/baraholka','В барахолку'], signup:['✅',null,null]
+  listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/baraholka','В барахолку'], signup:['✅',null,null],
+  profile_complete:['📝','/kabinet?tab=profile#cabinet-tabs','Заполнить'], invited:['🎁',null,null], invite_friend:['💌','/kabinet?tab=profile#invite','Пригласить']
 };
 function growWays(){
-  const done = {signup:true, exam_passed:!!STATS.examPassed || (STATS.examBest||0) >= 8};
-  const rows = COM.growthRules.filter(r=>r.points>0).map(r=>{
+  const done = {signup:true, exam_passed:!!STATS.examPassed || (STATS.examBest||0) >= 8, profile_complete:profileDone(PROFILE.rec), invited:COM.refs.some(r=>r.invited===COM.uid)};
+  // "came by invitation" is shown only to those who did
+  const rows = COM.growthRules.filter(r=>r.points>0 && (r.key!=='invited' || done.invited)).map(r=>{
     const [ic, href, cta] = GROW_WAYS[r.key] || ['🌱',null,null];
     const ok = done[r.key];
     return h('div',{class:'way'+(ok?' ok':'')},
@@ -1317,10 +1335,14 @@ function xpBreakdown(){
     feedback: mine(COM.feedback,'author'),
     listing_approved: COM.listings.filter(l=>l.seller===COM.uid && l.moderation==='approved').length,
     deal_done: COM.listings.filter(l=>l.seller===COM.uid && l.status==='gone').length,
+    profile_complete: profileDone(PROFILE.rec) ? 1 : 0,
+    invited: COM.refs.some(r=>r.invited===COM.uid) ? 1 : 0,
+    invite_friend: COM.refs.filter(r=>r.inviter===COM.uid).length,
   };
   const label = {signup:()=>'Регистрация', leaf:n=>n+' '+plural(n,'листочек','листочка','листочков')+' в челлендже', exam_passed:()=>'Эко-экзамен сдан',
     game:()=>'Рекорд в игре '+(STATS.gameBest||0)+' ('+Math.floor((STATS.gameBest||0)/10)+' × 10 очков)', article_read:n=>n+' '+plural(n,'статья прочитана','статьи прочитаны','статей прочитано'),
     like:n=>n+' '+plural(n,'лайк','лайка','лайков'), comment:n=>n+' '+plural(n,'комментарий','комментария','комментариев'), feedback:n=>n+' '+plural(n,'сообщение','сообщения','сообщений')+' Даше',
+    profile_complete:()=>'Профиль заполнен', invited:()=>'Пришли по приглашению', invite_friend:n=>n+' '+plural(n,'друг пришёл','друга пришли','друзей пришли')+' по вашей ссылке',
     listing_approved:n=>n+' '+plural(n,'вещь опубликована','вещи опубликованы','вещей опубликовано'), deal_done:n=>n+' '+plural(n,'сделка','сделки','сделок')+' на барахолке'};
   const rows = COM.growthRules.map(r=>({r, n:done[r.key]||0})).filter(x=>x.n > 0 && x.r.points > 0);
   if (!rows.length) return null;
@@ -1598,12 +1620,12 @@ function authForms(mode){
   }
   function registerForm(){
     const email = h('input',{id:'rg-email',type:'email',autocomplete:'email',required:''});
-    const pass = h('input',{id:'rg-pass',type:'password',autocomplete:'new-password',minlength:'8',required:''});
+    const pass = h('input',{id:'rg-pass',type:'password',autocomplete:'new-password',minlength:'6',required:''});
     const nick = h('input',{id:'rg-nick',maxlength:'30',placeholder:'Например, Лиза из Москвы',autocomplete:'nickname',required:''});
     const pick = characterPicker('rg-char');
     const btn = h('button',{type:'submit',class:'btn'},'Зарегистрироваться');
     const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
-      h('div',{class:'fields'}, h('label',{for:'rg-email'},'Почта',email), h('label',{for:'rg-pass'},'Пароль (от 8 символов)',pass)),
+      h('div',{class:'fields'}, h('label',{for:'rg-email'},'Почта',email), h('label',{for:'rg-pass'},'Пароль (от 6 символов)',pass)),
       h('label',{for:'rg-nick'},'Как вас подписывать',nick),
       h('div',null, h('div',{style:'font-weight:700;margin-bottom:6px'},'Кем вы будете в «Счастливом мире»?'), pick),
       h('p',{class:'hint'},'Имя и персонажа видят все посетители сайта. Почту не видит никто.'),
@@ -1615,7 +1637,7 @@ function authForms(mode){
     f.addEventListener('submit', async e=>{ e.preventDefault();
       const v = nick.value.trim();
       if (v.length < 2){ nick.focus(); toast('Имя должно быть не короче двух букв'); return; }
-      if (pass.value.length < 8){ pass.focus(); toast('Пароль — минимум 8 символов'); return; }
+      if (pass.value.length < 6){ pass.focus(); toast('Пароль — минимум 6 символов'); return; }
       if (!pick.value){ toast('Выберите животное или растение'); return; }
       btn.disabled = true;
       try{
@@ -2385,6 +2407,8 @@ render();
     if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
     startPresence();
     if (COM.admin) watch('drafts',{sort:'-created'}, l=>{ COM.drafts = l; });
+    watch('referrals',{}, l=>{ COM.refs = l; });
+    loadProfile();
     watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
     try{
       const hr = await pb.collection('habits').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null});
