@@ -828,3 +828,28 @@ footer a{color:inherit}
 .tl-ic{position:absolute;left:-17px;top:8px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);font-size:16px}
 .tl-i > div{padding-left:18px}
 @media (max-width:640px){.path-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* habits calendar */
+.cal{gap:12px}
+.cal-head{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.cal-head h3{font-size:20px;text-align:center;flex:1}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal-w{text-align:center;font-size:12px;font-weight:800;color:var(--muted)}
+.cal-d{position:relative;aspect-ratio:1;border-radius:12px;border:1px solid var(--line);background:var(--surface);font:inherit;font-weight:800;font-size:14px;color:var(--ink);cursor:pointer;overflow:hidden;display:grid;place-items:center;padding:0}
+.cal-d span{position:relative;z-index:1}
+.cal-d i{position:absolute;left:0;right:0;bottom:0;height:var(--p);background:color-mix(in srgb,var(--leaf) 55%,transparent)}
+.cal-d.full{background:var(--moss);color:var(--on-moss);border-color:var(--moss)}
+.cal-d.full i{display:none}
+.cal-d.miss{background:rgba(192,83,61,.1);border-color:rgba(192,83,61,.35)}
+.cal-d.off{opacity:.45;cursor:default}
+.cal-d.today{outline:2px solid var(--sun);outline-offset:1px}
+.cal-d.sel{box-shadow:0 0 0 3px var(--moss)}
+.cal-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.cal-legend span{display:flex;gap:6px;align-items:center}
+.lg{width:14px;height:14px;border-radius:4px;display:inline-block}
+.lg.full{background:var(--moss)}.lg.part{background:color-mix(in srgb,var(--leaf) 55%,var(--surface))}.lg.miss{background:rgba(192,83,61,.25)}
+.cal-detail{display:grid;gap:10px;padding:12px;border-radius:12px;background:var(--paper)}
+.cal-habits{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.cal-habits .chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
+.cal-habits .chip[disabled]{opacity:.5;cursor:default}
+.cal-grid,.cal-legend{max-width:520px;width:100%;margin-inline:auto}.cal-head{max-width:520px;width:100%;margin-inline:auto}
