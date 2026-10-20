@@ -279,6 +279,8 @@ const T = '#cabinet-tabs ';
   check('full profile gives +20', liza1.xp === liza.xp + 20);
   await q.goto(B+'/', {waitUntil:'networkidle'}); await q.waitForTimeout(600);
   check('first steps count what is done (registered, profile)', (await q.$$('#steps .step.ok')).length >= 2 && !!(await q.$('#steps .step.next')) && await q.isVisible('#steps .steps-all'));
+  await q.waitForSelector('#helper .ai-left:has-text("скоро заработает")',{timeout:5000}).catch(()=>{});
+  check('AI helper: photo buttons for members, says it is coming while there is no key', !!(await q.$('#helper button:has-text("Загрузить фото еды")')) && (await q.textContent('#helper .ai-left')).includes('скоро заработает'));
   await q.goto(B+'/kabinet?tab=profile', {waitUntil:'networkidle'}); await q.waitForSelector('#invite');
   const prof = await api('GET','/collections/profiles/records',null,t);
   check('profile is private: other users and guests do not see it', prof.totalItems===1 && (await api('GET','/collections/profiles/records')).totalItems===0);

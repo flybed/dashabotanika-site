@@ -895,6 +895,7 @@ function privacyPage(){
         'По вашему желанию в профиле: возраст, пол, страна и город, эко-цели.',
         'То, что вы сами публикуете или отправляете: комментарии, объявления на барахолке и их фото, личные сообщения, обратная связь и предложения статей.',
         'Ваши результаты на сайте: эко-челленджи и отметки, результаты теста и игры, очки роста и уровни.',
+        'Фото для ИИ-помощника (тарелка или упаковка): фото уменьшается в браузере и один раз отправляется на анализ в сервис Yandex Cloud (серверы в России). Мы его не сохраняем — запоминаем только, сколько разборов вы сделали сегодня.',
         'Технические данные: IP-адрес, время посещения, тип браузера и устройства. Они нужны для работы и защиты сайта.'])),
     sec('3. Зачем',
       ul(['Чтобы вы могли зарегистрироваться, входить в кабинет и пользоваться им: челленджи, рост персонажа, сертификаты, барахолка, переписка.',
@@ -908,7 +909,7 @@ function privacyPage(){
     sec('6. Кто ещё может их видеть',
       ul(['Другие посетители видят только ваше имя на сайте, персонажа, уровень и то, что вы сами опубликовали (комментарии, объявления). Почту и профиль они не видят.',
         'Администратор и модераторы сайта видят то, что нужно для проверки объявлений и ответов на обратную связь; профиль видит только администратор.',
-        'Мы не продаём и не передаём ваши данные третьим лицам. Исключения — сервисы, без которых сайт не работает: хостинг (серверы сайта), почтовый сервис для отправки служебных писем и сервис статистики Яндекс.Метрика (если подключён), — а также случаи, прямо предусмотренные законом.'])),
+        'Мы не продаём и не передаём ваши данные третьим лицам. Исключения — сервисы, без которых сайт не работает: хостинг (серверы сайта), почтовый сервис для отправки служебных писем, сервис статистики Яндекс.Метрика, Yandex Cloud для разбора фото в ИИ-помощнике и Telegram, если вы сами подключили уведомления, — а также случаи, прямо предусмотренные законом.'])),
     sec('7. Cookie и хранилище браузера',
       h('p',null,'Сайт сохраняет в вашем браузере то, что нужно для работы: вход в аккаунт, результаты без регистрации, выбранный город для чистоты воздуха, скрытые подсказки. Для статистики подключена Яндекс.Метрика: она использует cookie и Вебвизор — обезличенную запись действий на страницах (поля с паролями не записываются), чтобы понять, что на сайте удобно, а что нет. Отключить cookie можно в настройках браузера — сайт продолжит работать, но вход придётся выполнять заново.')),
     sec('8. Ваши права',
@@ -1893,21 +1894,64 @@ function menuSection(){
     box));
 }
 
-/* ---------- smart helper (AI) — in development ---------- */
+/* ---------- smart helper (AI): photo of a plate or of packaging → advice (Yandex AI Studio, see pb_hooks/ai.js) ---------- */
+// the photo is made smaller in the browser (max 1024 px) before it is sent; it is not stored anywhere
+function shrinkPhoto(file){
+  return new Promise((ok, fail)=>{
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = ()=>{ const k = Math.min(1, 1024/Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width*k); c.height = Math.round(img.height*k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.85)); };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); fail(new Error('bad image')); };
+    img.src = url;
+  });
+}
+function aiAnswer(text){
+  // plain text from the model: lines «Заголовок: …» and «— пункт»
+  return h('div',{class:'ai-text'}, String(text).split(/\n+/).map(l=>l.trim()).filter(Boolean).map(l=>{
+    if (/^[—–-]\s*/.test(l)) return h('div',{class:'ai-li'}, '🌿 ', l.replace(/^[—–-]\s*/,''));
+    const m = l.match(/^([^:]{2,40}):\s*(.*)$/);
+    return m ? h('p',null, h('b',null,m[1].replace(/\*+/g,''),': '), m[2].replace(/\*+/g,'')) : h('p',null,l.replace(/\*+/g,''));
+  }));
+}
 function helperSection(){
+  const out = h('div',{class:'ai-out','aria-live':'polite'}), left = h('p',{class:'hint ai-left'});
+  let st = null;
+  const loadLeft = ()=>{ if (accState()!=='member' || !pb) return; pb.send('/api/ai/left',{requestKey:null}).then(r=>{ st = r; paintLeft(); }).catch(()=>{}); };
+  const paintLeft = ()=>{ left.textContent = accState()!=='member' ? 'Помощник доступен участникам — войдите или зарегистрируйтесь.' : !st ? '' : !st.enabled ? 'Помощник скоро заработает — подключаем распознавание фото.' : 'Сегодня осталось разборов: '+st.left+' из '+st.limit+'.'; };
+  live(()=>{ paintLeft(); if (accState()==='member' && !st) loadLeft(); });
+  async function run(kind, file, btn){
+    if (accState()!=='member'){ openAccount('register'); return; }
+    const label = btn.textContent; btn.disabled = true; btn.textContent = 'Смотрю на фото…';
+    out.replaceChildren(h('div',{class:'card ai-wait'}, h('span',{class:'ai-spin','aria-hidden':'true'},'🌀'), 'Помощник разглядывает фото, это займёт до минуты…'));
+    try{
+      const image = await shrinkPhoto(file);
+      const r = await pb.send('/api/ai/photo',{method:'POST', body:{kind, image}, requestKey:null});
+      st = r; paintLeft();
+      out.replaceChildren(r.ok
+        ? h('div',{class:'card ai-res'}, h('div',{class:'ai-res-head'}, h('img',{src:image,alt:'Ваше фото',class:'ai-photo'}), h('div',null, h('div',{class:'eyebrow'}, kind==='food' ? '🥗 Совет по тарелке' : '♻️ Куда сдать упаковку'), h('p',{class:'hint'},'Совет от ИИ — проверяйте важное, особенно про здоровье.'))), aiAnswer(r.text))
+        : h('div',{class:'card tg-err'}, r.message));
+    }catch(e){ out.replaceChildren(h('div',{class:'card tg-err'},'Не получилось отправить фото. Попробуйте другое фото или чуть позже.')); }
+    btn.disabled = false; btn.textContent = label;
+  }
+  const photoBtn = (kind, label) => {
+    const inp = h('input',{type:'file',accept:'image/*',hidden:true,'data-kind':kind});
+    const btn = h('button',{type:'button',class:'btn small',onclick:()=>{ if (accState()!=='member'){ openAccount('register'); return; } inp.click(); }}, label);
+    inp.addEventListener('change',()=>{ const f = inp.files && inp.files[0]; inp.value = ''; if (f) run(kind, f, btn); });
+    return h('div',{style:'display:contents'}, btn, inp);
+  };
   const cards = [
-    ['🥗','Фото еды','Загрузите фото тарелки — помощник подскажет, как сделать блюдо полезнее, и посчитает, сколько воды и углеродного следа вы сэкономили.'],
-    ['♻️','Фото упаковки','Сфотографируйте упаковку — узнаете, куда её сдать, нужно ли мыть, и получите идеи, как использовать её дома повторно.'],
-    ['🍽️','Рецепты под диету','Уже работает: конструктор меню собирает меню на неделю под цель и тип питания.', '/#menu']
+    ['🥗','Фото еды','Сфотографируйте тарелку — помощник подскажет, как сделать блюдо полезнее и экологичнее, и что сделать с остатками.', photoBtn('food','📷 Загрузить фото еды')],
+    ['♻️','Фото упаковки','Сфотографируйте упаковку или вещь — узнаете, из чего она, куда её сдать, нужно ли мыть и как использовать повторно.', photoBtn('pack','📷 Загрузить фото упаковки')],
+    ['🍽️','Меню под цель','Конструктор меню соберёт меню на неделю под вашу цель и тип питания — со списком покупок.', h('a',{class:'btn small',href:'/#menu'},'Открыть конструктор')]
   ];
   return h('section',{class:'band',id:'helper'}, h('div',{class:'wrap'},
-    sectionHead('Умный помощник','Эко-помощник на основе ИИ','Скоро здесь можно будет загрузить фото и получить совет. Раздел в разработке.'),
-    h('div',{class:'grid g3'}, cards.map(([ic,t,d,link])=>h('article',{class:'card'},
-      h('div',{style:'display:flex;justify-content:space-between;align-items:center'}, h('span',{style:'font-size:34px','aria-hidden':'true'},ic), link ? h('span',{class:'tag'},'Работает') : h('span',{class:'tag',style:'background:var(--sun);color:#2A1C05'},'В разработке')),
+    sectionHead('Умный помощник','Эко-помощник на основе ИИ','Загрузите фото — и получите совет за минуту. Фото не сохраняются: помощник смотрит на них один раз.'),
+    h('div',{class:'grid g3'}, cards.map(([ic,t,d,action])=>h('article',{class:'card'},
+      h('span',{style:'font-size:34px','aria-hidden':'true'},ic),
       h('h3',{style:'font-size:20px'},t), h('p',{class:'muted',style:'font-size:15px;flex:1'},d),
-      link ? h('a',{class:'btn small',href:link,style:'align-self:flex-start'},'Открыть конструктор') : h('button',{type:'button',class:'btn ghost small',disabled:'',style:'align-self:flex-start;opacity:.6;cursor:not-allowed'},'Скоро')
-    )))
-  ));
+      h('div',{style:'align-self:flex-start'}, action)))),
+    left, out));
 }
 
 /* ---------- modal & personal account ---------- */
