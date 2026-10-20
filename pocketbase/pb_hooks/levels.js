@@ -50,7 +50,8 @@ function habitsOf(app, userId) {
   return { leaves, challenges }
 }
 
-const count = (app, coll, where) => app.countRecords(coll, $dbx.hashExp(where))
+// 0, если коллекции ещё нет (например, пока применяется миграция, которая её создаёт)
+const count = (app, coll, where) => { try { return app.countRecords(coll, $dbx.hashExp(where)) } catch (e) { return 0 } }
 
 // Профиль заполнен полностью: возраст, пол, страна, город и хотя бы одна эко-цель.
 function profileComplete(app, userId) {
