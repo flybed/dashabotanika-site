@@ -2153,28 +2153,30 @@ function cabinetHead(){
     h('a',{class:'btn small',href:'/kabinet?tab=profile#cabinet-tabs'},'Заполнить')) : ''); });
   return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, nudge, grow, stats));
 }
+// old tab addresses still open the right place after the tabs were merged
+const TAB_ALIAS = {xp:'path', settings:'profile', suggest:'mine', drafts:'articles', inbox:'articles'};
 function cabinetTabs(tab, tid){
-  let cur = tab || (unreadCount() ? 'chats' : 'path'), lastKey = null, openTid = tid || null, tabBtns = {};
+  let cur = TAB_ALIAS[tab] || tab || (unreadCount() ? 'chats' : 'path'), lastKey = null, openTid = tid || null, tabBtns = {};
   const openThread = id=>{ openTid = id; paint(true); };
   const body = h('div',{style:'display:grid;gap:16px'});
   const lists = {};
   function build(){
     const me = COM.me;
-    const tabs = [['path','Мой эко путь'],['profile','Мой профиль'],['xp','История очков'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
-      .concat(COM.admin ? [['drafts','Черновики'],['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
-    if (!tabs.some(([k])=>k===cur)) cur = 'things';
+    // my things — for every member; site management — a separate row, only for Dasha and moderators
+    const mineTabs = [['path','🌱 Мой эко путь'],['profile','👤 Профиль и настройки'],['chats','💬 Сообщения'],['things','📦 Мои вещи'],['mine','✍️ Мои публикации']];
+    const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Объявления'],['fb','💡 Обратная связь']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
+    if (!mineTabs.concat(adminTabs).some(([k])=>k===cur)) cur = 'path';
     tabBtns = {};
-    const out = [
-      h('div',{class:'tabs',role:'tablist'}, tabs.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }))
-    ];
+    const row = list => h('div',{class:'tabs',role:'tablist'}, list.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }));
+    const out = [row(mineTabs)];
+    if (adminTabs.length) out.push(h('div',{class:'admin-bar'}, h('div',{class:'admin-l'},'🛠 Управление сайтом', h('span',{class:'hint'},' — видите только вы', COM.owner ? '' : ' и модераторы')), row(adminTabs)));
     if (cur==='things') out.push(...thingsPanel(lists));
     if (cur==='profile') out.push(profilePanel(), inviteCard());
-    if (cur==='xp') out.push(xpHistory());
-    if (cur==='path') out.push(ecoPath());
+    if (cur==='path') out.push(ecoPath(), xpHistory());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
-    if (cur==='settings'){
+    if (cur==='profile'){
       const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
       const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
       f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2) return;
@@ -2183,7 +2185,7 @@ function cabinetTabs(tab, tid){
       const cf = h('form',{style:'display:grid;gap:8px'}, pick, h('div',null,h('button',{type:'submit',class:'btn ghost small'},'Сменить персонажа')));
       cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value) return;
         pb.collection('users').update(COM.uid,pickData(pick)).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
-      out.push(
+      out.push(h('div',{class:'card acc-card'}, h('h3',null,'Аккаунт и персонаж'),
         h('div',{class:'hint',style:'font-weight:800'},'Почта'),
         h('div',{class:'mail-row'}, h('b',null,COM.email||'—'),
           COM.verified ? h('span',{class:'status accepted'},'✓ подтверждена') : h('span',{class:'status declined'},'не подтверждена'),
@@ -2191,11 +2193,11 @@ function cabinetTabs(tab, tid){
             pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз')),
         h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
         h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
-        h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf,
+        h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf),
         tgCard(),
         h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:logout},'Выйти из аккаунта')));
     }
-    if (cur==='suggest'){
+    if (cur==='mine'){
       const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
       const title = h('input',{id:'sg-title',maxlength:'120'});
       const text = h('textarea',{id:'sg-text',maxlength:'4000',style:'min-height:140px'});
@@ -2206,13 +2208,17 @@ function cabinetTabs(tab, tid){
       f.addEventListener('submit',e=>{ e.preventDefault(); const t=title.value.trim(), x=text.value.trim(); if(!t){ title.focus(); return; } if(!x){ text.focus(); return; }
         pb.collection('suggestions').create({author:COM.uid, kind:kind.value, title:t.slice(0,120), text:x.slice(0,4000)}).then(()=>{ title.value=''; text.value=''; toast('Отправлено! Даша посмотрит'); }).catch(writeErr); });
       lists.mySugg = h('div',{class:'list'});
-      out.push(h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f, h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg);
+      lists.mine = h('div',{class:'list'});
+      out.push(h('h3',{style:'font-size:20px'},'Предложить новость, статью или идею'), h('p',{class:'muted'},'Даша читает все предложения. Лучшие появятся в журнале с подписью автора.'), f,
+        h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg, h('h3',{style:'font-size:18px'},'Мои комментарии'), lists.mine);
     }
-    if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
     if (cur==='levels') out.push(...levelsAdminPanel());
     if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
-    if (cur==='drafts'){ lists.drafts = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Черновики статей от помощника. Прочитайте, поправьте и опубликуйте — статья сразу появится в журнале со своей страницей.'), lists.drafts); }
-    if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и модераторы.'), lists.inbox); }
+    if (cur==='articles'){
+      lists.drafts = h('div',{class:'list'}); lists.inbox = h('div',{class:'list'});
+      out.push(h('h3',{style:'font-size:20px'},'Черновики от помощника'), h('p',{class:'muted'},'Прочитайте, поправьте и опубликуйте — статья сразу появится в журнале со своей страницей.'), lists.drafts,
+        h('h3',{style:'font-size:20px'},'Предложения участников'), h('p',{class:'muted'},'Новости, статьи и идеи от участников. Видите только вы и модераторы.'), lists.inbox);
+    }
     return out;
   }
   const statusLabel = s => s==='accepted' ? 'В журнале' : s==='declined' ? 'Не подошло' : 'На рассмотрении';
@@ -2252,7 +2258,7 @@ function cabinetTabs(tab, tid){
     if (force || key !== lastKey){ lastKey = key; PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build().filter(x=>x!=null)); }
     paintLists();
     const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
-    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('drafts', COM.admin ? newDrafts().length : 0);
+    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('articles', COM.admin ? newDrafts().length + COM.sugg.filter(s=>!s.status).length : 0);
   }
   live(()=>paint(false));
   return h('section',{class:'band',id:'cabinet-tabs'}, h('div',{class:'wrap'}, body));
