@@ -749,9 +749,6 @@ function aboutSection(){
         h('div',{class:'eyebrow',style:'display:flex;align-items:center;gap:8px'},h('span',{html:CAIRN_ICON,style:'display:contents'}),'Про меня'),
         h('h2',null,a.name),
         h('p',{class:'about-text'},a.text),
-        STATE.photos.gallery.length ? h('div',{class:'gallery'}, STATE.photos.gallery.map(gid=>h('figure',null, photoImg(gid,'Фото из жизни '+(a.name||'')),
-          h('button',{type:'button',class:'x edit-only',title:'Убрать фото','aria-label':'Убрать фото',onclick:()=>{ STATE.photos.gallery = STATE.photos.gallery.filter(x=>x!==gid); markDirty(); render(); }},'×')))) : null,
-        uploadBtn('Добавить фото в галерею', nid=>{ STATE.photos.gallery.push(nid); }),
         h('div',{class:'form edit-only'}, h('label',{for:'about-name'},'Имя',nm), h('label',{for:'about-text'},'Текст о себе',tx))
       )
     )
@@ -798,7 +795,7 @@ const POLICY_DATE = '20 октября 2026';
 function privacyPage(){
   STATE.policy = Object.assign({operator:'', email:''}, STATE.policy||{});
   const pol = STATE.policy;
-  const op = pol.operator || 'владелец сайта dashabotanika.ru', mail = pol.email || STATE.contacts.email || 'dashabotanika.site@yandex.com';
+  const op = pol.operator || 'Белова Дарья Михайловна', mail = pol.email || STATE.contacts.email || 'dashabotanika.site@yandex.com';
   const sec = (t, ...body) => h('section',{class:'pol-sec'}, h('h2',null,t), ...body);
   const ul = items => h('ul',null, items.map(x=>h('li',null,x)));
   const opIn = h('input',{id:'pol-op',value:pol.operator,placeholder:'ФИО владельца сайта (или ИП, самозанятый)'}); opIn.addEventListener('input',()=>{ pol.operator = opIn.value.trim(); markDirty(); });
@@ -883,7 +880,7 @@ window.addEventListener('popstate', ()=>{ INNER_STEPS = Math.max(0, INNER_STEPS-
 
 function homePage(){
   // people first (who we are, the community, how to start), then games and tests, then everyday eco
-  return [hero(), sectionsNav(), firstSteps(), aboutSection(), worldSection(), examTeaser(), gameSection(), goodsSection(true), airSection(), calcSection(), sortGuide(), foodSection(), fashionSection(), cafesSection(), marketTeaser(), journalSection(), helperSection(), feedbackSection(), contactsSection()];
+  return [hero(), sectionsNav(), firstSteps(), aboutSection(), worldSection(), examTeaser(), gameSection(), sortGuide(), airSection(), calcSection(), goodsSection(true), foodSection(), fashionSection(), cafesSection(), marketTeaser(), journalSection(), helperSection(), feedbackSection(), contactsSection()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
