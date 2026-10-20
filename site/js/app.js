@@ -228,8 +228,23 @@ function heroCta(){
   return box;
 }
 function sectionsNav(){
+  // on phones the icons scroll sideways: the last one is cut in half, an arrow and a bar below show there is more
+  const row = h('div',{class:'sn-row'}, SECTIONS.map(([ic,t,href])=>h('a',{class:'sn',href}, h('span',{class:'sn-ic','aria-hidden':'true'},ic), h('span',{class:'sn-t'},t))));
+  const thumb = h('i'), bar = h('div',{class:'sn-bar','aria-hidden':'true'}, thumb);
+  const more = h('button',{type:'button',class:'sn-more','aria-label':'Показать ещё разделы',onclick:()=>row.scrollBy({left:row.clientWidth*0.8, behavior:'smooth'})},'›');
+  const sync = ()=>{
+    const max = row.scrollWidth - row.clientWidth, scrollable = max > 4;
+    bar.hidden = more.hidden = !scrollable;
+    if (!scrollable) return;
+    const part = row.clientWidth / row.scrollWidth;
+    thumb.style.width = (part*100)+'%'; thumb.style.left = (row.scrollLeft/max*(1-part)*100)+'%';
+    more.classList.toggle('end', row.scrollLeft >= max - 4);
+  };
+  row.addEventListener('scroll', sync, {passive:true});
+  window.addEventListener('resize', sync);
+  requestAnimationFrame(sync);
   return h('section',{class:'sections-nav',id:'sections','aria-label':'Разделы сайта'}, h('div',{class:'wrap'},
-    h('div',{class:'sn-row'}, SECTIONS.map(([ic,t,href])=>h('a',{class:'sn',href}, h('span',{class:'sn-ic','aria-hidden':'true'},ic), h('span',{class:'sn-t'},t))))));
+    h('div',{class:'sn-wrap'}, row, more), bar));
 }
 
 /* ---------- first steps: a guide like in games — what to do here, one step at a time ---------- */
