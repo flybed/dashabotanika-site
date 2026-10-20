@@ -86,6 +86,37 @@ function actionsOf(app, user, hb) {
   }
 }
 
+// История очков: сравниваем, сколько раз сделано каждое действие сейчас и в прошлый раз,
+// и записываем разницу. Самый первый раз — всё, что накоплено до появления истории (initial).
+// Если очки изменились без новых действий (Даша поменяла правила) — запись «пересчёт».
+function logChanges(app, userId, done, rules, xpOld, xpNew) {
+  try {
+    let state, prev = {}, first = false
+    try { state = app.findFirstRecordByFilter("xp_state", "user = {:id}", { id: userId }); prev = jsonOf(state, "parts") || {} }
+    catch (e) { state = new Record(app.findCollectionByNameOrId("xp_state")); state.set("user", userId); first = true }
+    const log = app.findCollectionByNameOrId("xp_log")
+    let explained = 0, changed = first
+    for (const r of rules) {
+      const key = r.getString("key"), diff = (done[key] || 0) - (prev[key] || 0)
+      if (!diff) continue
+      changed = true
+      const points = diff * r.getInt("points")
+      explained += points
+      if (!points) continue
+      const e = new Record(log)
+      e.set("user", userId); e.set("key", key); e.set("title", r.getString("title")); e.set("count", diff); e.set("points", points); e.set("initial", first)
+      app.save(e)
+    }
+    const rest = xpNew - (first ? 0 : xpOld) - explained
+    if (!first && rest) {
+      const e = new Record(log)
+      e.set("user", userId); e.set("key", "rules"); e.set("title", "Пересчёт: изменились правила роста"); e.set("count", 0); e.set("points", rest)
+      app.save(e)
+    }
+    if (changed) { state.set("parts", done); app.save(state) }
+  } catch (e) {} // история не должна мешать начислению очков
+}
+
 function recompute(app, userId) {
   let user
   try { user = app.findRecordById("users", userId) } catch (e) { return }
@@ -94,10 +125,10 @@ function recompute(app, userId) {
 
   // очки роста за действия
   const done = actionsOf(app, user, hb)
+  const rules = app.findRecordsByFilter("growth_rules", "id != ''", "", 100, 0)
   let xp = 0
-  for (const r of app.findRecordsByFilter("growth_rules", "id != ''", "", 100, 0)) {
-    xp += (done[r.getString("key")] || 0) * r.getInt("points")
-  }
+  for (const r of rules) xp += (done[r.getString("key")] || 0) * r.getInt("points")
+  logChanges(app, userId, done, rules, user.getInt("xp"), xp)
 
   // уровень = стадия персонажа: очки роста + необязательные доп. условия
   const posts = count(app, "reviews", { author: userId }) + count(app, "comments", { author: userId }) + count(app, "feedback", { author: userId })

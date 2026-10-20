@@ -879,7 +879,7 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, verified:!!r.verified}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
 function emojiOf(memberId){ const m = COM.members[memberId]; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
@@ -1233,7 +1233,9 @@ function paintPeople(el){
         h('div',{class:'meta'}, h('span',{class:'online-dot'+(on?' on':''),'aria-hidden':'true'}), h('span',{'aria-hidden':'true'},emojiOf(id)), h('b',null,m.nick), id===COM.uid ? h('span',{class:'status'},'Это вы') : null,
           m.role==='admin' ? h('span',{class:'status accepted'},'Администратор') : isMod ? h('span',{class:'status accepted'},'Модератор') : null,
           h('span',null,levelName(m.level))),
-        h('div',{class:'hint'}, seenLabel(seen(id)), ' · с нами с ', dt(m.joined)),
+        h('div',{class:'hint'}, seenLabel(seen(id)), ' · с нами с ', dt(m.joined), m.verified ? ' · ✓ почта' : ' · почта не подтверждена',
+          (()=>{ const r = COM.refs.find(x=>x.invited===id); return r ? ' · пришёл(ла) по приглашению: '+nameOf(r.inviter) : ''; })(),
+          (()=>{ const n = COM.refs.filter(x=>x.inviter===id).length; return n ? ' · пригласил(а): '+n : ''; })()),
         id!==COM.uid && m.role!=='admin' ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
           pb.collection('users').update(id,{role: isMod ? 'member' : 'moderator'}).then(()=>toast(isMod ? 'Модератор снят' : 'Назначен модератором')).catch(writeErr);
         }}, isMod ? 'Снять модератора' : 'Сделать модератором')) : null);
@@ -1724,7 +1726,7 @@ function cabinetTabs(tab, tid){
   const lists = {};
   function build(){
     const me = COM.me;
-    const tabs = [['profile','Мой профиль'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
+    const tabs = [['profile','Мой профиль'],['xp','История очков'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
       .concat(COM.admin ? [['drafts','Черновики'],['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
     if (!tabs.some(([k])=>k===cur)) cur = 'things';
     tabBtns = {};
@@ -1733,6 +1735,7 @@ function cabinetTabs(tab, tid){
     ];
     if (cur==='things') out.push(...thingsPanel(lists));
     if (cur==='profile') out.push(profilePanel(), inviteCard());
+    if (cur==='xp') out.push(xpHistory());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
@@ -1921,12 +1924,34 @@ function profilePanel(){
   if (PROFILE.loaded) paint(); else { box.replaceChildren(h('p',{class:'muted'},'Загружаем профиль…')); loadProfile().then(paint); }
   return box;
 }
+/* ---------- points history: what the points came for (written by the server) ---------- */
+function xpHistory(){
+  const box = h('div',{class:'card xp-hist'}, h('p',{class:'muted'},'Загружаем историю…'));
+  pb.collection('xp_log').getFullList({filter:pb.filter('user = {:u}',{u:COM.uid}), sort:'-created', requestKey:null}).then(list=>{
+    const total = list.reduce((s,x)=>s+(x.points||0),0);
+    const row = x=>{ const [ic] = GROW_WAYS[x.key] || ['✨'];
+      return h('li',{class:'xp-row'}, h('span',{class:'xp-ic','aria-hidden':'true'},ic),
+        h('div',{class:'xp-t'}, h('b',null,x.title), h('span',{class:'hint'}, x.initial ? 'начислено до появления истории' : dt(tsOf(x)), x.count > 1 ? ' · ×'+x.count : '')),
+        h('span',{class:'xp-pts'+(x.points<0?' neg':'')}, (x.points>0?'+':'')+x.points)); };
+    box.replaceChildren(
+      h('div',{class:'pf-head'}, h('h3',null,'История очков роста'), h('span',{class:'status accepted'},'Всего: '+(COM.me ? COM.me.xp : total))),
+      h('p',{class:'hint'},'Здесь видно, за что и когда пришли очки. Очки за приглашённого друга приходят, когда он подтвердит почту.'),
+      list.length ? h('ul',{class:'xp-list'}, list.map(row)) : h('p',{class:'hint'},'Пока пусто — история появится после первого действия.'));
+  }).catch(()=>box.replaceChildren(h('p',{class:'hint'},'Не удалось загрузить историю, попробуйте позже.')));
+  return box;
+}
 /* invitation link: a friend who signs up by it gets a big bonus, you get points when they confirm their email */
 function inviteCard(){
   const link = location.origin+'/?ref='+COM.uid;
   const friends = h('div',{class:'hint'});
-  pb.collection('referrals').getFullList({filter:pb.filter('inviter = {:u}',{u:COM.uid}), requestKey:null}).then(l=>{
-    friends.replaceChildren(l.length ? 'По вашей ссылке пришли: '+l.map(r=>nameOf(r.invited)).join(', ')+'.' : 'По вашей ссылке пока никто не пришёл — отправьте её друзьям!');
+  Promise.all([
+    pb.collection('referrals').getFullList({filter:pb.filter('inviter = {:u}',{u:COM.uid}), requestKey:null}),
+    pb.collection('xp_log').getFullList({filter:pb.filter('user = {:u} && key = "invite_friend"',{u:COM.uid}), requestKey:null}).catch(()=>[])
+  ]).then(([l, log])=>{
+    const counted = log.reduce((s,x)=>s+(x.count||0),0);
+    friends.replaceChildren(l.length ? h('span',null,'По вашей ссылке пришли: ', h('b',null,l.map(r=>nameOf(r.invited)).join(', ')), '. Очки начислены за ', h('b',null,counted),' из ',l.length,
+      counted < l.length ? ' — остальным нужно подтвердить почту (ссылка в письме, которое пришло при регистрации; его можно отправить ещё раз из кабинета).' : '.')
+      : 'По вашей ссылке пока никто не пришёл — отправьте её друзьям!');
   }).catch(()=>{});
   const text = 'Присоединяйся к «Счастливому миру» DashaBotanika — эко-челленджи, тест и персонаж, который растёт вместе с тобой 🌱';
   const copyBtn = h('button',{type:'button',class:'btn small',onclick:()=>{ const done = ()=>{ copyBtn.textContent = 'Скопировано ✓'; setTimeout(()=>copyBtn.textContent='Скопировать',1600); };
@@ -2386,7 +2411,7 @@ render();
   COM.ready = true;
   render();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage,exam_best'}, l=>{
+  watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage,exam_best,verified'}, l=>{
     const m = {}; l.forEach(r=>{ if (r.role!=='writer' || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){
