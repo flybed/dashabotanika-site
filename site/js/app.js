@@ -846,7 +846,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -1674,7 +1674,7 @@ function cabinetTabs(tab, tid){
   function build(){
     const me = COM.me;
     const tabs = [['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
-      .concat(COM.admin ? [['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
+      .concat(COM.admin ? [['drafts','Черновики'],['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
     if (!tabs.some(([k])=>k===cur)) cur = 'things';
     tabBtns = {};
     const out = [
@@ -1720,6 +1720,7 @@ function cabinetTabs(tab, tid){
     if (cur==='mine'){ lists.mine = h('div',{class:'list'}); out.push(lists.mine); }
     if (cur==='levels') out.push(...levelsAdminPanel());
     if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
+    if (cur==='drafts'){ lists.drafts = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Черновики статей от помощника. Прочитайте, поправьте и опубликуйте — статья сразу появится в журнале со своей страницей.'), lists.drafts); }
     if (cur==='inbox'){ lists.inbox = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Предложения участников видите только вы и модераторы.'), lists.inbox); }
     return out;
   }
@@ -1742,6 +1743,7 @@ function cabinetTabs(tab, tid){
     if (lists.fb && lists.fb.isConnected){
       lists.fb.replaceChildren(...(COM.feedback.length ? COM.feedback.map(x=>fbItem(x,true)) : [h('p',{class:'hint'},'Сообщений пока нет.')]));
     }
+    if (lists.drafts && lists.drafts.isConnected) paintDrafts(lists.drafts);
     if (lists.inbox && lists.inbox.isConnected){
       const all = COM.sugg.slice();
       lists.inbox.replaceChildren(...(all.length ? all.map(s=>h('div',{class:'li'},
@@ -1759,10 +1761,65 @@ function cabinetTabs(tab, tid){
     if (force || key !== lastKey){ lastKey = key; PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build().filter(x=>x!=null)); }
     paintLists();
     const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
-    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0);
+    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('inbox', COM.admin ? COM.sugg.filter(s=>!s.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('drafts', COM.admin ? newDrafts().length : 0);
   }
   live(()=>paint(false));
   return h('section',{class:'band',id:'cabinet-tabs'}, h('div',{class:'wrap'}, body));
+}
+/* ---------- article drafts: read, fix, publish ---------- */
+const newDrafts = () => (COM.drafts||[]).filter(d=>!d.status);
+const DRAFT_OPEN = {};
+function paintDrafts(el){
+  // keep an open editor while realtime updates arrive
+  if (el.querySelector('.draft-ed textarea:focus, .draft-ed input:focus')) return;
+  const list = (COM.drafts||[]).slice().sort((a,b)=>(!a.status ? 0 : 1) - (!b.status ? 0 : 1));
+  const st = d => d.status==='published' ? h('span',{class:'status accepted'},'Опубликовано') : d.status==='rejected' ? h('span',{class:'status declined'},'Отклонено') : h('span',{class:'status'},'Новый');
+  el.replaceChildren(...(list.length ? list.map(d=>{
+    const box = h('div',{class:'li draft'});
+    const head = h('div',{class:'meta'}, st(d), h('span',null,d.cat||'Статья'), h('span',null,dt(tsOf(d))), d.keywords ? h('span',{class:'hint'},'🔎 '+d.keywords) : null);
+    if (!DRAFT_OPEN[d.id] || d.status){
+      box.append(head, h('b',null,d.title), d.lead ? h('div',{class:'muted',style:'font-size:15px'},d.lead) : null,
+        !d.status ? h('div',null, h('button',{type:'button',class:'btn small',onclick:()=>{ DRAFT_OPEN[d.id] = true; paintDrafts(el); }},'Читать и править')) : null);
+      return box;
+    }
+    const f = {title:h('input',{maxlength:'160',value:d.title}), lead:h('textarea',{maxlength:'400',style:'min-height:70px'}), body:h('textarea',{style:'min-height:340px'}),
+      cat:h('select',null, ['Статья','Новость'].map(o=>h('option',{selected:(d.cat||'Статья')===o},o)))};
+    f.lead.value = d.lead||''; f.body.value = d.body||'';
+    const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value});
+    box.append(head, h('div',{class:'form draft-ed'},
+      h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead), h('label',null,'Текст статьи',f.body),
+      d.sources ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Источники для проверки: '), d.sources) : null,
+      d.note ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Заметка помощника: '), d.note) : null,
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+        h('button',{type:'button',class:'btn small',onclick:e=>publishDraft(d, vals(), e.currentTarget)},'Опубликовать'),
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('drafts').update(d.id, vals()).then(()=>toast('Черновик сохранён')).catch(writeErr)},'Сохранить черновик'),
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ DRAFT_OPEN[d.id] = false; paintDrafts(el); }},'Свернуть'),
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отклонить черновик?')) pb.collection('drafts').update(d.id,{status:'rejected'}).catch(writeErr); }},'Отклонить'))));
+    return box;
+  }) : [h('p',{class:'hint'},'Черновиков пока нет. Помощник присылает новые каждое утро.')]));
+}
+async function publishDraft(d, v, btn){
+  if (!v.title || !v.body){ toast('Нужны заголовок и текст'); return; }
+  if (EDIT.on && EDIT.dirty){ toast('Сначала сохраните или отмените правки сайта'); return; }
+  btn.disabled = true; btn.textContent = 'Публикую…';
+  try{
+    // take the latest site content so nothing edited meanwhile is lost
+    const c = await pb.collection('content').getOne(CONTENT.id, {requestKey:null});
+    const data = c.data || {};
+    data.articles = Array.isArray(data.articles) ? data.articles : [];
+    let slug = slugify(v.title) || 'statya';
+    if (data.articles.some(a=>articleSlug(a)===slug)) slug += '-'+iso(new Date());
+    const lead = v.lead || (v.body.length > 200 ? v.body.slice(0,197).replace(/\s+\S*$/,'')+'…' : v.body);
+    const art = {id:'a'+uid(), cat:v.cat||'Статья', date:iso(new Date()), title:v.title, lead, body:v.body, slug};
+    data.articles.unshift(art);
+    const r = await pb.collection('content').update(CONTENT.id, {data});
+    CONTENT.data = JSON.parse(JSON.stringify(r.data));
+    if (!EDIT.on){ STATE = r.data; normalize(); }
+    await pb.collection('drafts').update(d.id, Object.assign({}, v, {status:'published'}));
+    DRAFT_OPEN[d.id] = false;
+    toast('Статья опубликована');
+    go(articleUrl(art));
+  }catch(e){ writeErr(e); btn.disabled = false; btn.textContent = 'Опубликовать'; }
 }
 function setSuggStatus(id, status){
   return write('suggestions/'+id, ()=>pb.collection('suggestions').update(id,{status})).catch(writeErr);
@@ -1781,7 +1838,7 @@ function accountButton(){
     const st = accState();
     if (st==='member'){
       // the number = what waits for you: unread messages and, for admins, listings to check and new feedback
-      const parts = [[unreadCount(),'непрочитанные сообщения']].concat(COM.admin ? [[pendingListings().length,'объявления на проверке'],[COM.feedback.filter(f=>!f.status).length,'новая обратная связь']] : []).filter(([k])=>k);
+      const parts = [[unreadCount(),'непрочитанные сообщения']].concat(COM.admin ? [[newDrafts().length,'черновики статей'],[pendingListings().length,'объявления на проверке'],[COM.feedback.filter(f=>!f.status).length,'новая обратная связь']] : []).filter(([k])=>k);
       const n = parts.reduce((s,[k])=>s+k,0);
       b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean));
       if (n){ b.title = 'Ждёт внимания: '+parts.map(([k,t])=>t+' — '+k).join(', '); b.setAttribute('aria-label','Кабинет. '+b.title); }
@@ -2170,7 +2227,7 @@ render();
   render();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
   watch('users',{fields:'id,collectionId,name,created,character,level,level_history,role,leaves,xp,stage,exam_best'}, l=>{
-    const m = {}; l.forEach(r=>{ m[r.id] = memberOf(r); });
+    const m = {}; l.forEach(r=>{ if (r.role!=='writer' || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){
       COM.me = m[COM.uid];
@@ -2189,6 +2246,7 @@ render();
     pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); refresh(); }).catch(()=>{});
     if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
     startPresence();
+    if (COM.admin) watch('drafts',{sort:'-created'}, l=>{ COM.drafts = l; });
     watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
     try{
       const hr = await pb.collection('habits').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null});
