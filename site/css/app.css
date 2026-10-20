@@ -668,3 +668,21 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
   .air-grid{grid-template-columns:1fr;gap:20px}
   .air-art{position:static;order:-1;width:min(46vw,190px);justify-self:center}
 }
+
+/* profile and invitations in the cabinet */
+.profile-card,.invite-card{gap:12px}
+.pf-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.pf-head h3{font-size:22px}
+.pf-form{display:grid;gap:14px}
+.pf-form label{display:grid;gap:6px;font-weight:700;font-size:14px}
+.pf-form input,.pf-form select,.invite-row input{font:inherit;font-size:16px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);min-width:0}
+.pf-form input:focus,.pf-form select:focus{outline:none;border-color:var(--moss)}
+.pf-l{font-weight:700;font-size:14px}
+.pf-goals{margin-top:8px}
+.pf-goals .chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
+.pf-nudge{flex-direction:row;align-items:center;gap:14px;flex-wrap:wrap;border-left:6px solid var(--sun)}
+.invite-card{border:2px dashed var(--leaf);background:linear-gradient(135deg,var(--surface),rgba(134,168,92,.12))}
+.invite-row{display:flex;gap:8px}
+.invite-row input{flex:1;font-size:14px}
+.invite-banner{display:flex;gap:12px;align-items:center;padding:14px 16px;border-radius:var(--r);background:rgba(224,174,54,.18);border:1.5px solid var(--sun)}
+.invite-banner span{font-size:30px}

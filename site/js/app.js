@@ -832,6 +832,14 @@ function seenLabel(ts){
 
 /* ---------- backend: PocketBase ---------- */
 const pb = window.PocketBase ? new PocketBase(location.origin) : null;
+/* invitation link ?ref=<user id>: remember who invited until the visitor signs up */
+const REF_KEY = 'db-ref';
+(()=>{ const u = new URL(location.href), r = u.searchParams.get('ref');
+  if (!r) return;
+  if (/^[a-z0-9]{15}$/.test(r)) try{ localStorage.setItem(REF_KEY, r); }catch(e){}
+  u.searchParams.delete('ref'); history.replaceState(null,'',u.pathname+u.search+u.hash); })();
+const refOf = () => { try{ return localStorage.getItem(REF_KEY) || ''; }catch(e){ return ''; } };
+const rulePoints = (key, def) => ((COM.growthRules.find(r=>r.key===key)||{}).points) || def;
 const MOD_ROLES = ['moderator','admin'];
 const tsOf = r => Date.parse(String((r && r.created) || '').replace(' ','T')) || 0;
 function fileURL(r, field, thumb){ const f = r && r[field]; return f ? '/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+(thumb ? '?thumb='+thumb : '') : null; }
@@ -1593,6 +1601,10 @@ function authForms(mode){
       h('div',null, h('div',{style:'font-weight:700;margin-bottom:6px'},'Кем вы будете в «Счастливом мире»?'), pick),
       h('p',{class:'hint'},'Имя и персонажа видят все посетители сайта. Почту не видит никто.'),
       h('div',null,btn));
+    const ref = refOf(), invite = h('div');
+    if (ref) live(()=>{ invite.replaceChildren(h('div',{class:'invite-banner'}, h('span',{'aria-hidden':'true'},'🎁'),
+      h('div',null, h('b',null, COM.members[ref] ? nameOf(ref)+' приглашает вас в «Счастливый мир»' : 'Вас пригласили в «Счастливый мир»'),
+        h('div',null,'Зарегистрируйтесь — и ваш персонаж сразу получит +'+rulePoints('invited',50)+' к росту.')))); });
     f.addEventListener('submit', async e=>{ e.preventDefault();
       const v = nick.value.trim();
       if (v.length < 2){ nick.focus(); toast('Имя должно быть не короче двух букв'); return; }
@@ -1601,7 +1613,11 @@ function authForms(mode){
       btn.disabled = true;
       try{
         await pb.collection('users').create({email:email.value.trim(), password:pass.value, passwordConfirm:pass.value, name:v.slice(0,30), character:pick.value, emailVisibility:false});
-        await pb.collection('users').authWithPassword(email.value.trim(), pass.value);
+        const auth = await pb.collection('users').authWithPassword(email.value.trim(), pass.value);
+        if (ref && ref !== auth.record.id){
+          try{ await pb.collection('referrals').create({inviter:ref, invited:auth.record.id}); }catch(e){}
+        }
+        try{ localStorage.removeItem(REF_KEY); }catch(e){}
         pb.collection('users').requestVerification(email.value.trim()).catch(()=>{});
         done('Добро пожаловать, '+v+'! Вы появились в «Счастливом мире»');
       }catch(err){
@@ -1610,7 +1626,7 @@ function authForms(mode){
         toast(d.email ? 'Эта почта уже зарегистрирована или указана неверно' : d.password ? 'Пароль слишком простой или короткий' : 'Не получилось зарегистрироваться, проверьте поля');
       }
     });
-    return [h('p',null,'В личном кабинете хранятся ваши эко-привычки, уровень и сертификаты, результаты экзамена и игры. Ещё можно оставлять отзывы, комментировать, выставлять вещи на барахолку и предлагать статьи.'), f];
+    return [invite, h('p',null,'В личном кабинете хранятся ваши эко-привычки, уровень и сертификаты, результаты экзамена и игры. Ещё можно оставлять отзывы, комментировать, выставлять вещи на барахолку и предлагать статьи.'), f];
   }
   show(mode==='register' ? 'register' : 'login');
   return wrap;
@@ -1643,9 +1659,9 @@ function cabinetPage(){
   if (st==='loading') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap'}, h('h1',{class:'cab-name'},'Личный кабинет'), h('p',{class:'muted'},'Загружаем…')))];
   if (st==='signedout') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap cab-auth'},
     h('div',{class:'eyebrow'},'Личный кабинет'),
-    h('h1',{class:'cab-name'}, tab==='register' ? 'Регистрация' : 'Вход'),
+    h('h1',{class:'cab-name'}, tab==='register' || (!tab && refOf()) ? 'Регистрация' : 'Вход'),
     h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи на барахолке и переписка. А ещё вы появитесь в «Счастливом мире».'),
-    authForms(tab),
+    authForms(tab || (refOf() ? 'register' : '')),
     h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
   return [cabinetHead(), challengesSection(), cabinetTabs(tab, tid)];
 }
@@ -1664,7 +1680,13 @@ function cabinetHead(){
     h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
     h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
       pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))) : null;
-  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, grow, stats));
+  const nudge = h('div');
+  if (!PROFILE.loaded) loadProfile();
+  live(()=>{ nudge.replaceChildren(PROFILE.loaded && !profileDone(PROFILE.rec) ? h('div',{class:'card pf-nudge'},
+    h('span',{'aria-hidden':'true',style:'font-size:28px'},'📝'),
+    h('div',{style:'flex:1;min-width:200px'}, h('b',null,'Заполните профиль — +'+rulePoints('profile_complete',20)+' к росту'), h('div',{class:'hint'},'Возраст, город и ваша эко-цель — пара минут.')),
+    h('a',{class:'btn small',href:'/kabinet?tab=profile#cabinet-tabs'},'Заполнить')) : ''); });
+  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, nudge, grow, stats));
 }
 function cabinetTabs(tab, tid){
   let cur = tab || (unreadCount() ? 'chats' : 'things'), lastKey = null, openTid = tid || null, tabBtns = {};
@@ -1673,7 +1695,7 @@ function cabinetTabs(tab, tid){
   const lists = {};
   function build(){
     const me = COM.me;
-    const tabs = [['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
+    const tabs = [['profile','Мой профиль'],['things','Мои вещи'],['chats','Сообщения'],['suggest','Предложить'],['mine','Мои комментарии'],['settings','Настройки']]
       .concat(COM.admin ? [['drafts','Черновики'],['moder','Модерация'],['fb','Обратная связь'],['inbox','Предложения']] : []).concat(COM.owner ? [['people','Участники'],['levels','Уровни и рост']] : []);
     if (!tabs.some(([k])=>k===cur)) cur = 'things';
     tabBtns = {};
@@ -1681,6 +1703,7 @@ function cabinetTabs(tab, tid){
       h('div',{class:'tabs',role:'tablist'}, tabs.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }))
     ];
     if (cur==='things') out.push(...thingsPanel(lists));
+    if (cur==='profile') out.push(profilePanel(), inviteCard());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
@@ -1820,6 +1843,75 @@ async function publishDraft(d, v, btn){
     toast('Статья опубликована');
     go(articleUrl(art));
   }catch(e){ writeErr(e); btn.disabled = false; btn.textContent = 'Опубликовать'; }
+}
+/* ---------- profile: a few facts about you; filled in completely — points for growth ---------- */
+const ECO_GOALS = ['Меньше мусора и пластика','Научиться сортировать отходы','Покупать осознанно: меньше и лучше','Питаться экологичнее','Экономить воду и энергию','Экологичный гардероб','Здоровье и чистый воздух','Научить детей заботиться о планете','Пока просто интересуюсь'];
+const PROFILE = {rec:null, loaded:false};
+const profileDone = p => !!(p && p.age > 0 && p.gender && String(p.country||'').trim() && String(p.city||'').trim() && (p.goals||[]).length);
+function loadProfile(){
+  if (!pb || !COM.uid) return Promise.resolve(null);
+  return pb.collection('profiles').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null})
+    .then(r=>{ PROFILE.rec = r; }, ()=>{ PROFILE.rec = null; }).then(()=>{ PROFILE.loaded = true; refresh(); return PROFILE.rec; });
+}
+function profilePanel(){
+  const box = h('div',{class:'card profile-card'});
+  function paint(){
+    const p = PROFILE.rec || {};
+    const age = h('input',{id:'pf-age',type:'number',min:'6',max:'110',inputmode:'numeric',value:p.age||''});
+    const gender = h('select',{id:'pf-gender'}, h('option',{value:''},'— выберите —'), ['Женский','Мужской','Не хочу указывать'].map(o=>h('option',{selected:p.gender===o},o)));
+    const country = h('input',{id:'pf-country',maxlength:'60',value:p.country||'',placeholder:'Россия',autocomplete:'country-name'});
+    const city = h('input',{id:'pf-city',maxlength:'80',value:p.city||'',placeholder:'Новосибирск',autocomplete:'address-level2'});
+    const goals = new Set(p.goals||[]);
+    const goalBtns = ECO_GOALS.map(g=>{ const b = h('button',{type:'button',class:'chip'+(goals.has(g)?' on':''),'aria-pressed':String(goals.has(g))},g);
+      b.addEventListener('click',()=>{ goals.has(g) ? goals.delete(g) : goals.add(g); b.classList.toggle('on',goals.has(g)); b.setAttribute('aria-pressed',String(goals.has(g))); }); return b; });
+    const btn = h('button',{type:'submit',class:'btn small'},'Сохранить профиль');
+    const pts = rulePoints('profile_complete',20), done = profileDone(p);
+    const f = h('form',{class:'pf-form'},
+      h('div',{class:'fields'}, h('label',{for:'pf-age'},'Возраст',age), h('label',{for:'pf-gender'},'Пол',gender)),
+      h('div',{class:'fields'}, h('label',{for:'pf-country'},'Страна',country), h('label',{for:'pf-city'},'Город',city)),
+      h('div',null, h('div',{class:'pf-l'},'Моя цель в экологии ', h('span',{class:'hint'},'(можно несколько)')), h('div',{class:'chips pf-goals'}, goalBtns)),
+      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, btn, h('span',{class:'hint'},'Профиль видите только вы и Даша.')));
+    f.addEventListener('submit', async e=>{ e.preventDefault();
+      const a = parseInt(age.value,10);
+      const data = {age: a>=6 && a<=110 ? a : null, gender:gender.value, country:country.value.trim(), city:city.value.trim(), goals:[...goals]};
+      if (age.value && data.age===null){ age.focus(); toast('Возраст — от 6 до 110'); return; }
+      const was = profileDone(PROFILE.rec);
+      btn.disabled = true;
+      try{
+        PROFILE.rec = PROFILE.rec ? await pb.collection('profiles').update(PROFILE.rec.id, data) : await pb.collection('profiles').create(Object.assign({owner:COM.uid}, data));
+        toast(!was && profileDone(PROFILE.rec) ? 'Профиль заполнен! +'+pts+' к росту персонажа' : 'Профиль сохранён');
+        paint();
+      }catch(err){ btn.disabled = false; writeErr(err); }
+    });
+    box.replaceChildren(
+      h('div',{class:'pf-head'}, h('h3',null,'Мой профиль'),
+        done ? h('span',{class:'status accepted'},'✓ заполнен · +'+pts+' получено') : h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},'Заполните всё — +'+pts+' к росту')),
+      h('p',{class:'hint'},'Расскажите немного о себе — так Даша поймёт, какие статьи и челленджи вам полезнее.'),
+      f);
+  }
+  if (PROFILE.loaded) paint(); else { box.replaceChildren(h('p',{class:'muted'},'Загружаем профиль…')); loadProfile().then(paint); }
+  return box;
+}
+/* invitation link: a friend who signs up by it gets a big bonus, you get points when they confirm their email */
+function inviteCard(){
+  const link = location.origin+'/?ref='+COM.uid;
+  const friends = h('div',{class:'hint'});
+  pb.collection('referrals').getFullList({filter:pb.filter('inviter = {:u}',{u:COM.uid}), requestKey:null}).then(l=>{
+    friends.replaceChildren(l.length ? 'По вашей ссылке пришли: '+l.map(r=>nameOf(r.invited)).join(', ')+'.' : 'По вашей ссылке пока никто не пришёл — отправьте её друзьям!');
+  }).catch(()=>{});
+  const text = 'Присоединяйся к «Счастливому миру» DashaBotanika — эко-челленджи, тест и персонаж, который растёт вместе с тобой 🌱';
+  const copyBtn = h('button',{type:'button',class:'btn small',onclick:()=>{ const done = ()=>{ copyBtn.textContent = 'Скопировано ✓'; setTimeout(()=>copyBtn.textContent='Скопировать',1600); };
+    try{ navigator.clipboard.writeText(link).then(done,()=>{ inp.select(); }); }catch(e){ inp.select(); } }},'Скопировать');
+  const inp = h('input',{readonly:'',value:link,'aria-label':'Ваша ссылка-приглашение',onfocus:e=>e.target.select()});
+  return h('div',{class:'card invite-card',id:'invite'},
+    h('div',{class:'pf-head'}, h('h3',null,'🎁 Пригласите друга'), h('span',{class:'status accepted'},'+'+rulePoints('invite_friend',40)+' вам · +'+rulePoints('invited',50)+' другу')),
+    h('p',null,'Отправьте другу свою ссылку. Когда он зарегистрируется, его персонаж сразу получит +'+rulePoints('invited',50)+' к росту, а вы — +'+rulePoints('invite_friend',40)+', как только друг подтвердит почту.'),
+    h('div',{class:'invite-row'}, inp, copyBtn),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+      h('a',{class:'btn ghost small',href:'https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent(text),target:'_blank',rel:'noopener'},'Отправить в Telegram'),
+      h('a',{class:'btn ghost small',href:'https://wa.me/?text='+encodeURIComponent(text+' '+link),target:'_blank',rel:'noopener'},'WhatsApp'),
+      navigator.share ? h('button',{type:'button',class:'btn ghost small',onclick:()=>navigator.share({title:'DashaBotanika',text,url:link}).catch(()=>{})},'Поделиться…') : null),
+    friends);
 }
 function setSuggStatus(id, status){
   return write('suggestions/'+id, ()=>pb.collection('suggestions').update(id,{status})).catch(writeErr);
