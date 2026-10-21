@@ -2617,7 +2617,7 @@ function authForms(mode){
         }
         try{ localStorage.removeItem(REF_KEY); }catch(e){}
         pb.collection('users').requestVerification(email.value.trim()).catch(()=>{});
-        done('Добро пожаловать, '+v+'! Вы появились в «Счастливом мире»');
+        done('Добро пожаловать, '+v+'! Мы прислали письмо для подтверждения почты — если не найдёте, проверьте «Спам»');
       }catch(err){
         btn.disabled = false;
         const d = err && err.response && err.response.data || {};
@@ -2685,8 +2685,9 @@ function cabinetHead(){
   const verify = !COM.verified && COM.email ? h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
     h('b',null,'Подтвердите почту'),
     h('p',{class:'hint'},'Мы отправили письмо на ',COM.email,'. Подтверждённая почта нужна, чтобы восстановить пароль, если вы его забудете.'),
+    h('p',{class:'hint spam-hint'},'📬 Не пришло за пару минут? Загляните в «Спам» и «Промоакции» — и нажмите «Не спам», чтобы следующие письма приходили во «Входящие».'),
     h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
-      pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))) : null;
+      pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено. Если не видите его — проверьте «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз'))) : null;
   const nudge = h('div');
   if (!PROFILE.loaded) loadProfile();
   live(()=>{ nudge.replaceChildren(PROFILE.loaded && !profileDone(PROFILE.rec) ? h('div',{class:'card pf-nudge'},
@@ -2749,8 +2750,9 @@ function cabinetTabs(tab, tid){
         h('div',{class:'mail-row'}, h('b',null,COM.email||'—'),
           COM.verified ? h('span',{class:'status accepted'},'✓ подтверждена') : h('span',{class:'status declined'},'не подтверждена'),
           COM.verified ? null : h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
-            pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз')),
+            pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено. Если не видите его — проверьте «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз')),
         h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
+        COM.verified ? null : h('p',{class:'hint spam-hint'},'📬 Не пришло за пару минут? Загляните в «Спам» и «Промоакции» — и нажмите «Не спам», чтобы следующие письма приходили во «Входящие».'),
         h('div',{class:'hint',style:'font-weight:800'},'Имя на сайте'), nameBox,
         h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), charBox),
         notifyCard());
