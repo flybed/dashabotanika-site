@@ -60,9 +60,11 @@ function profileComplete(app, userId) {
     return p.getInt("age") > 0 && !!p.getString("gender") && !!p.getString("country").trim() && !!p.getString("city").trim() && p.getStringSlice("goals").length > 0 ? 1 : 0
   } catch (e) { return 0 }
 }
-// Друзья по приглашению засчитываются, когда подтвердили почту — так не накрутить фейками.
+// Друзья по приглашению засчитываются сразу после регистрации: письма с подтверждением почты доходят
+// не всегда, а ждать их было обидно. Фейковые аккаунты Даша видит в «Участниках» и может удалить —
+// вместе с ними исчезнут и очки.
 function friendsInvited(app, userId) {
-  try { return app.findRecordsByFilter("referrals", "inviter = {:id} && invited.verified = true", "", 0, 0, { id: userId }).length } catch (e) { return 0 }
+  try { return app.findRecordsByFilter("referrals", "inviter = {:id}", "", 0, 0, { id: userId }).length } catch (e) { return 0 }
 }
 
 // Сколько раз участник выполнил каждое действие из growth_rules.
@@ -161,7 +163,7 @@ function recomputeAll(app) {
   for (const u of users) recompute(app, u.id)
 }
 
-// Пересчитать того, кто пригласил участника (когда участник подтвердил почту).
+// Пересчитать того, кто пригласил участника (например, когда участника удалили).
 function recomputeInviter(app, userId) {
   try { recompute(app, app.findFirstRecordByFilter("referrals", "invited = {:id}", { id: userId }).getString("inviter")) } catch (e) {}
 }

@@ -324,7 +324,7 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/#cert/'+dasha.id+'/2'); await p.waitForSelector('.cert.big'); await p.screenshot({path:S+'/10-cert.png'});
   await p.goto(B+'/#helper'); await p.waitForTimeout(800);
   check('cert modal closed after navigation', !(await p.$('.cert-sheet')));
-  // profile filled in completely -> +20; invitation link -> friend +50 at once, inviter +40 once the friend confirms email
+  // profile filled in completely -> +20; invitation link -> friend +50 and inviter +40 at once
   const liza = (await api('GET','/collections/users/records?filter='+encodeURIComponent('name="Лиза"'),null,t)).items[0];
   await q.goto(B+'/kabinet', {waitUntil:'networkidle'});
   check('cabinet nudges to fill in the profile', (await q.textContent('#cabinet')).includes('Заполните профиль'));
@@ -372,9 +372,7 @@ const T = '#cabinet-tabs ';
   await r3.waitForSelector('.acc-btn:has-text("Кабинет")', {timeout:8000}); await r3.waitForTimeout(800);
   const fr = (await api('GET','/collections/users/records?filter='+encodeURIComponent('name="Друг"'),null,t)).items[0];
   check('own character from the dice is saved, consent time recorded', !!fr.custom_emoji && fr.custom_name===ownName && !!fr.consent_at && (await r3.textContent('.acc-btn')).includes(fr.custom_emoji));
-  check('friend by invitation gets signup +50 at once', fr.xp === 10 + 50 && (await api('GET','/collections/users/records/'+liza.id)).xp === liza1.xp);
-  await api('PATCH','/collections/users/records/'+fr.id,{verified:true},t); await r3.waitForTimeout(800);
-  check('inviter gets +40 once the friend confirms email', (await api('GET','/collections/users/records/'+liza.id)).xp === liza1.xp + 40);
+  check('friend by invitation gets signup +50, the inviter +40 at once, without confirming email', fr.xp === 10 + 50 && !fr.verified && (await api('GET','/collections/users/records/'+liza.id)).xp === liza1.xp + 40);
   await q.goto(B+'/kabinet?tab=xp', {waitUntil:'networkidle'}); await q.waitForSelector('.xp-list');
   const hist = await q.textContent('.xp-hist');
   check('points history shows the invited friend, the profile and earlier points', hist.includes('Пригласить друга') && hist.includes('+40') && hist.includes('Заполнить профиль') && hist.includes('до появления истории'));

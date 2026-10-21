@@ -2751,12 +2751,12 @@ function xpHistory(){
         h('span',{class:'xp-pts'+(x.points<0?' neg':'')}, (x.points>0?'+':'')+x.points)); };
     box.replaceChildren(
       h('div',{class:'pf-head'}, h('h3',null,'История очков роста'), h('span',{class:'status accepted'},'Всего: '+(COM.me ? COM.me.xp : total))),
-      h('p',{class:'hint'},'Здесь видно, за что и когда пришли очки. Очки за приглашённого друга приходят, когда он подтвердит почту.'),
+      h('p',{class:'hint'},'Здесь видно, за что и когда пришли очки. Очки за приглашённого друга приходят сразу, как только он зарегистрируется по вашей ссылке.'),
       list.length ? h('ul',{class:'xp-list'}, list.map(row)) : h('p',{class:'hint'},'Пока пусто — история появится после первого действия.'));
   }).catch(()=>box.replaceChildren(h('p',{class:'hint'},'Не удалось загрузить историю, попробуйте позже.')));
   return box;
 }
-/* invitation link: a friend who signs up by it gets a big bonus, you get points when they confirm their email */
+/* invitation link: a friend who signs up by it gets a big bonus, you get points as soon as they sign up */
 function inviteCard(){
   const link = location.origin+'/?ref='+COM.uid;
   const friends = h('div',{class:'hint'});
@@ -2766,7 +2766,7 @@ function inviteCard(){
   ]).then(([l, log])=>{
     const counted = log.reduce((s,x)=>s+(x.count||0),0);
     friends.replaceChildren(l.length ? h('span',null,'По вашей ссылке пришли: ', h('b',null,l.map(r=>nameOf(r.invited)).join(', ')), '. Очки начислены за ', h('b',null,counted),' из ',l.length,
-      counted < l.length ? ' — остальным нужно подтвердить почту (ссылка в письме, которое пришло при регистрации; его можно отправить ещё раз из кабинета).' : '.')
+      counted < l.length ? ' — остальные появятся в течение минуты.' : '.')
       : 'По вашей ссылке пока никто не пришёл — отправьте её друзьям!');
   }).catch(()=>{});
   const text = 'Присоединяйся к «Счастливому миру» DashaBotanika — эко-челленджи, тест и персонаж, который растёт вместе с тобой 🌱';
@@ -2775,7 +2775,7 @@ function inviteCard(){
   const inp = h('input',{readonly:'',value:link,'aria-label':'Ваша ссылка-приглашение',onfocus:e=>e.target.select()});
   return h('div',{class:'card invite-card',id:'invite'},
     h('div',{class:'pf-head'}, h('h3',null,'🎁 Пригласите друга'), h('span',{class:'status accepted'},'+'+rulePoints('invite_friend',40)+' вам · +'+rulePoints('invited',50)+' другу')),
-    h('p',null,'Отправьте другу свою ссылку. Когда он зарегистрируется, его персонаж сразу получит +'+rulePoints('invited',50)+' к росту, а вы — +'+rulePoints('invite_friend',40)+', как только друг подтвердит почту.'),
+    h('p',null,'Отправьте другу свою ссылку. Когда он зарегистрируется, его персонаж сразу получит +'+rulePoints('invited',50)+' к росту, а вы — +'+rulePoints('invite_friend',40)+'. Важно: друг должен зарегистрироваться в том же браузере, где открыл ссылку.'),
     h('div',{class:'invite-row'}, inp, copyBtn),
     h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
       h('a',{class:'btn ghost small',href:'https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent(text),target:'_blank',rel:'noopener'},'Отправить в Telegram'),
