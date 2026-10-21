@@ -99,6 +99,11 @@ const T = '#cabinet-tabs ';
   check('sorting guide shows the chosen material', (await p.textContent('#sort .sg-card')).includes('Батарейки') && (await p.textContent('#sort .sg-card')).includes('Куда сдавать'));
   await p.click('#calc button:has-text("Пока не сдаю")');
   check('calculator: "not recycling yet" sets zeros and encourages', (await p.textContent('#calc .result')).includes('Пока ноль') && (await p.inputValue('#calc-pet'))==='0');
+  await p.click('#calc .presets button:has-text("Типичная семья")'); await p.click('#calc .calc-share'); await p.waitForSelector('.share-img img', {timeout:8000});
+  { const dims = await p.$eval('.share-img img', i=>i.decode().then(()=>[i.naturalWidth, i.naturalHeight]));
+    check('calculator result can be shared: a 1080×1080 picture, download, Telegram, WhatsApp, VK', dims[0]===1080 && dims[1]===1080 && !!(await p.$('.share-btns a[download]')) && !!(await p.$('.share-btns a[href^="https://t.me/share/url?url="]')) && !!(await p.$('.share-btns a[href^="https://vk.com/share.php"]')) && (await p.getAttribute('.share-btns a[href^="https://wa.me"]','href')).includes(encodeURIComponent(B+'/sortirovka')));
+    await p.locator('.share-img img').screenshot({path:S+'/29-share-card.png'}); }
+  await p.keyboard.press('Escape');
   // «куда сдать» guide: a page for every kind of recyclables and every plastic code, also for search engines
   check('/sortirovka lists the guide: 11 kinds of recyclables and a link to plastic codes', (await p.$$('#kuda-sdat .g-tile')).length===11 && !!(await p.$('#kuda-sdat a[href="/markirovka"]')));
   await p.click('#sort .sg-item:has-text("Батарейки")'); await p.click('#sort .sg-more'); await p.waitForURL('**/sortirovka/batareyki');
@@ -266,6 +271,10 @@ const T = '#cabinet-tabs ';
   await api('PATCH','/collections/habits/records/'+hr0.id,{data:Object.assign({}, hr0.data, {challenges:(hr0.data.challenges||[]).concat([done])})},t);
   await p.waitForTimeout(800);
   check('passed challenge gives +50 and 7 checks', (await api('GET','/collections/users/records/'+dasha.id)).xp === 10 + 4*2 + 5 + 1 + 7*2 + 50);
+  await p.goto(B+'/kabinet?tab=challenges', {waitUntil:'networkidle'}); await p.waitForSelector('.ch-share', {timeout:5000}).catch(()=>{});
+  await p.click('.ch-share'); await p.waitForSelector('.share-img img', {timeout:8000}).catch(()=>{});
+  check('a passed challenge can be shared with a picture and an invitation link', !!(await p.$('.share-img img')) && (await p.getAttribute('.share-btns a[href^="https://t.me"]','href')).includes(encodeURIComponent('ref='+dasha.id)));
+  await p.keyboard.press('Escape');
   // article helper (role writer) sends a draft; Dasha fixes it in the cabinet and publishes
   const chars = (await api('GET','/collections/characters/records')).items;
   const wr = await api('POST','/collections/users/records',{email:'writer@test.local',password:'secret1234',passwordConfirm:'secret1234',name:'Помощник',character:chars[0].id});

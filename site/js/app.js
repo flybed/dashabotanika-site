@@ -704,6 +704,61 @@ function sortGuide(){
 
 /* ---------- calculator ---------- */
 const calcVals = Object.fromEntries(MATERIALS.map(m=>[m.k,m.def]));
+/* ---------- share a result: a 1080×1080 picture in the site's style + buttons; the link brings friends (with ?ref) ---------- */
+function wrapText(g, text, maxW){
+  const words = String(text).split(/\s+/), lines = []; let line = '';
+  for (const w of words){ const t = line ? line+' '+w : w; if (g.measureText(t).width > maxW && line){ lines.push(line); line = w; } else line = t; }
+  if (line) lines.push(line);
+  return lines;
+}
+async function drawShareCard(o){
+  try{ await Promise.all(['800 64px Alegreya','700 40px Nunito','700 44px Caveat'].map(f=>document.fonts.load(f))); }catch(e){}
+  const W = 1080, c = document.createElement('canvas'); c.width = W; c.height = W;
+  const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0,0,0,W); bg.addColorStop(0,'#F3EDE0'); bg.addColorStop(1,'#E3DAC5'); g.fillStyle = bg; g.fillRect(0,0,W,W);
+  g.fillStyle = 'rgba(134,168,92,.18)'; g.beginPath(); g.arc(W-120,170,260,0,Math.PI*2); g.fill();
+  g.fillStyle = 'rgba(214,160,60,.16)'; g.beginPath(); g.arc(90,W-60,220,0,Math.PI*2); g.fill();
+  g.fillStyle = '#3A6234'; g.font = '800 46px Alegreya, Georgia, serif'; g.textBaseline = 'alphabetic'; g.fillText('DashaBotanika', 80, 120);
+  if (o.eyebrow){ g.fillStyle = '#AD5E39'; g.font = '800 30px Nunito, Arial, sans-serif'; g.fillText(o.eyebrow.toUpperCase(), 80, 172); }
+  g.font = '170px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'right'; g.fillText(o.emoji||'🌱', W-80, 300); g.textAlign = 'left';
+  let y = 360;
+  g.fillStyle = '#232A1E'; g.font = '800 64px Alegreya, Georgia, serif';
+  wrapText(g, o.title, W-160).slice(0,3).forEach(l=>{ g.fillText(l, 80, y); y += 74; });
+  if (o.big){ y += 40; g.fillStyle = '#3A6234'; g.font = '800 150px Alegreya, Georgia, serif'; g.fillText(o.big, 76, y+90); y += 130; }
+  if (o.sub){ g.fillStyle = '#61655A'; g.font = '700 38px Nunito, Arial, sans-serif'; wrapText(g, o.sub, W-160).slice(0,2).forEach(l=>{ y += 50; g.fillText(l, 80, y); }); }
+  y += 30;
+  g.fillStyle = '#232A1E'; g.font = '600 36px Nunito, Arial, sans-serif';
+  (o.lines||[]).slice(0,3).forEach(l=>{ y += 54; g.fillText('🌿 '+l, 80, y); });
+  g.fillStyle = 'rgba(58,98,52,.12)'; g.fillRect(0, W-120, W, 120);
+  g.fillStyle = '#3A6234'; g.font = '800 34px Nunito, Arial, sans-serif'; g.textAlign = 'right'; g.fillText('dashabotanika.ru', W-80, W-50); g.textAlign = 'left';
+  const room = W - 160 - g.measureText('dashabotanika.ru').width - 40;
+  let fs = 46; g.font = '700 '+fs+'px Caveat, cursive'; while (g.measureText('Разумный человек — счастливая планета').width > room && fs > 26){ fs -= 2; g.font = '700 '+fs+'px Caveat, cursive'; }
+  g.fillStyle = '#AD5E39'; g.fillText('Разумный человек — счастливая планета', 80, W-48);
+  return new Promise(r=>c.toBlob(b=>r(b), 'image/png'));
+}
+function shareResult(o){
+  const url = location.origin + (o.path||'/') + (accState()==='member' ? (o.path && o.path.includes('?') ? '&' : '?')+'ref='+COM.uid : '');
+  const text = o.text || o.title;
+  openModal(async sheet=>{
+    sheet.classList.add('share-sheet');
+    const img = h('div',{class:'share-img'}, h('p',{class:'hint'},'Рисуем карточку…'));
+    const btns = h('div',{class:'share-btns'});
+    sheet.append(h('h3',null,'📤 Поделиться'), img, btns,
+      h('p',{class:'hint'}, accState()==='member' ? 'Ссылка — ваша приглашающая: друг получит +'+rulePoints('invited',50)+' к росту, а вы +'+rulePoints('invite_friend',40)+', когда он зарегистрируется.' : 'Картинку можно сохранить и выложить в сторис или отправить друзьям.'));
+    const blob = await drawShareCard(o);
+    const file = new File([blob], 'dashabotanika.png', {type:'image/png'}), src = URL.createObjectURL(blob);
+    MODAL_UNSUBS.push(()=>URL.revokeObjectURL(src));
+    img.replaceChildren(h('img',{src, alt:o.title}));
+    const enc = encodeURIComponent;
+    btns.replaceChildren(
+      navigator.canShare && navigator.canShare({files:[file]}) ? h('button',{type:'button',class:'btn',onclick:()=>navigator.share({files:[file], text:text+' '+url}).catch(()=>{})},'Поделиться картинкой') : null,
+      h('a',{class:'btn ghost',href:src,download:'dashabotanika.png'},'⬇️ Скачать картинку'),
+      h('a',{class:'btn ghost',href:'https://t.me/share/url?url='+enc(url)+'&text='+enc(text),target:'_blank',rel:'noopener'},'Telegram'),
+      h('a',{class:'btn ghost',href:'https://wa.me/?text='+enc(text+' '+url),target:'_blank',rel:'noopener'},'WhatsApp'),
+      h('a',{class:'btn ghost',href:'https://vk.com/share.php?url='+enc(url)+'&title='+enc(text),target:'_blank',rel:'noopener'},'ВКонтакте'));
+  });
+}
+
 function calcSection(){
   const res = h('div',{class:'result','aria-live':'polite'});
   const list = h('div',{class:'mat-list'}, MATERIALS.map(m=>{
@@ -739,7 +794,10 @@ function calcSection(){
         h('div',{class:'tile'}, h('b',null,fmt(trees,1)), h('span',null,'деревьев сохранено (бумага)')),
         h('div',{class:'tile'}, h('b',null,fmt(bat)), h('span',null,'батареек не попадут на свалку'))
       ),
-      h('p',{class:'equiv'},'Это как не проехать ', fmt(km), ' км на машине и ', fmt(fridge), ' дней работы холодильника бесплатно', water>0 ? ', плюс '+fmt(water)+' л воды на производстве бумаги' : '', '.')
+      h('p',{class:'equiv'},'Это как не проехать ', fmt(km), ' км на машине и ', fmt(fridge), ' дней работы холодильника бесплатно', water>0 ? ', плюс '+fmt(water)+' л воды на производстве бумаги' : '', '.'),
+      h('button',{type:'button',class:'btn small calc-share',onclick:()=>shareResult({emoji:'♻️', eyebrow:'Калькулятор переработки', title:'Моя польза для планеты за год', big:fmt(co2)+' кг', sub:'CO₂ не попадёт в атмосферу',
+        lines:[fmt(kg)+' кг вторсырья в год', trees >= .1 ? fmt(trees,1)+' дерева сохранено' : fmt(kwh)+' кВт·ч энергии сэкономлено', bat ? fmt(bat)+' батареек не попадут на свалку' : 'как не проехать '+fmt(km)+' км на машине'],
+        path:'/sortirovka', text:'Моя сортировка за год — это '+fmt(co2)+' кг CO₂, которые не попадут в атмосферу 🌱 А сколько у вас?'})},'📤 Поделиться результатом')
     );
   }
   paint();
@@ -779,6 +837,10 @@ function chStats(ch){
 const challenges = () => (HAB.challenges = Array.isArray(HAB.challenges) ? HAB.challenges : []);
 const chPoints = () => ((COM.growthRules.find(r=>r.key==='challenge_done')||{}).points) || 50;
 
+function shareChallenge(ch, st, g){
+  shareResult({emoji:g.ic||'🏁', eyebrow:'Эко-челлендж пройден', title:ch.title, big:ch.days+' '+plural(ch.days,'день','дня','дней'), sub:'выполнено '+Math.round(st.ratio*100)+'% привычек',
+    lines:ch.habits.slice(0,3).map(x=>x.name), path:'/', text:'Эко-челлендж «'+ch.title+'» пройден 🌿 Присоединяйтесь:'});
+}
 function challengesSection(){
   const box = h('div',{class:'chs'});
   let wizard = null, pages = {}, calMonth = iso(new Date()).slice(0,7), calDay = null;
@@ -882,7 +944,7 @@ function challengesSection(){
         ch.log = ch.log || {}; if (set.size) ch.log[d] = [...set]; else delete ch.log[d]; save();
       }})); };
     const pct = Math.round(st.ratio*100), need = Math.round(CH_PASS*100);
-    const status = st.passed ? h('span',{class:'status accepted'},'Пройден! +',chPoints(),' очков') : st.dayNo===0 ? h('span',{class:'status'},'Начнётся ',fmtDay(ch.start)) : h('span',{class:'status'},'День ',st.dayNo,' из ',ch.days);
+    const status = st.passed ? h('span',{class:'status accepted'},'Пройден! +',chPoints(),' очков', ' ', h('button',{type:'button',class:'linkish ch-share',onclick:()=>shareChallenge(ch, st, g)},'📤 Поделиться')) : st.dayNo===0 ? h('span',{class:'status'},'Начнётся ',fmtDay(ch.start)) : h('span',{class:'status'},'День ',st.dayNo,' из ',ch.days);
     return h('article',{class:'ch-card'},
       h('div',{class:'ch-head'},
         h('div',null, h('div',{class:'eyebrow'}, g.ic,' ',g.l), h('h3',{style:'font-size:22px'},ch.title), h('div',{class:'hint'}, fmtDay(ch.start),' — ',fmtDay(st.end))),
@@ -914,7 +976,8 @@ function challengesSection(){
     const st = chStats(ch), g = goalOf(ch.goal);
     return h('div',{class:'li'},
       h('div',{class:'meta'}, st.passed ? h('span',{class:'status accepted'},'✓ Пройден · +',chPoints()) : h('span',{class:'status declined'},'Не пройден'), h('span',null,g.ic,' ',g.l), h('span',null,fmtDay(ch.start),' — ',fmtDay(st.end))),
-      h('b',null,ch.title), h('span',{class:'hint'},'Выполнено ',Math.round(st.ratio*100),'% (',st.checks,' из ',st.total,' отметок)'));
+      h('b',null,ch.title), h('span',{class:'hint'},'Выполнено ',Math.round(st.ratio*100),'% (',st.checks,' из ',st.total,' отметок)'),
+      st.passed ? h('div',null, h('button',{type:'button',class:'btn ghost small ch-share',onclick:()=>shareChallenge(ch, st, g)},'📤 Поделиться')) : null);
   }
   paint();
   challengesSection.repaint = paint;
@@ -3819,7 +3882,9 @@ function examSection(){
       box.replaceChildren(pass
         ? h('div',{class:'ex-result'}, h('div',{class:'ex-confetti','aria-hidden':'true'}, ['🎉','🌿','✨','🌍','🎉','🌱','✨'].map((c,i)=>h('span',{style:'--i:'+i},c))),
             h('div',{class:'eyebrow'},'Поздравляем! Экзамен сдан'), certPreview(S.score),
-            h('p',{style:'font-weight:700'}, accState()==='member' ? 'Сертификат и +'+examPoints()+' очков роста — уже в вашем кабинете.' : 'Зарегистрируйтесь, чтобы сохранить сертификат и получить +'+examPoints()+' очков роста.'))
+            h('p',{style:'font-weight:700'}, accState()==='member' ? 'Сертификат и +'+examPoints()+' очков роста — уже в вашем кабинете.' : 'Зарегистрируйтесь, чтобы сохранить сертификат и получить +'+examPoints()+' очков роста.'),
+            h('div',null, h('button',{type:'button',class:'btn small ex-share',onclick:()=>shareResult({emoji:'🎓', eyebrow:'Эко-экзамен', title:'Эко-экзамен сдан: сертификат «Эко-знаток» мой!', big:S.score+' из 10', sub:'верных ответов о переработке, еде и быте',
+              path:'/eko-test', text:'Мой результат в эко-экзамене — '+S.score+' из 10 🎓 Проверьте себя, всего 10 вопросов:'})},'📤 Поделиться')))
         : h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'Почти получилось!'), h('h3',{class:'ex-title'},S.score,' из 10'),
             h('p',{class:'muted'},'Для сертификата нужно 8 верных ответов. Загляните в короткие уроки и попробуйте снова — вопросы каждый раз немного другие.')),
         h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'+(pass ? ';justify-content:center' : '')}, h('button',{type:'button',class:'btn',onclick:start},'Пройти ещё раз'),
