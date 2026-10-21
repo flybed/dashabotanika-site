@@ -13,6 +13,16 @@ function slugify(s) {
   const t = String(s || "").toLowerCase().split("").map((c) => (TR[c] !== undefined ? TR[c] : c)).join("")
   return t.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80)
 }
+// «в Казани»: предложный падеж для крупных городов (тот же список, что в site/js/app.js, CITY_IN), иначе «— Город»
+const CITY_IN = {"Москва":"Москве","Санкт-Петербург":"Санкт-Петербурге","Новосибирск":"Новосибирске","Екатеринбург":"Екатеринбурге","Казань":"Казани","Нижний Новгород":"Нижнем Новгороде",
+  "Челябинск":"Челябинске","Красноярск":"Красноярске","Самара":"Самаре","Уфа":"Уфе","Ростов-на-Дону":"Ростове-на-Дону","Омск":"Омске","Краснодар":"Краснодаре","Воронеж":"Воронеже",
+  "Пермь":"Перми","Волгоград":"Волгограде","Тюмень":"Тюмени","Саратов":"Саратове","Тольятти":"Тольятти","Ижевск":"Ижевске","Барнаул":"Барнауле","Иркутск":"Иркутске","Хабаровск":"Хабаровске",
+  "Ярославль":"Ярославле","Владивосток":"Владивостоке","Томск":"Томске","Оренбург":"Оренбурге","Кемерово":"Кемерове","Калининград":"Калининграде","Сочи":"Сочи","Тула":"Туле","Рязань":"Рязани"}
+const inCity = (c) => (CITY_IN[c] ? "в " + CITY_IN[c] : "— " + c)
+function approvedServices(app) { try { return app.findRecordsByFilter("services", "status = 'approved'", "name", 500, 0) } catch (e) { return [] } }
+// города, у которых есть свои сервисы, — для них есть страница /kuda-sdat/<город>
+function serviceCities(app) { return [...new Set(approvedServices(app).map((r) => r.getString("city")).filter((c) => c && c !== "Вся Россия"))] }
+
 function articleSlug(a) { return a.slug || slugify(a.title) || String(a.id) }
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
@@ -128,7 +138,24 @@ function page(path, d, k, app) {
       description: "Подборка компаний и проектов, которые принимают вторсырьё, батарейки, технику и вещи" + (cities.length ? ": " + cities.slice(0, 6).join(", ") + " и вся Россия." : " по всей России."),
       crumbs: [["Полезные сервисы", "/servisy"]],
       body: sec("services", "Куда сдать", "Полезные сервисы для экологии", "Компании и проекты, которые принимают вторсырьё, батарейки, технику и вещи.",
+        (cities.length ? `<p>Города: ${cities.map((c) => `<a href="/kuda-sdat/${slugify(c)}">${esc(c)}</a>`).join(", ")}</p>` : "") +
         items.map((r) => `<article><h3>${esc(r.getString("name"))}</h3><p>${esc(r.getString("category"))} · ${esc(r.getString("city"))}</p>${r.getString("accepts") ? `<p>Принимают: ${esc(r.getString("accepts"))}</p>` : ""}${r.getString("note") ? `<p>${esc(r.getString("note"))}</p>` : ""}</article>`).join("\n"), true),
+    })
+  }
+  const mc = path.match(/^\/kuda-sdat\/([a-z0-9-]+)$/)
+  if (mc) {
+    const city = serviceCities(app).find((c) => slugify(c) === mc[1])
+    if (!city) return null
+    const items = approvedServices(app).filter((r) => r.getString("city") === city || r.getString("city") === "Вся Россия")
+      .sort((a, b) => (a.getString("city") === "Вся Россия") - (b.getString("city") === "Вся Россия"))
+    const local = items.filter((r) => r.getString("city") === city).map((r) => r.getString("name"))
+    return Object.assign(base, {
+      title: `Куда сдать вторсырьё, батарейки и технику ${inCity(city)} — DashaBotanika`,
+      description: `Куда сдать вторсырьё, батарейки, технику и вещи ${inCity(city)}: ${local.slice(0, 3).join(", ")} и сервисы, которые работают по всей России.`,
+      crumbs: [["Полезные сервисы", "/servisy"], [city, path]],
+      body: sec("services", "Куда сдать", `Куда сдать вторсырьё, батарейки и технику ${inCity(city)}`, "Сервисы и пункты приёма в городе и те, что работают по всей России.",
+        items.map((r) => `<article><h3>${esc(r.getString("name"))}</h3><p>${esc(r.getString("category"))} · ${esc(r.getString("city"))}</p>${r.getString("accepts") ? `<p>Принимают: ${esc(r.getString("accepts"))}</p>` : ""}${r.getString("note") ? `<p>${esc(r.getString("note"))}</p>` : ""}</article>`).join("\n") +
+        `<h2>Как подготовить вторсырьё</h2><ul><li>Пластик и стекло — ополосните и снимите крышки.</li><li>Бумагу и картон — сухими, без скотча.</li><li>Батарейки и лампы — только в специальные боксы.</li></ul><p><a href="/servisy">Сервисы в других городах</a></p>`, true),
     })
   }
   if (path === "/politika") {
@@ -224,6 +251,7 @@ function sitemap(app) {
   const d = content(app, tpl)
   const urls = [["/", "weekly", "1.0"], ["/servisy", "weekly", "0.8"], ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
+  serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {
     urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
   })

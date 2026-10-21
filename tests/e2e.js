@@ -274,6 +274,11 @@ const T = '#cabinet-tabs ';
   check('after approval it shows for its city together with all-Russia services', kazan.includes('ЭкоПункт Казань') && kazan.includes('RecycleMap') && !kazan.includes('Собиратор'));
   check('services page for search engines and in the sitemap', (await (await fetch(B+'/servisy')).text()).includes('ЭкоПункт Казань') && (await (await fetch(B+'/sitemap.xml')).text()).includes('/servisy'));
   await q.locator('#services').screenshot({path:S+'/24-services.png'});
+  // a page for search engines for every city with its own services
+  const rKazan = await fetch(B+'/kuda-sdat/kazan'), kazanHtml = await rKazan.text(), rNoCity = await fetch(B+'/kuda-sdat/nowhere');
+  check('city page «в Казани» for search engines, in the sitemap; unknown city is 404', rKazan.status===200 && kazanHtml.includes('<title>Куда сдать вторсырьё, батарейки и технику в Казани') && kazanHtml.includes('ЭкоПункт Казань') && (await (await fetch(B+'/sitemap.xml')).text()).includes('/kuda-sdat/kazan') && rNoCity.status===404);
+  await q.click('#services a:has-text("Страница города")'); await q.waitForURL('**/kuda-sdat/kazan'); await q.waitForTimeout(500);
+  check('city page on the site: heading with the city and preparation tips', (await q.textContent('h1')).includes('в Казани') && !!(await q.$('.city-tips')) && (await q.textContent('#services .grid')).includes('ЭкоПункт Казань'));
   check('approved listing is public', (await api('GET','/collections/listings/records')).totalItems===1);
   // level up -> certificate
   await api('PATCH','/collections/users/records/'+dasha.id,{exam_best:8},t);
