@@ -828,6 +828,96 @@ const slugify = s => String(s||'').toLowerCase().split('').map(c=>TRANSLIT[c]!==
 const articleSlug = a => a.slug || slugify(a.title) || String(a.id);
 const articleUrl = a => '/zhurnal/'+articleSlug(a);
 const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
+/* ---------- article text: simple marks Dasha types become a nicely laid out article ----------
+   ## Заголовок · ### Подзаголовок · **жирный** · _курсив_ · [ссылка](https://…) · > совет · --- разделитель
+   - пункт · 1. пункт · ![подпись](адрес фото) на отдельной строке. Old plain-text articles keep working. */
+const MD_LINK = /^(https?:\/\/|\/)[^\s()]+$/;
+function mdInline(text){
+  const out = [], re = /\*\*([^*]+)\*\*|(?:^|(?<=[\s(«"]))_([^_]+)_|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0, m;
+  const plain = t => t.split('\n').forEach((x,i)=>{ if (i) out.push(h('br')); if (x) out.push(x); });
+  while ((m = re.exec(text))){
+    plain(text.slice(last, m.index));
+    if (m[1]) out.push(h('strong',null,m[1]));
+    else if (m[2]) out.push(h('em',null,m[2]));
+    else if (MD_LINK.test(m[4])) out.push(h('a',{href:m[4], target:m[4][0]==='/' ? null : '_blank', rel:m[4][0]==='/' ? null : 'noopener'}, m[3]));
+    else out.push(m[0]);
+    last = re.lastIndex;
+  }
+  plain(text.slice(last));
+  return out;
+}
+function mdHeadId(t, used){ let id = slugify(t) || 'chast'; while (used[id]) id += '-2'; used[id] = 1; return id; }
+function mdBlocks(src){
+  const lines = String(src||'').replace(/\r/g,'').split('\n'), out = [], heads = [], used = {};
+  let para = [], list = null, quote = null;
+  const flushPara = ()=>{ if (para.length){ out.push(h('p',null, mdInline(para.join('\n')))); para = []; } };
+  const flushList = ()=>{ if (list){ out.push(list.el); list = null; } };
+  const flushQuote = ()=>{ if (quote){ out.push(h('aside',{class:'art-tip'}, quote.map((q,i)=>h('p',null, mdInline(q))))); quote = null; } };
+  const flush = ()=>{ flushPara(); flushList(); flushQuote(); };
+  for (let i = 0; i < lines.length; i++){
+    const line = lines[i].trim();
+    let m;
+    if (!line){ flushPara(); flushQuote();
+      // a blank line between list items keeps the list going
+      if (list){ const nx = (lines.slice(i+1).find(x=>x.trim())||'').trim(); if (!(list.ordered ? /^\d+[.)]\s+/ : /^[-—–•*]\s+/).test(nx)) flushList(); }
+      continue; }
+    if ((m = line.match(/^(#{1,3})\s+(.+)$/))){ flush(); const lvl = m[1].length === 3 ? 'h3' : 'h2', id = mdHeadId(m[2], used);
+      if (lvl==='h2') heads.push([id, m[2]]); out.push(h(lvl,{id}, mdInline(m[2]))); continue; }
+    if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(line)){ flush(); out.push(h('div',{class:'art-divider',role:'separator','aria-hidden':'true'},'❦')); continue; }
+    if ((m = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && MD_LINK.test(m[2])){ flush();
+      out.push(h('figure',{class:'art-fig'}, photoImg(m[2], m[1], '', {sizes:'(max-width: 760px) 100vw, 720px'}), m[1] ? h('figcaption',null,m[1]) : null)); continue; }
+    if ((m = line.match(/^>\s?(.*)$/))){ flushPara(); flushList(); (quote = quote || []).push(m[1]); continue; }
+    if ((m = line.match(/^(\d+)[.)]\s+(.+)$/))){ flushPara(); flushQuote();
+      if (!list || !list.ordered){ flushList(); list = {ordered:true, el:h('ol',{start:m[1]!=='1' ? m[1] : null, style:m[1]!=='1' ? '--start:'+(m[1]-1) : null})}; }
+      list.el.append(h('li',null, mdInline(m[2]))); continue; }
+    if ((m = line.match(/^[-—–•*]\s+(.+)$/))){ flushPara(); flushQuote();
+      if (!list || list.ordered){ flushList(); list = {ordered:false, el:h('ul')}; }
+      list.el.append(h('li',null, mdInline(m[1]))); continue; }
+    flushList(); flushQuote(); para.push(line);
+  }
+  flush();
+  return {nodes:out, heads};
+}
+// the article without marks: for short descriptions and search snippets
+const mdPlain = s => String(s||'').replace(/!\[[^\]]*\]\([^)]*\)/g,'').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\*\*|(^|\s)_|_(\s|$)/g,'$1$2')
+  .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm,'').replace(/^\s*(-{3,}|❦+)\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+const readMinutes = s => Math.max(1, Math.round(mdPlain(s).split(/\s+/).length / 180));
+function articleBody(text){
+  const {nodes, heads} = mdBlocks(text);
+  return [heads.length >= 3 ? h('nav',{class:'art-toc','aria-label':'Содержание'}, h('div',{class:'art-toc-t'},'В статье'),
+      h('ol',null, heads.map(([id,t])=>h('li',null, h('a',{href:'#'+id}, mdPlain(t)))))) : null,
+    h('div',{class:'art-body'}, nodes)];
+}
+/* buttons above the article text: put the marks in without remembering them, and a live preview */
+function mdTools(ta){
+  const fire = ()=>ta.dispatchEvent(new Event('input',{bubbles:true}));
+  const wrap = (a, b, ph) => { const s0 = ta.selectionStart, s1 = ta.selectionEnd, sel = ta.value.slice(s0, s1) || ph;
+    ta.setRangeText(a+sel+b, s0, s1, 'end'); if (s0===s1){ ta.selectionStart = s0+a.length; ta.selectionEnd = s0+a.length+sel.length; } ta.focus(); fire(); };
+  const prefix = (pre, ph) => { const v = ta.value, s0 = v.lastIndexOf('\n', ta.selectionStart-1)+1, e0 = ta.selectionEnd, end = v.indexOf('\n', e0) < 0 ? v.length : v.indexOf('\n', e0);
+    const block = v.slice(s0, end) || ph; ta.setRangeText(block.split('\n').map(l=>l.trim() ? pre+l.replace(/^(#{1,3}|>|[-—–•*]|\d+[.)])\s+/,'') : l).join('\n'), s0, end, 'end'); ta.focus(); fire(); };
+  const insert = t => { ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end'); ta.focus(); fire(); };
+  const preview = h('div',{class:'md-preview',hidden:true});
+  const paint = ()=>{ if (!preview.hidden) preview.replaceChildren(...articleBody(ta.value).filter(Boolean)); };
+  ta.addEventListener('input', paint);
+  const b = (t, title, fn) => h('button',{type:'button',class:'md-b',title,onclick:fn}, t);
+  return h('div',{class:'md-tools'},
+    h('div',{class:'md-bar',role:'toolbar','aria-label':'Оформление текста'},
+      b('Заголовок','Раздел статьи: ## Заголовок', ()=>prefix('## ','Заголовок раздела')),
+      b('Подзаголовок','### Подзаголовок', ()=>prefix('### ','Подзаголовок')),
+      b('Ж','Жирный: **текст**', ()=>wrap('**','**','важное')),
+      b('К','Курсив: _текст_', ()=>wrap('_','_','акцент')),
+      b('• Список','Каждый пункт с новой строки: - пункт', ()=>prefix('- ','пункт')),
+      b('1. Список','1. пункт', ()=>prefix('1. ','пункт')),
+      b('💡 Совет','Выделенная плашка: > текст', ()=>prefix('> ','💡 Совет: ')),
+      b('❦ Разделитель','Декоративный разделитель: ---', ()=>insert('\n\n---\n\n')),
+      b('🔗 Ссылка','[текст](https://…)', ()=>wrap('[','](https://)','текст ссылки')),
+      EDIT.can ? b('📷 Фото','Фото с подписью внутри статьи', ()=>pickAndUpload(url=>insert('\n\n!['+'Подпись к фото'+']('+url+')\n\n'))) : null,
+      b('👁 Предпросмотр','Как это будет выглядеть', e=>{ preview.hidden = !preview.hidden; e.currentTarget.classList.toggle('on', !preview.hidden); paint(); })),
+    h('p',{class:'hint'},'Выделите текст и нажмите кнопку. Заголовки делят статью на части, «Совет» — цветная плашка, «Разделитель» — завиток между частями.'),
+    preview);
+}
+
 function articlePage(path){
   const key = decodeURIComponent(path.split('/')[2]||'');
   // old addresses keep working after the address is changed (old_slugs)
@@ -840,12 +930,14 @@ function articlePage(path){
     const others = STATE.articles.filter(a=>a!==it).slice(0,3);
     return [h('article',{class:'band art-page',id:'article'}, h('div',{class:'wrap narrow'},
       h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/zhurnal'},'Журнал')),
-      h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null),
+      h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null,
+        h('span',{class:'date'},'⏱ ',readMinutes(it.body),' мин чтения')),
       h('h1',null,it.title),
       it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title, '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
-      h('div',{class:'art-body'}, it.body),
+      ...articleBody(it.body),
+      h('div',{class:'art-end',role:'separator','aria-hidden':'true'},'❦ ❦ ❦'),
       articleEditor(it),
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/zhurnal'},'← Все статьи')),
       commentsBlock('articles:'+it.id),
@@ -868,18 +960,20 @@ function articleEditor(it){
   };
   const snip = h('div',{class:'snippet'});
   function paintSnippet(){
-    const title = it.seo_title || (it.title+' — DashaBotanika'), desc = it.seo_desc || it.lead || String(it.body||'').slice(0,160);
+    const title = it.seo_title || (it.title+' — DashaBotanika'), desc = it.seo_desc || it.lead || mdPlain(it.body).slice(0,160);
     snip.replaceChildren(h('div',{class:'sn-url'},'dashabotanika.ru › zhurnal › ', articleSlug(it)),
       h('div',{class:'sn-title'}, title.length > 65 ? title.slice(0,62)+'…' : title),
       h('div',{class:'sn-desc'}, desc.length > 165 ? desc.slice(0,162)+'…' : desc));
   }
   // the address changes — keep the old one so links already shared still open the article
   const slugWas = articleSlug(it);
+  const bodyField = field('body','Текст',{area:true,h:320});
+  bodyField.insertBefore(mdTools(bodyField.querySelector('textarea')), bodyField.querySelector('textarea'));
   const slugField = field('slug','Адрес страницы',{ph:slugWas, hint:'Латиницей, через дефис. Старый адрес продолжит открывать статью.'});
   slugField.querySelector('input').addEventListener('change', ()=>{ const now = articleSlug(it); if (now !== slugWas){ it.old_slugs = [...new Set([...(it.old_slugs||[]), slugWas])].filter(x=>x!==now); markDirty(); } });
   return h('div',{class:'form edit-only art-editor'},
     h('h3',null,'✏️ Редактировать статью'),
-    field('title','Заголовок'), field('lead','Короткое описание',{area:true,h:70}), field('body','Текст',{area:true,h:320}),
+    field('title','Заголовок'), field('lead','Короткое описание',{area:true,h:70}), bodyField,
     h('h3',{style:'margin-top:10px'},'🔎 Для поиска и ссылок'),
     h('p',{class:'hint'},'Если оставить пустым, сайт возьмёт заголовок и короткое описание статьи.'),
     field('seo_title','Заголовок в поиске',{max:60, ph:it.title+' — DashaBotanika', hint:'До 60 знаков, главный запрос — в начале. Например: «Куда сдать батарейки в Новосибирске: 5 мест».'}),
@@ -2602,7 +2696,7 @@ function paintDrafts(el){
     f.lead.value = d.lead||''; f.body.value = d.body||'';
     const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value});
     box.append(head, h('div',{class:'form draft-ed'},
-      h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead), h('label',null,'Текст статьи',f.body),
+      h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead), h('label',null,'Текст статьи',mdTools(f.body),f.body),
       d.sources ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Источники для проверки: '), d.sources) : null,
       d.note ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Заметка помощника: '), d.note) : null,
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
@@ -2624,7 +2718,7 @@ async function publishDraft(d, v, btn){
     data.articles = Array.isArray(data.articles) ? data.articles : [];
     let slug = slugify(v.title) || 'statya';
     if (data.articles.some(a=>articleSlug(a)===slug)) slug += '-'+iso(new Date());
-    const lead = v.lead || (v.body.length > 200 ? v.body.slice(0,197).replace(/\s+\S*$/,'')+'…' : v.body);
+    const plainBody = mdPlain(v.body), lead = v.lead || (plainBody.length > 200 ? plainBody.slice(0,197).replace(/\s+\S*$/,'')+'…' : plainBody);
     const art = {id:'a'+uid(), cat:v.cat||'Статья', date:iso(new Date()), title:v.title, lead, body:v.body, slug};
     data.articles.unshift(art);
     const r = await pb.collection('content').update(CONTENT.id, {data});
