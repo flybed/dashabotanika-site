@@ -3,4 +3,4 @@ Description=Daily PocketBase data backup (keeps 14 days)
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'mkdir -p /var/backups/pocketbase && tar -czf /var/backups/pocketbase/pb_data-$(date +%%F).tar.gz -C /opt/pocketbase pb_data && find /var/backups/pocketbase -name "*.tar.gz" -mtime +14 -delete'
+ExecStart=/bin/sh /srv/dashabotanika/deploy/pb-backup.sh

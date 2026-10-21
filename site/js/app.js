@@ -233,7 +233,9 @@ function hero(){
 function heroCta(){
   const box = h('div',{class:'hero-cta'});
   live(()=>{ box.replaceChildren(...(accState()==='member'
-    ? [h('a',{class:'btn',href:'/kabinet'},'Мой кабинет'), h('a',{class:'btn ghost',href:'/#steps'},'Первые шаги')]
+    ? [h('a',{class:'btn',href:'/kabinet'},'Мой кабинет'), firstStepsList().every(x=>x[3])
+        ? h('a',{class:'btn ghost',href:'/kabinet'},'Мой эко-путь')
+        : h('a',{class:'btn ghost',href:'/#steps',onclick:openSteps},'Первые шаги')]
     : [h('a',{class:'btn',href:'/kabinet?tab=register'},'Присоединиться'), h('a',{class:'btn ghost',href:'/#interests'},'Что здесь есть')])); });
   return box;
 }
@@ -285,12 +287,9 @@ function worldTeaser(){
 
 /* ---------- first steps: a guide like in games — what to do here, one step at a time ---------- */
 const STEPS_HIDE = 'db-steps-hidden';
-function firstSteps(){
-  const sec = h('section',{class:'band steps-band',id:'steps'});
-  live(()=>{
-    let hidden = false; try{ hidden = localStorage.getItem(STEPS_HIDE)==='1'; }catch(e){}
-    const member = accState()==='member';
-    const steps = [
+function firstStepsList(){
+  const member = accState()==='member';
+  return [
       ['🌱','Зарегистрироваться и выбрать персонажа','signup', member, '/kabinet?tab=register','Присоединиться'],
       ['📝','Заполнить профиль','profile_complete', member && profileDone(PROFILE.rec), '/kabinet?tab=profile#cabinet-tabs','Заполнить'],
       ['🎓','Пройти эко-тест','exam_passed', (STATS.examBest||0) > 0, '/eko-test','Пройти'],
@@ -298,7 +297,22 @@ function firstSteps(){
       ['🎮','Сыграть в «Эко-уборку»','game', (STATS.gameBest||0) > 0, '/igra','Играть'],
       ['🌍','Написать соседу в «Счастливом мире»','', member && Object.keys(COM.threads).length > 0, '/mir','В мир'],
       ['💌','Пригласить друга','invite_friend', member && COM.refs.some(r=>r.inviter===COM.uid), member ? '/kabinet?tab=profile#invite' : '/kabinet?tab=register','Пригласить']
-    ];
+  ];
+}
+// «Первые шаги» on the first screen: brings hidden hints back and scrolls to them
+function openSteps(e){
+  e.preventDefault();
+  try{ localStorage.removeItem(STEPS_HIDE); }catch(err){}
+  if (currentPath() !== '/') go('/');
+  refresh();
+  requestAnimationFrame(()=>{ const el = document.getElementById('steps'); if (el && !el.hidden) el.scrollIntoView({behavior:'smooth', block:'start'}); });
+}
+function firstSteps(){
+  const sec = h('section',{class:'band steps-band',id:'steps'});
+  live(()=>{
+    let hidden = false; try{ hidden = localStorage.getItem(STEPS_HIDE)==='1'; }catch(e){}
+    const member = accState()==='member';
+    const steps = firstStepsList();
     const done = steps.filter(x=>x[3]).length, next = steps.find(x=>!x[3]), todo = steps.filter(x=>!x[3]).map(x=>x[1]);
     if (hidden || !next){ sec.replaceChildren(); sec.hidden = true; return; }
     sec.hidden = false;
@@ -2460,7 +2474,7 @@ function cabinetTabs(tab, tid){
       out.push(h('h3',{style:'font-size:20px'},'Объявления барахолки'), h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder,
         h('h3',{style:'font-size:20px'},'Предложенные сервисы'), h('p',{class:'muted'},'Компании и проекты, которые участники предложили для раздела «Полезные сервисы».'), lists.svc,
         h('h3',{style:'font-size:20px'},'Жалобы на комментарии'), h('p',{class:'muted'},'Участники отметили эти комментарии. Удалите или оставьте — автор жалобы не узнаёт, кто решал.'), lists.rep = h('div',{class:'list'})); }
-    if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
+    if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(backupCard(), h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
     if (cur==='profile'){
       const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
       const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
@@ -2859,6 +2873,22 @@ function inviteCard(){
       h('a',{class:'btn ghost small',href:'https://wa.me/?text='+encodeURIComponent(text+' '+link),target:'_blank',rel:'noopener'},'WhatsApp'),
       navigator.share ? h('button',{type:'button',class:'btn ghost small',onclick:()=>navigator.share({title:'DashaBotanika',text,url:link}).catch(()=>{})},'Поделиться…') : null),
     friends);
+}
+/* backups of the database: is there a fresh one (the server checks every morning and writes to Telegram if not) */
+function backupCard(){
+  const box = h('div',{class:'card backup-card'}, h('p',{class:'hint'},'Проверяю резервные копии…'));
+  pb.send('/api/backup/status',{requestKey:null}).then(st=>{
+    const when = st.newest ? new Date(st.newest.at).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}) : '';
+    const mb = st.newest ? (st.newest.size/1048576).toFixed(1).replace('.',',')+' МБ' : '';
+    box.replaceChildren(
+      h('div',{class:'pf-head'}, h('h3',null, st.ok ? '✅ Резервные копии в порядке' : '⚠️ С резервными копиями проблема'),
+        h('a',{class:'btn ghost small',href:'/_/#/settings/backups',target:'_blank',rel:'noopener'},'Все копии')),
+      h('p',{class:'hint'}, !st.cron ? 'Автоматические копии выключены — включите их в настройках.' : st.newest
+        ? 'Последняя копия: '+when+' ('+mb+'). Копий сохранено: '+st.count+'. Новая делается каждую ночь в 04:00 по Москве.'
+        : 'Копий пока нет — первая появится ночью в 04:00 по Москве.'),
+      st.ok ? null : h('p',{class:'hint'},'Если подключён Telegram, каждое утро в 10:00 бот напомнит, пока копия не появится.'));
+  }).catch(()=>box.replaceChildren(h('p',{class:'hint'},'Не удалось узнать состояние резервных копий.')));
+  return box;
 }
 function setSuggStatus(id, status){
   return write('suggestions/'+id, ()=>pb.collection('suggestions').update(id,{status})).catch(writeErr);

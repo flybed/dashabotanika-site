@@ -342,6 +342,8 @@ const T = '#cabinet-tabs ';
   await lizaPick.locator('select').selectOption({label:'Даша'}); await lizaPick.locator('button').click();
   await p.waitForSelector('.toast:has-text("по приглашению")'); await p.waitForTimeout(600);
   check('admin can record who invited a member', (await p.textContent(T+'.list')).includes('пришёл(ла) по приглашению: Даша') && !(await p.$('select[aria-label="Кто пригласил Лиза"]')));
+  await p.waitForSelector('.backup-card h3', {timeout:5000}).catch(()=>{});
+  check('«Участники» shows the state of the backups for the site owner', /Резервные копии|резервными копиями/.test(await p.textContent('.backup-card')));
   // useful services: seed list, city and category filters, a member suggests one, admin approves it
   await q.goto(B+'/servisy', {waitUntil:'networkidle'}); await q.waitForSelector('#services .svc');
   check('services page lists the starting services', (await q.$$('#services .svc')).length===6 && (await q.textContent('#services')).includes('RecycleMap'));
@@ -400,6 +402,9 @@ const T = '#cabinet-tabs ';
   check('the profile says what is left and has a logout at the bottom of every tab', !!(await q.$('.pf-left')) && !!(await q.$('#cabinet-tabs .cab-foot button:has-text("Выйти из аккаунта")')));
   await q.goto(B+'/', {waitUntil:'networkidle'}); await q.waitForTimeout(600);
   check('first steps count what is done (registered, profile)', (await q.$$('#steps .step.ok')).length >= 2 && !!(await q.$('#steps .step.next')) && await q.isVisible('#steps .steps-all'));
+  await q.click('#steps .steps-hide'); await q.waitForTimeout(200);
+  await q.click('.hero-cta a:has-text("Первые шаги")'); await q.waitForTimeout(800);
+  check('«Первые шаги» on the first screen brings hidden hints back and scrolls to them', await q.isVisible('#steps .steps') && await q.$eval('#steps', el=>{ const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; }));
   await q.goto(B+'/eda', {waitUntil:'networkidle'});
   await q.waitForSelector('#helper .ai-left:has-text("скоро заработает")',{timeout:5000}).catch(()=>{});
   check('AI helper: photo buttons for members, says it is coming while there is no key', !!(await q.$('#helper button:has-text("Загрузить фото еды")')) && (await q.textContent('#helper .ai-left')).includes('скоро заработает'));
