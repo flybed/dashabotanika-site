@@ -65,6 +65,17 @@ const T = '#cabinet-tabs ';
   await z.locator('#world').screenshot({path:S+'/23-world-phone.png'});
   await z.goto(B+'/#food', {waitUntil:'networkidle'});
   check('an old link to a home section opens its own page', new URL(z.url()).pathname==='/eda' && !!(await z.$('h1:has-text("Вкусная польза")')));
+  // an article from search: a card on its topic, an invitation at the end, a thin bar after half of the text — for guests
+  await z.goto(B+'/zhurnal/sortirovka-doma-za-odin-vecher', {waitUntil:'networkidle'}); await z.waitForTimeout(400);
+  check('article: a card on its topic leads to the recycling guide, its button is readable', !!(await z.$('#article .art-body .art-cta a[href="/sortirovka#kuda-sdat"]')) && await z.$eval('.art-cta a.btn', b=>getComputedStyle(b).color !== getComputedStyle(b).backgroundColor));
+  check('article end invites a guest to join, with sharing', !!(await z.$('.art-join a[href="/kabinet?tab=register"]:has-text("Присоединиться")')) && !!(await z.$('.art-join .art-share a[href^="https://t.me"]')));
+  check('no bar before reading', !(await z.$('.reader-bar')));
+  await z.evaluate(()=>window.scrollTo(0, document.body.scrollHeight)); await z.waitForTimeout(500);
+  check('after half of the article a thin bar invites to join', await z.isVisible('.reader-bar a:has-text("Присоединиться")'));
+  await z.locator('.reader-bar').screenshot({path:S+'/30-reader-bar.png'});
+  await z.click('.reader-bar .rb-x'); check('the bar closes and does not come back on this visit', !(await z.$('.reader-bar')));
+  await z.reload({waitUntil:'networkidle'}); await z.evaluate(()=>window.scrollTo(0, document.body.scrollHeight)); await z.waitForTimeout(400);
+  check('…even after a reload', !(await z.$('.reader-bar')));
   await z.goto(B+'/kabinet?tab=register', {waitUntil:'networkidle'}); await z.waitForTimeout(500);
   const groups = await z.$$eval('.chars-g', g=>g.map(x=>x.textContent));
   check('registration opened by a link shows all 51 characters in groups', (await z.$$('.char')).length===51 && ['Звери','Редкие и исчезающие','Птицы','Морские','Необычные'].every(g=>groups.some(x=>x.startsWith(g))));
@@ -320,6 +331,7 @@ const T = '#cabinet-tabs ';
   check('server page uses the SEO title, description and cover; the old address still opens', rArt.includes('<title>Чем заменить пищевую плёнку: 5 идей для кухни</title>') && rArt.includes('content="Восковые салфетки') && /property="og:image" content="https:\/\/dashabotanika\.ru\/api\/files\/photos\//.test(rArt) && rOld.status===200 && (await rOld.text()).includes('href="https://dashabotanika.ru/zhurnal/plenka-zamena"'));
   await p.goto(B+'/zhurnal/plenka-zamena', {waitUntil:'networkidle'});
   check('article shows its cover picture', !!(await p.$('#article .art-cover img')));
+  check('a member gets «Читайте дальше» and a link to subscribe instead of the invitation', (await p.textContent('.art-join')).includes('Читайте дальше') && !(await p.$('.art-join a[href="/kabinet?tab=register"]')) && !!(await p.$('.art-join a[href="/kabinet?tab=profile#notify"]')));
   // the article text with marks: headings, bold, a tip, a divider, lists, a photo — via the editor buttons and typing
   await p.click('#edit-slot button'); await p.waitForSelector('#ae-body');
   await p.fill('#ae-body', 'Плёнка служит минуту, а лежит на свалке веками. Вот чем я её заменила.\n\n## Восковые салфетки\nОни **обнимают миску** и служат около года.\n\n> 💡 Совет:\n> мойте прохладной водой\n\n---\n\n## Крышки и контейнеры\n- стеклянные банки\n- силиконовые крышки\n\n## Что выбрать\n1. Начните с одной салфетки\n2. Добавьте крышки\n\n![Мои салфетки на кухне](/img/coffee.webp)');

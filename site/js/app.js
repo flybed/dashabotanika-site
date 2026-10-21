@@ -1176,8 +1176,10 @@ function mdBlocks(src){
 const mdPlain = s => String(s||'').replace(/!\[[^\]]*\]\([^)]*\)/g,'').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\*\*|(^|\s)_|_(\s|$)/g,'$1$2')
   .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm,'').replace(/^\s*(-{3,}|❦+)\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
 const readMinutes = s => Math.max(1, Math.round(mdPlain(s).split(/\s+/).length / 180));
-function articleBody(text){
+function articleBody(text, mid){
   const {nodes, heads} = mdBlocks(text);
+  // the «mid» card goes before the third section (or after the third block), so it meets the reader halfway
+  if (mid){ let n = 0, at = nodes.findIndex(x=>x.tagName==='H2' && ++n===3); if (at < 0) at = nodes.length >= 5 ? 3 : nodes.length; nodes.splice(at, 0, mid); }
   return [heads.length >= 3 ? h('nav',{class:'art-toc','aria-label':'Содержание'}, h('div',{class:'art-toc-t'},'В статье'),
       h('ol',null, heads.map(([id,t])=>h('li',null, h('a',{href:'#'+id}, mdPlain(t)))))) : null,
     h('div',{class:'art-body'}, nodes)];
@@ -1275,6 +1277,75 @@ function markingHub(){
   )), guideIndex('mark')];
 }
 
+/* ---------- article funnel: a card on the topic in the middle, an invitation at the end, a thin bar for guests ---------- */
+function goal(name){ try{ if (window.ym && window.METRIKA_ID) ym(window.METRIKA_ID, 'reachGoal', name); }catch(e){} }
+const ART_CTA = {
+  'Научиться сортировать отходы':['♻️','Не знаете, куда сдать?','Справочник для 11 видов отходов: что принимают, как подготовить и где сдать в вашем городе.','Открыть справочник','/sortirovka#kuda-sdat'],
+  'Меньше мусора и пластика':['🔎','Что значит цифра в треугольнике?','Маркировка пластика 1–7: какой пластик сдаётся, а какой лучше не покупать.','Маркировка пластика','/markirovka'],
+  'Покупать осознанно: меньше и лучше':['📦','Вещи, которые ещё послужат','Барахолка участников: отдайте, обменяйте или найдите нужное рядом с домом.','В барахолку','/baraholka'],
+  'Питаться экологичнее':['🥗','Меню на неделю за минуту','Сезонные продукты и список покупок. Любое блюдо можно заменить.','Собрать меню','/eda#menu'],
+  'Экономить воду и энергию':['🏁','Закрепите привычку за 7 дней','Эко-челлендж: выберите 3–5 привычек и отмечайте каждый день — ваш персонаж будет расти.','Начать челлендж','/kabinet?tab=challenges'],
+  'Экологичный гардероб':['👗','Гардероб без лишнего','Шпаргалка по тканям, капсульный гардероб и барахолка участников.','Раздел «Мода»','/moda'],
+  'Здоровье и чистый воздух':['🌤️','Чем дышит ваш город?','Индекс качества воздуха прямо сейчас и прогноз на сутки.','Проверить воздух','/vozduh'],
+  'Научить детей заботиться о планете':['🎮','Игра «Эко-уборка»','Сортировка мусора на скорость — понятно и весело даже детям.','Играть','/igra'],
+  '':['🎓','Проверьте себя за 3 минуты','Эко-тест: 10 вопросов о переработке, еде и быте и именной сертификат.','Пройти тест','/eko-test']
+};
+function articleTopic(it){ let best = '', top = 0; ART_TOPICS.forEach(g=>{ const sc = articleScore(it, [g]).score; if (sc > top){ top = sc; best = g; } }); return top >= 2 ? best : ''; }
+function midCta(it){
+  const [ic, t, d, b, href] = ART_CTA[articleTopic(it)];
+  return h('aside',{class:'art-cta'}, h('span',{class:'art-cta-ic','aria-hidden':'true'},ic),
+    h('div',{class:'art-cta-tx'}, h('b',null,t), h('span',null,d)),
+    h('a',{class:'btn small',href,onclick:()=>goal('article_cta_mid')},b+' →'));
+}
+function endCta(it){
+  const box = h('div',{class:'art-join'});
+  live(()=>{
+    const enc = encodeURIComponent, url = location.origin+articleUrl(it)+(accState()==='member' ? '?ref='+COM.uid : '');
+    const share = h('div',{class:'art-share'}, h('span',{class:'hint'},'Поделиться:'),
+      h('a',{class:'chip',href:'https://t.me/share/url?url='+enc(url)+'&text='+enc(it.title),target:'_blank',rel:'noopener',onclick:()=>goal('article_share')},'Telegram'),
+      h('a',{class:'chip',href:'https://wa.me/?text='+enc(it.title+' '+url),target:'_blank',rel:'noopener',onclick:()=>goal('article_share')},'WhatsApp'),
+      h('a',{class:'chip',href:'https://vk.com/share.php?url='+enc(url)+'&title='+enc(it.title),target:'_blank',rel:'noopener',onclick:()=>goal('article_share')},'ВКонтакте'));
+    if (accState()==='member'){
+      const next = articlesFor(myInterests().length ? myInterests() : [articleTopic(it)].filter(Boolean), 4).map(x=>x.a).filter(a=>a!==it)[0] || STATE.articles.find(a=>a!==it);
+      box.className = 'art-join member';
+      box.replaceChildren(
+        next ? h('div',null, h('div',{class:'eyebrow'},'Читайте дальше'), h('a',{class:'art-next',href:articleUrl(next),onclick:()=>goal('article_next')}, next.title,' →')) : null,
+        share, h('a',{class:'linkish',href:'/kabinet?tab=profile#notify'},'📬 Получать новые статьи на почту или в Telegram'));
+      return;
+    }
+    box.className = 'art-join';
+    box.replaceChildren(
+      h('div',{class:'art-join-tx'}, h('div',{class:'eyebrow'},'Понравилась статья?'),
+        h('h2',null,'Оставайтесь — с нами экологичная жизнь проще'),
+        h('ul',null, ['🌱 свой персонаж в «Счастливом мире», который растёт вместе с привычками','🏁 эко-челленджи с напоминаниями в Telegram','📬 письмо недели: новые статьи и что нового в сообществе'].map(x=>h('li',null,x))),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+          h('a',{class:'btn',href:'/kabinet?tab=register',onclick:()=>goal('article_cta_join')},'Присоединиться — 1 минута'),
+          h('a',{class:'btn ghost',href:'/eko-test',onclick:()=>goal('article_cta_test')},'Сначала эко-тест'))),
+      share);
+  });
+  return box;
+}
+// a thin bar for guests who read more than half of the article; once per visit, with ×
+let READER_BAR = null; // only one at a time, even when the page is drawn again
+function readerBar(){
+  if (READER_BAR) READER_BAR();
+  let shown = false; try{ shown = sessionStorage.getItem('db-reader-bar')==='1'; }catch(e){}
+  if (shown || accState()==='member') return;
+  const bar = h('div',{class:'reader-bar',role:'complementary','aria-label':'Приглашение'},
+    h('span',{'aria-hidden':'true',style:'font-size:22px'},'🌱'), h('span',{class:'rb-t'},'Нравится? Присоединяйтесь — это бесплатно'),
+    h('a',{class:'btn small',href:'/kabinet?tab=register',onclick:()=>{ goal('article_cta_bar'); close(); }},'Присоединиться'),
+    h('button',{type:'button',class:'rb-x','aria-label':'Закрыть',onclick:()=>close()},'×'));
+  const close = ()=>{ bar.remove(); window.removeEventListener('scroll', onScroll); if (READER_BAR === close) READER_BAR = null; };
+  READER_BAR = close;
+  const onScroll = ()=>{
+    const art = document.querySelector('#article .art-body'); if (!art || accState()==='member') return;
+    const r = art.getBoundingClientRect();
+    if (r.top + r.height/2 < innerHeight*0.6){ document.body.append(bar); try{ sessionStorage.setItem('db-reader-bar','1'); }catch(e){} window.removeEventListener('scroll', onScroll); }
+  };
+  window.addEventListener('scroll', onScroll, {passive:true});
+  PAGE_UNSUBS.push(close);
+}
+
 function articlePage(path){
   const key = decodeURIComponent(path.split('/')[2]||'');
   // old addresses keep working after the address is changed (old_slugs)
@@ -1284,6 +1355,7 @@ function articlePage(path){
     h('a',{class:'btn',href:'/zhurnal'},'Все статьи')))]};
   return {title:it.title+' — DashaBotanika', render:()=>{
     live(()=>{ if (COM.uid) markRead(it.id); });
+    setTimeout(readerBar);
     const others = STATE.articles.filter(a=>a!==it).slice(0,3);
     return [h('article',{class:'band art-page',id:'article'}, h('div',{class:'wrap narrow'},
       h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/zhurnal'},'Журнал')),
@@ -1293,8 +1365,9 @@ function articlePage(path){
       it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title, '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
-      ...articleBody(it.body),
+      ...articleBody(it.body, midCta(it)),
       h('div',{class:'art-end',role:'separator','aria-hidden':'true'},'❦ ❦ ❦'),
+      endCta(it),
       articleEditor(it),
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/zhurnal'},'← Все статьи')),
       commentsBlock('articles:'+it.id),
