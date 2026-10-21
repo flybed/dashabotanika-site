@@ -1108,3 +1108,9 @@ details.fold[open] > summary{margin-bottom:12px}
 .notify-t input:disabled{opacity:.35;cursor:not-allowed}
 .notify-tg{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
 @media (max-width:520px){ .notify-t td{width:64px} .notify-t thead th{font-size:12px} }
+/* journal: articles for your interests */
+.for-you{display:grid;gap:12px;margin-bottom:28px;padding:18px 20px;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
+.fy-head{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline}
+.fy-chips .chip{font-size:13.5px;padding:6px 12px}
+.fy-t{font-size:22px;margin:8px 0 12px}
+.fy-all{font-size:26px;margin:4px 0 16px}

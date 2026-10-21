@@ -988,19 +988,77 @@ function articleEditor(it){
     h('p',{class:'hint'},'После правок нажмите «Сохранить изменения» внизу экрана.'));
 }
 
+/* ---------- articles for you: the interests from the profile (or chosen right in the journal) pick the articles ---------- */
+const ART_WORDS = {
+  'Меньше мусора и пластика':['пластик','многоразов','упаковк','отход','мусор','плёнк','пленк','шопер','бутыл','одноразов'],
+  'Научиться сортировать отходы':['сортир','переработ','вторсыр','батаре','макулатур','маркировк','пункт','раздельн','сдать','сдават'],
+  'Покупать осознанно: меньше и лучше':['осознанн','покупк','потреблен','барахолк','вторая жизнь','ремонт','капсул','меньше вещ'],
+  'Питаться экологичнее':['еда','еду','рецепт','сезонн','овощ','кухн','меню','продукт','растительн','завтрак','ужин'],
+  'Экономить воду и энергию':['вод','энерг','электр','свет','отоплен','ламп','счёт','счет','экономи'],
+  'Экологичный гардероб':['одежд','гардероб','капсул','ткан','мода','моды','стирк','вещи','вещей'],
+  'Здоровье и чистый воздух':['воздух','здоров','смог','растени','велосипед','прогулк','дыш'],
+  'Научить детей заботиться о планете':['дет','ребён','ребен','семь','школ','игр']
+};
+const ART_TOPICS = Object.keys(ART_WORDS);
+const ART_KEY = 'db-art-interests';
+function myInterests(){
+  try{ const v = JSON.parse(localStorage.getItem(ART_KEY)||'null'); if (Array.isArray(v)) return v.filter(x=>ART_WORDS[x]); }catch(e){}
+  return ((PROFILE.rec && PROFILE.rec.goals) || []).filter(x=>ART_WORDS[x]);
+}
+function articleScore(a, topics){
+  const t = String(a.title||'').toLowerCase(), l = String(a.lead||'').toLowerCase(), b = mdPlain(a.body).toLowerCase();
+  let score = 0; const why = [];
+  topics.forEach(g=>{ let s1 = 0; ART_WORDS[g].forEach(w=>{ if (t.includes(w)) s1 += 3; else if (l.includes(w)) s1 += 2; else if (b.includes(w)) s1 += 1; }); if (s1){ score += s1; why.push(g); } });
+  return {score, why};
+}
+function articlesFor(topics, n){
+  return STATE.articles.map((a,i)=>Object.assign({a, i}, articleScore(a, topics))).filter(x=>x.score >= 2).sort((x,y)=>y.score-x.score || x.i-y.i).slice(0, n||3);
+}
+function articleCard(it, why){
+  return h('article',{class:'card'},
+    it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, '')) : null,
+    why && why.length ? h('div',{class:'picked-why'}, why.slice(0,2).map(w=>h('span',null,'🎯 '+w.toLowerCase()))) : null,
+    h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
+    h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
+    h('p',{class:'muted',style:'font-size:15px'},it.lead));
+}
+// chips «Что вам интересно?» and the «Для вас» row; remembered in this browser
+function forYouBlock(){
+  const box = h('div',{class:'for-you'});
+  if (accState()==='member' && !PROFILE.loaded) loadProfile();
+  live(()=>{
+    const sel = new Set(myInterests());
+    const chips = ART_TOPICS.map(g=>h('button',{type:'button',class:'chip'+(sel.has(g)?' on':''),'aria-pressed':String(sel.has(g)),onclick:()=>{
+      sel.has(g) ? sel.delete(g) : sel.add(g); try{ localStorage.setItem(ART_KEY, JSON.stringify([...sel])); }catch(e){} refresh(); }}, g));
+    const picks = sel.size ? articlesFor([...sel], 3) : [];
+    box.replaceChildren(
+      h('div',{class:'fy-head'}, h('b',null,'Что вам интересно?'), h('span',{class:'hint'}, accState()==='member' ? 'Сначала — эко-цели из вашего профиля. Можно менять прямо здесь.' : 'Отметьте темы — подберём статьи. Запомним в этом браузере.')),
+      h('div',{class:'chips fy-chips'}, chips),
+      sel.size ? (picks.length ? h('div',null, h('h3',{class:'fy-t'},'📌 Для вас'), h('div',{class:'grid g3'}, picks.map(x=>articleCard(x.a, x.why))))
+        : h('p',{class:'hint'},'По этим темам статей пока нет — Даша скоро напишет. Пока загляните в остальные ниже.')) : null);
+  });
+  return box;
+}
+
 function journalSection(preview){
   const items = preview ? STATE.articles.slice(0,3) : STATE.articles;
-  if (preview) return h('section',{class:'band',id:'journal'}, h('div',{class:'wrap'},
-    sectionHead('Журнал','Свежее в журнале'),
-    items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
-      it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, '')) : null,
-      h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
-      h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
-      h('p',{class:'muted',style:'font-size:15px'},it.lead)))) : h('div',{class:'empty'},'Статьи скоро появятся.'),
-    h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/zhurnal'},'Все статьи'))));
+  // on the home page: articles for your interests when they are known, otherwise the freshest
+  if (preview){
+    const box = h('div');
+    live(()=>{
+      const topics = myInterests(), picks = topics.length ? articlesFor(topics, 3) : [];
+      const list = picks.map(x=>[x.a, x.why]).concat(STATE.articles.filter(a=>!picks.some(x=>x.a===a)).map(a=>[a, null])).slice(0,3);
+      box.replaceChildren(sectionHead('Журнал', picks.length ? 'Для вас в журнале' : 'Свежее в журнале'),
+        list.length ? h('div',{class:'grid g3'}, list.map(([a,why])=>articleCard(a, why))) : h('div',{class:'empty'},'Статьи скоро появятся.'),
+        h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/zhurnal'},'Все статьи')));
+    });
+    return h('section',{class:'band',id:'journal'}, h('div',{class:'wrap'}, box));
+  }
   return h('section',{class:'band alt',id:'journal'}, h('div',{class:'wrap'},
     sectionHead('Журнал','Новости и статьи','Заметки об экологичной жизни. Есть тема или новость? Предложите её в личном кабинете, лучшие появятся здесь.'),
     h('div',{style:'margin:-12px 0 24px'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>openAccount('suggest')},'Предложить новость или статью')),
+    forYouBlock(),
+    h('h2',{class:'fy-all'},'Все статьи'),
     items.length ? h('div',{class:'grid g3'}, items.map(it=>{
       const more = h('a',{class:'linkish',href:articleUrl(it)},'Читать полностью');
       return h('article',{class:'card'},
