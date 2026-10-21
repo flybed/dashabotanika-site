@@ -35,8 +35,9 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS"].forEach((name) => {
-    const m = src.match(new RegExp(`const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES"].forEach((name) => {
+    // DISHES — массив, который дальше превращается в объекты через .map
+    const m = src.match(new RegExp(name === "DISHES" ? `const DISHES = (\\[[\\s\\S]*?\\n\\])\\.map` : `const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
   })
   out.NAV = out.NAV_GROUPS.reduce((all, g) => all.concat(g[1] || []), [])
@@ -71,28 +72,78 @@ function sec(id, eyebrow, title, lead, body, h1) {
 const productsHtml = (list) => list.map((p) => `<article><h3>${esc(p.title)}</h3>${p.replaces ? `<p>Вместо: ${esc(p.replaces)}</p>` : ""}<p>${esc(p.why)}</p></article>`).join("\n")
 const articleLink = (a) => `<article><h3><a href="/zhurnal/${esc(articleSlug(a))}">${esc(a.title)}</a></h3><p>${esc(a.lead)}</p></article>`
 
+// Разделы, которые раньше были блоками главной, теперь — отдельные страницы со своим текстом для поиска.
+const ladderHtml = (k) => `<ol>${k.ECO_LADDER.map((r) => `<li><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p><p>${esc((r.ex || []).join(", "))}</p></li>`).join("")}</ol>`
+const SECTION_PAGES = {
+  "/eda": {
+    title: "Эко-еда: сезонные продукты, рецепты без отходов и меню на неделю — DashaBotanika",
+    description: "Сезонные продукты, рецепты без отходов, конструктор меню на неделю со списком покупок и подборка кафе, где вкусно и бережно.",
+    name: "Еда",
+    body: (d, k) => sec("food", "Еда", "Вкусная польза!", "Сезонные продукты вкуснее, дешевле и не летят к нам через полмира. А очистки и хвостики могут стать ещё одним блюдом.",
+      `<h3>Рецепты без отходов</h3>` + k.RECIPES.map(([t, time, steps]) => `<article><h3>${esc(t)}</h3><p>${esc(time)}</p><ol>${steps.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></article>`).join("\n"), true) +
+      sec("menu", "Конструктор меню", "Меню на неделю за минуту", "Выберите цель и тип питания — соберём простое меню из сезонных продуктов и список покупок. Любое блюдо можно заменить.",
+        `<ul>${k.DISHES.slice(0, 30).map((x) => `<li>${esc(x[0])}</li>`).join("")}</ul>`) +
+      sec("cafes", "Куда пойти", "Моя подборка кафе", "Места, где вкусно и бережно: сезонное меню, своя кружка, минимум одноразового.",
+        (d.cafes || []).filter((c) => !c.example).map((c) => `<article><h3>${esc(c.name)}</h3><p>${esc([c.kind, c.city, c.address].filter(Boolean).join(", "))}</p><p>${esc(c.note)}</p></article>`).join("\n")),
+  },
+  "/sortirovka": {
+    title: "Как сортировать мусор дома: что куда сдавать и калькулятор пользы — DashaBotanika",
+    description: "Простая схема сортировки отходов дома: что куда сдавать, как готовить пластик, бумагу, стекло и батарейки, и калькулятор пользы от переработки.",
+    name: "Сортировка и переработка",
+    body: (d, k) => sec("sort", "Эко-путь", "Начать путь в экологии — легко", "Лучший мусор тот, которого не было.", ladderHtml(k), true) +
+      sec("calc", "Калькулятор переработки", "Сколько пользы в вашем мусорном ведре?", "Укажите, сколько отходов вы сдаёте на переработку, и посмотрите, сколько деревьев, воды и энергии это сберегает.",
+        `<p><a href="/servisy">Куда сдать вторсырьё в вашем городе</a></p>`),
+  },
+  "/moda": {
+    title: "Эко-мода: капсульный гардероб, ткани и вторая жизнь вещей — DashaBotanika",
+    description: "Как одеваться осознанно: капсульный гардероб, шпаргалка по тканям с эко-оценкой, уход за вещами и барахолка, где вещи получают вторую жизнь.",
+    name: "Мода",
+    body: (d, k) => sec("fashion", "Модная экология", "Одежда и аксессуары", "Самая экологичная вещь та, что уже висит в вашем шкафу.",
+      k.FASHION_TIPS.map(([t, x]) => `<h3>${esc(t)}</h3><p>${esc(x)}</p>`).join("\n") +
+      `<h3>Шпаргалка по тканям</h3><table><tr><th>Ткань</th><th>Плюсы</th><th>Минусы</th><th>Эко-оценка</th></tr>${k.FABRICS.map(([n, p, m, x]) => `<tr><td>${esc(n)}</td><td>${esc(p)}</td><td>${esc(m)}</td><td>${x} из 5</td></tr>`).join("")}</table>` +
+      `<p><a href="/baraholka">Барахолка</a> · <a href="/tovary">Эко-товары</a></p>`, true),
+  },
+  "/vozduh": {
+    title: "Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika",
+    description: "Индекс качества воздуха в вашем городе прямо сейчас и прогноз на сутки: когда лучше гулять и проветривать.",
+    name: "Чистота воздуха",
+    body: () => sec("air", "Чистота воздуха", "Чем дышит ваш город?", "Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки.", "", true),
+  },
+  "/igra": {
+    title: "Игра «Эко-уборка»: сортируй мусор на скорость — DashaBotanika",
+    description: "Бесплатная онлайн-игра про сортировку отходов: собирайте мусор в парке и относите в нужный контейнер. Подходит детям и взрослым.",
+    name: "Игра «Эко-уборка»",
+    body: () => sec("game", "Игра", "Эко-уборка", "Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер. Чем быстрее и точнее, тем больше очков.", `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true),
+  },
+  "/mir": {
+    title: "Счастливый мир участников DashaBotanika",
+    description: "Сообщество DashaBotanika: каждый участник — животное или растение, которое растёт вместе с его эко-привычками.",
+    name: "Счастливый мир",
+    body: () => sec("world", "Счастливый мир", "Наш эко-мир", "Каждый участник — животное или растение. Чем больше нас, тем живее мир.", `<p><a href="/kabinet?tab=register">Поселиться в мире</a></p>`, true),
+  },
+  "/zhurnal": {
+    title: "Журнал: статьи и новости об экологичной жизни — DashaBotanika",
+    description: "Статьи Даши об экологичной жизни: сортировка, еда, мода и быт — практично и без занудства.",
+    name: "Журнал",
+    body: (d) => sec("journal", "Журнал", "Новости и статьи", "Заметки об экологичной жизни.", (d.articles || []).map(articleLink).join("\n"), true),
+  },
+  "/o-proekte": {
+    title: "О проекте DashaBotanika: Даша, контакты и обратная связь — DashaBotanika",
+    description: "Кто делает DashaBotanika, как связаться с Дашей и как предложить идею или сообщить о замечании.",
+    name: "О проекте",
+    body: (d) => `<section id="about"><div class="wrap"><h1>${esc((d.about || {}).name || "Даша")}</h1>${paras((d.about || {}).text)}</div></section>\n` +
+      sec("feedback", "Обратная связь", "Помогите сделать сайт лучше", "Напишите свои замечания и предложения — Даша читает каждое сообщение.") +
+      sec("contacts", "Контакты", "Давайте дружить", (d.contacts || {}).note || ""),
+  },
+}
+
 function homeHtml(d, k) {
   const arts = d.articles || []
   return [
-    `<section id="top"><div class="wrap"><h1>Эко: еда, быт, мода, образ жизни!</h1><p>Разумный человек — счастливая планета</p><p>Без занудства и чувства вины, о простых шагах, которые делают жизнь вкуснее, красивее и чище.</p></div></section>`,
-    sec("calc", "Калькулятор переработки", "Сколько пользы в вашем мусорном ведре?", "Укажите, сколько отходов вы сдаёте на переработку, и посмотрите, сколько деревьев, воды и энергии это сберегает."),
-    sec("sort", "Эко-путь", "Начать путь в экологии — ЛЕГКО", "Лучший мусор тот, которого не было.",
-      `<ol>${k.ECO_LADDER.map((r) => `<li><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p><p>${esc((r.ex || []).join(", "))}</p></li>`).join("")}</ol><h3>Сортировка за 3 шага</h3>`),
-    sec("exam", "Эко-экзамен", "Пройдите тест по экологии и получите сертификат", "10 вопросов о переработке, еде и быте.", `<p><a href="/eko-test">Пройти тест</a></p>`),
-    sec("world", "Счастливый мир", "Наш эко-мир", "Каждый участник — животное или растение. Чем больше нас, тем живее мир."),
-    sec("goods", "Быт", "Товары, которые делают мир чище", "Вещи, которые один раз покупаешь и годами не производишь мусор.",
-      productsHtml((d.products || []).slice(0, 4)) + `<p><a href="/tovary">Смотреть больше</a></p>`),
-    sec("air", "Чистота воздуха", "Чем дышит ваш город?", "Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки."),
-    sec("game", "Игра", "Эко-уборка", "Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер."),
-    sec("fashion", "Модная экология", "Одежда и аксессуары", "Самая экологичная вещь та, что уже висит в вашем шкафу.",
-      k.FASHION_TIPS.map(([t, x]) => `<h3>${esc(t)}</h3><p>${esc(x)}</p>`).join("\n") +
-      `<h3>Шпаргалка по тканям</h3><table><tr><th>Ткань</th><th>Плюсы</th><th>Минусы</th><th>Эко-оценка</th></tr>${k.FABRICS.map(([n, p, m, s]) => `<tr><td>${esc(n)}</td><td>${esc(p)}</td><td>${esc(m)}</td><td>${s} из 5</td></tr>`).join("")}</table>`),
-    sec("food", "Еда", "Вкусная польза!", "Сезонные продукты вкуснее, дешевле и не летят к нам через полмира.",
-      `<h3>Рецепты без отходов</h3>` + k.RECIPES.map(([t, time, steps]) => `<article><h3>${esc(t)}</h3><p>${esc(time)}</p><ol>${steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol></article>`).join("\n")),
-    sec("cafes", "Куда пойти", "Моя подборка кафе", "Места, где вкусно и бережно: сезонное меню, своя кружка, минимум одноразового.",
-      (d.cafes || []).filter((c) => !c.example).map((c) => `<article><h3>${esc(c.name)}</h3><p>${esc([c.kind, c.city, c.address].filter(Boolean).join(", "))}</p><p>${esc(c.note)}</p></article>`).join("\n")),
-    sec("market", "Вторая жизнь вещей", "Барахолка", "Отдавайте, меняйте и продавайте то, что ещё послужит другим.", `<p><a href="/baraholka">Перейти в барахолку</a></p>`),
-    sec("journal", "Журнал", "Новости и статьи", "Заметки об экологичной жизни.", arts.map(articleLink).join("\n")),
+    `<section id="top"><div class="wrap"><h1>Эко: еда, быт, мода, образ жизни!</h1><p>Разумный человек — счастливая планета</p><p>Сообщество людей, которые делают жизнь вкуснее, красивее и чище — маленькими шагами, без занудства и чувства вины.</p></div></section>`,
+    sec("interests", "С чего начнём?", "Что вам интересно", "",
+      `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/baraholka">Барахолка</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
+    sec("journal", "Журнал", "Свежее в журнале", "", arts.slice(0, 3).map(articleLink).join("\n") + `<p><a href="/zhurnal">Все статьи</a></p>`),
     sec("about", "Про меня", (d.about || {}).name || "Даша", "", paras((d.about || {}).text)),
   ].join("\n")
 }
@@ -166,6 +217,8 @@ function page(path, d, k, app) {
       body: `<section class="band"><div class="wrap"><h1>Политика конфиденциальности</h1><p>Какие данные собирает сайт dashabotanika.ru, зачем и как мы их защищаем — в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p></div></section>`,
     })
   }
+  const sp = SECTION_PAGES[path]
+  if (sp) return Object.assign(base, { title: sp.title, description: sp.description, crumbs: [[sp.name, path]], body: sp.body(d, k) })
   if (path === "/kabinet") return Object.assign(base, { title: "Личный кабинет — DashaBotanika", noindex: true, crumbs: [["Личный кабинет", "/kabinet"]], body: "<h1>Личный кабинет</h1>" })
   const m = path.match(/^\/zhurnal\/([^/]+)$/)
   if (m) {
@@ -178,10 +231,10 @@ function page(path, d, k, app) {
     const image = a.image ? (/^https?:/.test(a.image) ? a.image : ORIGIN + a.image) : null
     return Object.assign(base, {
       title: a.seo_title || `${a.title} — DashaBotanika`, description: desc, type: "article", canonical: url, image,
-      crumbs: [["Журнал", "/#journal"], [a.title, url]],
+      crumbs: [["Журнал", "/zhurnal"], [a.title, url]],
       ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, datePublished: a.date || undefined, inLanguage: "ru", image: image || undefined,
         author: { "@type": "Person", name: (d.about || {}).name || "Даша" }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }],
-      body: `<article class="band"><div class="wrap"><p><a href="/#journal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${paras(a.body)}</div></article>`,
+      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${paras(a.body)}</div></article>`,
     })
   }
   return null
@@ -249,7 +302,8 @@ function render(app, path) {
 function sitemap(app) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl)
-  const urls = [["/", "weekly", "1.0"], ["/servisy", "weekly", "0.8"], ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"]]
+  const urls = [["/", "weekly", "1.0"], ["/zhurnal", "daily", "0.9"], ["/eda", "monthly", "0.8"], ["/sortirovka", "monthly", "0.8"], ["/servisy", "weekly", "0.8"], ["/moda", "monthly", "0.7"],
+    ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {

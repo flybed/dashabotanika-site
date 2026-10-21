@@ -34,13 +34,23 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 /* ---------- static content ---------- */
 // menu in three groups; the server reads this list too (pb_hooks/seo.js) to give search engines the links
 const NAV_GROUPS = [
-  ['Сообщество', [['/#world','Счастливый мир'],['/#journal','Журнал'],['/baraholka','Барахолка'],['/#feedback','Обратная связь']]],
-  ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/#game','Игра «Эко-уборка»'],['/#calc','Переработка и сортировка']]],
-  ['Жить экологично', [['/servisy','Полезные сервисы'],['/tovary','Товары'],['/#food','Еда'],['/#menu','Конструктор меню'],['/#fashion','Мода'],['/#cafes','Кафе'],['/#air','Чистота воздуха']]]
+  ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/baraholka','Барахолка'],['/o-proekte','О проекте и обратная связь']]],
+  ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»'],['/sortirovka','Сортировка и переработка']]],
+  ['Жить экологично', [['/servisy','Полезные сервисы'],['/tovary','Товары'],['/eda','Еда и рецепты'],['/eda#menu','Конструктор меню'],['/eda#cafes','Кафе'],['/moda','Мода'],['/vozduh','Чистота воздуха']]]
 ];
-// the same sections as round icons under the first screen
-const SECTIONS = [['🌍','Мир','/#world'],['🏁','Челленджи','/kabinet#challenges'],['🎓','Эко-тест','/eko-test'],['🎮','Игра','/#game'],['🌤️','Воздух','/#air'],['♻️','Переработка','/#calc'],['🗺️','Сервисы','/servisy'],
-  ['🛍️','Товары','/tovary'],['📦','Барахолка','/baraholka'],['🥗','Еда','/#food'],['👗','Мода','/#fashion'],['☕','Кафе','/#cafes'],['📖','Журнал','/#journal']];
+// the home page is a crossroads: six interests, each leads to its own pages
+const INTERESTS = [
+  ['🥗','Еда','/eda','Сезонные продукты, рецепты без отходов, меню на неделю и кафе',[['Меню на неделю','/eda#menu'],['Кафе','/eda#cafes'],['ИИ по фото','/eda#helper']]],
+  ['♻️','Сортировка','/sortirovka','Что куда сдавать, как готовить вторсырьё и сколько пользы это даёт',[['Калькулятор','/sortirovka#calc'],['Куда сдать в городе','/servisy']]],
+  ['👗','Мода и вещи','/moda','Капсульный гардероб, ткани, уход, вторая жизнь вещей',[['Барахолка','/baraholka'],['Эко-товары','/tovary']]],
+  ['🌤️','Мой город','/vozduh','Чистота воздуха сейчас и пункты приёма вторсырья рядом',[['Воздух','/vozduh'],['Сервисы','/servisy']]],
+  ['🎮','Учиться и играть','/eko-test','Эко-тест с сертификатом, игра и челленджи с привычками',[['Эко-тест','/eko-test'],['Игра','/igra'],['Челленджи','/kabinet#challenges']]],
+  ['🌍','Сообщество','/mir','«Счастливый мир» участников, журнал и обратная связь',[['Мир','/mir'],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
+];
+// sections used to live on the home page: old links like /#food now open their own pages
+const OLD_ANCHORS = {'#food':'/eda','#menu':'/eda#menu','#cafes':'/eda#cafes','#helper':'/eda#helper','#sort':'/sortirovka','#calc':'/sortirovka#calc',
+  '#fashion':'/moda','#air':'/vozduh','#game':'/igra','#world':'/mir','#journal':'/zhurnal','#feedback':'/o-proekte#feedback','#contacts':'/o-proekte#contacts',
+  '#goods':'/tovary','#market':'/baraholka','#exam':'/eko-test','#sections':'/#interests'};
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -172,7 +182,7 @@ function render(){
     )),
     h('main',null, path !== '/' ? backBar() : null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'+(ART_RE.test(path) || path==='/politika' ? ' narrow' : path==='/kabinet' && accState()!=='member' ? ' narrow auth' : '')},
-      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/politika'},'Политика конфиденциальности')),
+      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/o-proekte'},'О проекте'), ' · ', h('a',{href:'/o-proekte#feedback'},'Обратная связь'), ' · ', h('a',{href:'/politika'},'Политика конфиденциальности')),
       h('span',{id:'edit-slot'})
     )),
     editBar()
@@ -224,7 +234,7 @@ function heroCta(){
   const box = h('div',{class:'hero-cta'});
   live(()=>{ box.replaceChildren(...(accState()==='member'
     ? [h('a',{class:'btn',href:'/kabinet'},'Мой кабинет'), h('a',{class:'btn ghost',href:'/#steps'},'Первые шаги')]
-    : [h('a',{class:'btn',href:'/kabinet?tab=register'},'Присоединиться'), h('a',{class:'btn ghost',href:'/#sections'},'Что здесь есть')])); });
+    : [h('a',{class:'btn',href:'/kabinet?tab=register'},'Присоединиться'), h('a',{class:'btn ghost',href:'/#interests'},'Что здесь есть')])); });
   return box;
 }
 // a row wider than the screen: arrows at the edges and a bar below show it scrolls, and where you are
@@ -247,12 +257,24 @@ function scrollCues(row, label, withBack){
   requestAnimationFrame(sync);
   return {more, back, bar, sync};
 }
-function sectionsNav(){
-  // on phones the icons scroll sideways: the last one is cut in half, an arrow and a bar below show there is more
-  const row = h('div',{class:'sn-row'}, SECTIONS.map(([ic,t,href])=>h('a',{class:'sn',href}, h('span',{class:'sn-ic','aria-hidden':'true'},ic), h('span',{class:'sn-t'},t))));
-  const cues = scrollCues(row, 'Показать ещё разделы');
-  return h('section',{class:'sections-nav',id:'sections','aria-label':'Разделы сайта'}, h('div',{class:'wrap'},
-    h('div',{class:'sn-wrap'}, row, cues.more), cues.bar));
+function interestsSection(){
+  return h('section',{class:'band interests',id:'interests','aria-label':'Разделы сайта'}, h('div',{class:'wrap'},
+    sectionHead('С чего начнём?','Что вам интересно','Выберите тему — всё остальное всегда в меню ☰ справа вверху.'),
+    h('div',{class:'int-grid'}, INTERESTS.map(([ic,t,href,d,subs])=>h('div',{class:'int card'},
+      h('a',{class:'int-main',href}, h('span',{class:'int-ic','aria-hidden':'true'},ic), h('span',{class:'int-t'},t), h('span',{class:'int-d'},d)),
+      h('div',{class:'int-subs'}, subs.map(([st,sh])=>h('a',{class:'chip',href:sh},st))))))));
+}
+/* a peek at the community world: who lives there, and a door to the whole map */
+function worldTeaser(){
+  const row = h('div',{class:'wt-row'}), count = h('p',{class:'muted'}), cta = h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
+  live(()=>{
+    const ids = Object.keys(COM.members).filter(id=>COM.members[id].character).sort((a,b)=>COM.members[b].joined-COM.members[a].joined);
+    row.replaceChildren(...ids.slice(0,14).map(id=>h('span',{class:'wt-em',title:COM.members[id].nick}, emojiOf(id))));
+    count.textContent = ids.length ? 'Жителей в мире: '+ids.length+'. Каждый участник — животное или растение, которое растёт вместе с его эко-привычками.' : 'Каждый участник — животное или растение, которое растёт вместе с его эко-привычками.';
+    cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Поселиться'));
+  });
+  return h('section',{class:'band alt',id:'world-teaser'}, h('div',{class:'wrap'},
+    sectionHead('Счастливый мир','Наш эко-мир'), row, count, cta));
 }
 
 /* ---------- first steps: a guide like in games — what to do here, one step at a time ---------- */
@@ -267,8 +289,8 @@ function firstSteps(){
       ['📝','Заполнить профиль','profile_complete', member && profileDone(PROFILE.rec), '/kabinet?tab=profile#cabinet-tabs','Заполнить'],
       ['🎓','Пройти эко-тест','exam_passed', (STATS.examBest||0) > 0, '/eko-test','Пройти'],
       ['🏁','Начать свой эко-челлендж','challenge_done', member && challenges().length > 0, '/kabinet#challenges','Начать'],
-      ['🎮','Сыграть в «Эко-уборку»','game', (STATS.gameBest||0) > 0, '/#game','Играть'],
-      ['🌍','Написать соседу в «Счастливом мире»','', member && Object.keys(COM.threads).length > 0, '/#world','В мир'],
+      ['🎮','Сыграть в «Эко-уборку»','game', (STATS.gameBest||0) > 0, '/igra','Играть'],
+      ['🌍','Написать соседу в «Счастливом мире»','', member && Object.keys(COM.threads).length > 0, '/mir','В мир'],
       ['💌','Пригласить друга','invite_friend', member && COM.refs.some(r=>r.inviter===COM.uid), member ? '/kabinet?tab=profile#invite' : '/kabinet?tab=register','Пригласить']
     ];
     const done = steps.filter(x=>x[3]).length, next = steps.find(x=>!x[3]), todo = steps.filter(x=>!x[3]).map(x=>x[1]);
@@ -412,7 +434,7 @@ function sortGuide(){
   paint();
   const steps = [['🧺','Соберите','Поставьте рядом с обычным ведром второе — для сухого вторсырья.'],['🚿','Подготовьте','Ополосните, сплющите, разберите коробки. Две минуты в день.'],['♻️','Сдайте','В цветной контейнер во дворе или в пункт приёма раз в неделю.']];
   return h('section',{class:'band alt',id:'sort'}, h('div',{class:'wrap'},
-    h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},'Эко-путь'), h('h2',null,'Начать путь в экологии — ',h('span',{class:'sg-easy'},'ЛЕГКО')),
+    h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},'Эко-путь'), h(SEC_H1 ? (SEC_H1 = false, 'h1') : 'h2',null,'Начать путь в экологии — ',h('span',{class:'sg-easy'},'ЛЕГКО')),
       h('p',{class:'lead'},'Меньше мусора — это не только сортировка. Сначала откажитесь от лишнего, замените одноразовое многоразовым, используйте вещи повторно — и только то, что осталось, отправьте в переработку.')),
     h('ol',{class:'ladder'}, ECO_LADDER.map((st,i)=>h('li',{class:'rung',style:'--n:'+i},
       h('div',{class:'rung-top'}, h('span',{class:'rung-num'},i+1), h('span',{class:'rung-ic','aria-hidden':'true'},st.ic)),
@@ -452,7 +474,7 @@ function calcSection(){
         h('div',{style:'font-size:40px','aria-hidden':'true'},'🌱'),
         h('div',{class:'big',style:'font-size:28px'},'Пока ноль — и это нормально'),
         h('p',null,'Начните с одного шага: например, сдавайте только батарейки или пластиковые бутылки. Даже 3 бутылки в неделю — это около 6 кг пластика в год, который не окажется на свалке.'),
-        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/#sort'},'С чего начать'), h('a',{class:'btn ghost small',href:'/kabinet#challenges'},'Взять челлендж'))));
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/sortirovka'},'С чего начать'), h('a',{class:'btn ghost small',href:'/kabinet#challenges'},'Взять челлендж'))));
       return;
     }
     res.replaceChildren(
@@ -775,12 +797,12 @@ function articlePage(path){
   const it = STATE.articles.find(a=>articleSlug(a)===key || String(a.id)===key || (a.old_slugs||[]).includes(key));
   if (!it) return {title:'Статья не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'},
     h('h1',null,'Статья не найдена'), h('p',{class:'lead'},'Возможно, её переименовали или убрали. Загляните в журнал — там все статьи.'),
-    h('a',{class:'btn',href:'/#journal'},'Все статьи')))]};
+    h('a',{class:'btn',href:'/zhurnal'},'Все статьи')))]};
   return {title:it.title+' — DashaBotanika', render:()=>{
     live(()=>{ if (COM.uid) markRead(it.id); });
     const others = STATE.articles.filter(a=>a!==it).slice(0,3);
     return [h('article',{class:'band art-page',id:'article'}, h('div',{class:'wrap narrow'},
-      h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/#journal'},'Журнал')),
+      h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/zhurnal'},'Журнал')),
       h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null),
       h('h1',null,it.title),
       it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title, '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
@@ -788,7 +810,7 @@ function articlePage(path){
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
       h('div',{class:'art-body'}, it.body),
       articleEditor(it),
-      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/#journal'},'← Все статьи')),
+      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/zhurnal'},'← Все статьи')),
       commentsBlock('articles:'+it.id),
       others.length ? h('div',{class:'art-more'}, h('h2',null,'Читайте также'), h('ul',null, others.map(a=>h('li',null, h('a',{href:articleUrl(a)},a.title))))) : null
     ))];
@@ -835,8 +857,16 @@ function articleEditor(it){
     h('p',{class:'hint'},'После правок нажмите «Сохранить изменения» внизу экрана.'));
 }
 
-function journalSection(){
-  const items = STATE.articles;
+function journalSection(preview){
+  const items = preview ? STATE.articles.slice(0,3) : STATE.articles;
+  if (preview) return h('section',{class:'band',id:'journal'}, h('div',{class:'wrap'},
+    sectionHead('Журнал','Свежее в журнале'),
+    items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
+      it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, '')) : null,
+      h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
+      h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
+      h('p',{class:'muted',style:'font-size:15px'},it.lead)))) : h('div',{class:'empty'},'Статьи скоро появятся.'),
+    h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/zhurnal'},'Все статьи'))));
   return h('section',{class:'band alt',id:'journal'}, h('div',{class:'wrap'},
     sectionHead('Журнал','Новости и статьи','Заметки об экологичной жизни. Есть тема или новость? Предложите её в личном кабинете, лучшие появятся здесь.'),
     h('div',{style:'margin:-12px 0 24px'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>openAccount('suggest')},'Предложить новость или статью')),
@@ -857,7 +887,7 @@ function journalSection(){
   ));
 }
 
-function aboutSection(){
+function aboutSection(own){
   const a = STATE.about;
   const nm = h('input',{id:'about-name',value:a.name}); nm.addEventListener('input',()=>{ a.name=nm.value; markDirty(); });
   const tx = h('textarea',{id:'about-text',style:'min-height:200px'}); tx.value=a.text; tx.addEventListener('input',()=>{ a.text=tx.value; markDirty(); });
@@ -866,7 +896,7 @@ function aboutSection(){
       photoFig('about', 'Даша с семьёй у большого глобуса', 'round', 'Наша счастливая планета'),
       h('div',{style:'display:grid;gap:14px;min-width:0'},
         h('div',{class:'eyebrow',style:'display:flex;align-items:center;gap:8px'},h('span',{html:CAIRN_ICON,style:'display:contents'}),'Про меня'),
-        h('h2',null,a.name),
+        h(own ? 'h1' : 'h2',null,a.name),
         h('p',{class:'about-text'},a.text),
         h('div',{class:'form edit-only'}, h('label',{for:'about-name'},'Имя',nm), h('label',{for:'about-text'},'Текст о себе',tx))
       )
@@ -965,6 +995,14 @@ const PAGES = {
   '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
   '/politika': {title:'Политика конфиденциальности — DashaBotanika', render:()=>[privacyPage()]},
   '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection()]; }},
+  '/eda': {title:'Эко-еда: сезонные продукты, рецепты без отходов и меню на неделю — DashaBotanika', render:()=>{ SEC_H1 = true; return [foodSection(), menuSection(), cafesSection(), helperSection(['food','pack'])]; }},
+  '/sortirovka': {title:'Как сортировать мусор дома: что куда сдавать и калькулятор пользы — DashaBotanika', render:()=>{ SEC_H1 = true; return [sortGuide(), calcSection(), helperSection(['pack','services'])]; }},
+  '/moda': {title:'Эко-мода: капсульный гардероб, ткани и вторая жизнь вещей — DashaBotanika', render:()=>{ SEC_H1 = true; return [fashionSection(), marketTeaser(), goodsSection(true)]; }},
+  '/vozduh': {title:'Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika', render:()=>{ SEC_H1 = true; return [airSection()]; }},
+  '/igra': {title:'Игра «Эко-уборка»: сортируй мусор на скорость — DashaBotanika', render:()=>{ SEC_H1 = true; return [gameSection(), examTeaser()]; }},
+  '/mir': {title:'Счастливый мир участников DashaBotanika', render:()=>{ SEC_H1 = true; return [worldSection()]; }},
+  '/zhurnal': {title:'Журнал: статьи и новости об экологичной жизни — DashaBotanika', render:()=>{ SEC_H1 = true; return [journalSection()]; }},
+  '/o-proekte': {title:'О проекте DashaBotanika: Даша, контакты и обратная связь — DashaBotanika', render:()=>[aboutSection(true), feedbackSection(), contactsSection()]},
 };
 let SEC_H1 = false, PAGE_UNSUBS = [];
 function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] || ART_RE.test(p) || CITY_RE.test(p) ? p : '/'; }
@@ -981,7 +1019,8 @@ function backBar(){
     h('a',{href:'/',class:'back-home'},'На главную'));
 }
 function go(url){
-  const u = new URL(url, location.origin);
+  let u = new URL(url, location.origin);
+  if ((u.pathname==='/' || u.pathname==='') && OLD_ANCHORS[u.hash]) u = new URL(OLD_ANCHORS[u.hash], location.origin);
   const changed = (u.pathname.replace(/\/+$/,'') || '/') !== currentPath() || u.search !== location.search;
   closeModal();
   history.pushState(null,'',u.pathname+u.search+u.hash); INNER_STEPS++;
@@ -997,14 +1036,23 @@ document.addEventListener('click', e=>{
   if (!href.startsWith('/') || href.startsWith('//') || /^\/(api|_|img|css|js)\//.test(href)) return;
   e.preventDefault(); go(href);
 });
-window.addEventListener('popstate', ()=>{ INNER_STEPS = Math.max(0, INNER_STEPS-1); closeModal(); render(); scrollToHash(location.hash); });
+function fixOldAnchor(){ if (location.pathname==='/' && OLD_ANCHORS[location.hash]) history.replaceState(null,'',OLD_ANCHORS[location.hash]); }
+fixOldAnchor();
+window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max(0, INNER_STEPS-1); closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
   // people first (who we are, the community, how to start), then games and tests, then everyday eco
-  return [hero(), sectionsNav(), firstSteps(), aboutSection(), worldSection(), examTeaser(), gameSection(), sortGuide(), airSection(), calcSection(), goodsSection(true), foodSection(), menuSection(), fashionSection(), cafesSection(), marketTeaser(), journalSection(), helperSection(), feedbackSection(), contactsSection()];
+  // a crossroads, not a long one-pager: every section has its own page, here are the doors to them
+  return [hero(), interestsSection(), firstSteps(), worldTeaser(), journalSection(true), aboutSection(), feedbackTeaser()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
+function feedbackTeaser(){
+  return h('section',{class:'band',id:'say'}, h('div',{class:'wrap'}, h('div',{class:'teaser'},
+    h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'Обратная связь'), h('h2',null,'Есть идея или замечание?'),
+      h('p',{class:'lead'},'Напишите Даше — каждое сообщение читаю сама, а самые полезные идеи появляются на сайте.')),
+    h('a',{class:'btn',href:'/o-proekte#feedback'},'Написать Даше'))));
+}
 function examTeaser(){
   const best = h('p',{style:'font-weight:700'});
   live(()=>{ best.textContent = STATS.examBest ? 'Ваш лучший результат: '+STATS.examBest+' из 10'+(STATS.examPassed ? ' — сертификат получен!' : '') : ''; });
@@ -1595,8 +1643,8 @@ function growthBlock(){
 let GROW_OPEN = false;
 const GROW_WAYS = {
   challenge_done:['🏁','/kabinet#challenges','Создать челлендж'], leaf:['🍃','/kabinet#challenges','Отметить привычки'],
-  exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/#game','Играть'], article_read:['📖','/#journal','Читать журнал'],
-  like:['♥','/#journal','К статьям'], comment:['💬','/#journal','Обсудить'], feedback:['💡','/#feedback','Написать Даше'],
+  exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/igra','Играть'], article_read:['📖','/zhurnal','Читать журнал'],
+  like:['♥','/zhurnal','К статьям'], comment:['💬','/zhurnal','Обсудить'], feedback:['💡','/o-proekte#feedback','Написать Даше'],
   listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/baraholka','В барахолку'], signup:['✅',null,null],
   profile_complete:['📝','/kabinet?tab=profile#cabinet-tabs','Заполнить'], invited:['🎁',null,null], invite_friend:['💌','/kabinet?tab=profile#invite','Пригласить']
 };
@@ -1927,7 +1975,7 @@ function servicesSection(opts){
     h('div',{class:'svc-bar'}, cityBox, catBox), list,
     cityOf ? h('div',{class:'card city-tips'}, h('h2',{style:'font-size:22px'},'Как подготовить вторсырьё'),
       h('ul',null, ['Пластик и стекло — ополосните и снимите крышки; бутылки сплющите.','Бумагу и картон — сухими, без скотча и жирных пятен; коробки сложите.','Металлические банки — ополосните, можно смять.','Батарейки и лампы — только в специальные боксы, не в общий контейнер.','Одежду и вещи в хорошем состоянии лучше отдать: барахолка, благотворительные пункты.'].map(t=>h('li',null,t))),
-      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/#sort'},'Схема сортировки'), h('a',{class:'btn ghost small',href:'/baraholka'},'Барахолка'), h('a',{class:'btn ghost small',href:'/servisy'},'Все города'))) : null,
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/sortirovka'},'Схема сортировки'), h('a',{class:'btn ghost small',href:'/baraholka'},'Барахолка'), h('a',{class:'btn ghost small',href:'/servisy'},'Все города'))) : null,
     h('p',{class:'hint',style:'margin-top:12px'},'Условия и адреса меняются — перед поездкой уточняйте на сайте сервиса.'),
     form, mineBox));
 }
@@ -2118,7 +2166,7 @@ function aiAnswer(text){
     return m ? h('p',null, h('b',null,m[1].replace(/\*+/g,''),': '), m[2].replace(/\*+/g,'')) : h('p',null,l.replace(/\*+/g,''));
   }));
 }
-function helperSection(){
+function helperSection(only){
   const out = h('div',{class:'ai-out','aria-live':'polite'}), left = h('p',{class:'hint ai-left'});
   let st = null;
   const loadLeft = ()=>{ if (accState()!=='member' || !pb) return; pb.send('/api/ai/left',{requestKey:null}).then(r=>{ st = r; paintLeft(); }).catch(()=>{}); };
@@ -2147,11 +2195,12 @@ function helperSection(){
   const cards = [
     ['🥗','Фото еды','Сфотографируйте тарелку — помощник подскажет, как сделать блюдо полезнее и экологичнее, и что сделать с остатками.', photoBtn('food','📷 Загрузить фото еды')],
     ['♻️','Фото упаковки','Сфотографируйте упаковку или вещь — узнаете, из чего она, куда её сдать, нужно ли мыть и как использовать повторно.', photoBtn('pack','📷 Загрузить фото упаковки')],
-    ['🍽️','Меню под цель','Конструктор меню соберёт меню на неделю под вашу цель и тип питания — со списком покупок.', h('a',{class:'btn small',href:'/#menu'},'Открыть конструктор')]
-  ];
+    ['🍽️','Меню под цель','Конструктор меню соберёт меню на неделю под вашу цель и тип питания — со списком покупок.', h('a',{class:'btn small',href:'/eda#menu'},'Открыть конструктор')],
+    ['🗺️','Куда сдать в городе','Пункты приёма, экоцентры и акции по сбору вторсырья — с выбором города.', h('a',{class:'btn small',href:'/servisy'},'Полезные сервисы')]
+  ].filter((c,i)=>!only || only.includes(['food','pack','menu','services'][i]));
   return h('section',{class:'band',id:'helper'}, h('div',{class:'wrap'},
     sectionHead('Умный помощник','Эко-помощник на основе ИИ','Загрузите фото — и получите совет за минуту. Фото не сохраняются: помощник смотрит на них один раз.'),
-    h('div',{class:'grid g3'}, cards.map(([ic,t,d,action])=>h('article',{class:'card'},
+    h('div',{class:'grid '+(cards.length===2 ? 'g2' : 'g3')}, cards.map(([ic,t,d,action])=>h('article',{class:'card'},
       h('span',{style:'font-size:34px','aria-hidden':'true'},ic),
       h('h3',{style:'font-size:20px'},t), h('p',{class:'muted',style:'font-size:15px;flex:1'},d),
       h('div',{style:'align-self:flex-start'}, action)))),
@@ -2791,7 +2840,7 @@ function acceptSugg(s){
   const lead = s.text.length > 200 ? s.text.slice(0,197).replace(/\s+\S*$/,'')+'…' : s.text;
   STATE.articles.unshift({id:'a'+uid(), cat:s.kind==='Новость'?'Новость':'Статья', date:iso(new Date()), title:s.title, lead, body:s.text, by:s.author});
   setSuggStatus(s.id, 'accepted');
-  markDirty(); setEditing(true); go('/#journal');
+  markDirty(); setEditing(true); go('/zhurnal');
   toast('Добавлено в журнал. Нажмите «Сохранить изменения»');
 }
 function accountButton(){
