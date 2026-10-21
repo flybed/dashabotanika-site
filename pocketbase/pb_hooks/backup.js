@@ -35,4 +35,18 @@ function check(app) {
   return st
 }
 
-module.exports = { status, check }
+// 1-го числа: напомнить скачать копию на компьютер — на случай, если пропадёт сам сервер.
+function monthly(app) {
+  const st = status(app)
+  const when = st.newest ? new Date(st.newest.at + 3 * 3600000).toISOString().slice(0, 10) : null
+  try {
+    const tg = require(`${__hooks}/tg.js`)
+    for (const u of app.findRecordsByFilter("users", "role = 'admin'", "", 20, 0)) {
+      let sub = null
+      try { sub = app.findFirstRecordByFilter("tg_subs", "user = {:u} && enabled = true", { u: u.id }) } catch (e) {}
+      if (sub) tg.send(sub.getString("chat_id"), `💾 <b>Раз в месяц — копия сайта на компьютер</b>\n${when ? `Свежая копия от ${when}.` : "Копий пока нет."} Откройте страницу, нажмите значок скачивания у верхней копии и сохраните файл в надёжное место (диск, облако).`, ["Скачать копию", "https://dashabotanika.ru/_/#/settings/backups"])
+    }
+  } catch (e) {}
+}
+
+module.exports = { status, check, monthly }
