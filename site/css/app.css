@@ -1076,3 +1076,20 @@ input[type=file]::file-selector-button:hover{background:var(--moss);color:var(--
 .mk-photo-box{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .mk-photo-box:empty{display:none}
 .mk-thumb{width:160px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+
+/* cabinet: «now» cards and folded blocks */
+.cab-now{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.now-card{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;padding:14px 16px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);text-decoration:none;color:var(--ink);transition:border-color .2s,transform .2s}
+.now-card:hover{border-color:var(--moss);transform:translateY(-2px)}
+.now-card.hot{border-color:var(--sun);box-shadow:inset 0 0 0 1px var(--sun)}
+.now-ic{grid-row:span 2;font-size:28px}
+.now-t{font-weight:800}
+.now-s{font-size:13.5px;color:var(--muted);line-height:1.3}
+@media (max-width:900px){ .cab-now{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:420px){ .now-card{padding:12px} .now-ic{font-size:24px} }
+details.fold > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+details.fold > summary::-webkit-details-marker{display:none}
+details.fold > summary h3{margin:0}
+details.fold > summary::after{content:"Показать ▾";margin-left:auto;font-size:13px;font-weight:800;color:var(--moss)}
+details.fold[open] > summary::after{content:"Свернуть ▴"}
+details.fold[open] > summary{margin-bottom:12px}

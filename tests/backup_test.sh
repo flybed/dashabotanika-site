@@ -57,6 +57,9 @@ check('after a backup the status is fine: one fresh copy with its size', r.get('
 before = len([c for c in json.load(u.urlopen('http://127.0.0.1:8091/')) if c[0] == 'sendMessage'])
 req(8090,'POST','/backup/check',None,su)
 check('with a fresh copy the morning check stays quiet', len([c for c in json.load(u.urlopen('http://127.0.0.1:8091/')) if c[0] == 'sendMessage']) == before)
+req(8090,'POST','/backup/monthly',None,su)
+last = [c for c in json.load(u.urlopen('http://127.0.0.1:8091/')) if c[0] == 'sendMessage'][-1][1]
+check('on the 1st the bot reminds to download a copy to the computer, with a button', last.get('chat_id') == '777' and 'на компьютер' in last.get('text','') and 'settings/backups' in json.dumps(last.get('reply_markup',{})))
 open(T + '/fails', 'w').write('\n'.join(fails))
 PY
 # восстановление: распаковываем копию в пустую папку и запускаем на ней второй сервер

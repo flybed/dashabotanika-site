@@ -296,7 +296,7 @@ function firstStepsList(){
       ['🏁','Начать свой эко-челлендж','challenge_done', member && challenges().length > 0, '/kabinet#challenges','Начать'],
       ['🎮','Сыграть в «Эко-уборку»','game', (STATS.gameBest||0) > 0, '/igra','Играть'],
       ['🌍','Написать соседу в «Счастливом мире»','', member && Object.keys(COM.threads).length > 0, '/mir','В мир'],
-      ['💌','Пригласить друга','invite_friend', member && COM.refs.some(r=>r.inviter===COM.uid), member ? '/kabinet?tab=profile#invite' : '/kabinet?tab=register','Пригласить']
+      ['💌','Пригласить друга','invite_friend', member && COM.refs.some(r=>r.inviter===COM.uid), member ? '/kabinet?tab=path#invite' : '/kabinet?tab=register','Пригласить']
   ];
 }
 // «Первые шаги» on the first screen: brings hidden hints back and scrolls to them
@@ -1785,7 +1785,7 @@ const GROW_WAYS = {
   exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/igra','Играть'], article_read:['📖','/zhurnal','Читать журнал'],
   like:['♥','/zhurnal','К статьям'], comment:['💬','/zhurnal','Обсудить'], feedback:['💡','/o-proekte#feedback','Написать Даше'],
   listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/baraholka','В барахолку'], signup:['✅',null,null],
-  profile_complete:['📝','/kabinet?tab=profile#cabinet-tabs','Заполнить'], invited:['🎁',null,null], invite_friend:['💌','/kabinet?tab=profile#invite','Пригласить']
+  profile_complete:['📝','/kabinet?tab=profile#cabinet-tabs','Заполнить'], invited:['🎁',null,null], invite_friend:['💌','/kabinet?tab=path#invite','Пригласить']
 };
 function growWays(){
   const done = {signup:true, exam_passed:!!STATS.examPassed || (STATS.examBest||0) >= 8, profile_complete:profileDone(PROFILE.rec), invited:COM.refs.some(r=>r.invited===COM.uid)};
@@ -2578,13 +2578,6 @@ function openAccount(tab, tid){
   if (tid) q.set('t', tid);
   go('/kabinet'+(q.toString() ? '?'+q : ''));
 }
-function statsRow(){
-  return h('div',{class:'kv'},
-    h('div',null,h('b',null,leavesTotal()),h('span',null,'эко-листочков')),
-    h('div',null,h('b',null,STATS.examBest,'/10'),h('span',null,STATS.examPassed?'экзамен сдан':'лучший экзамен')),
-    h('div',null,h('b',null,STATS.gameBest),h('span',null,'рекорд в игре')),
-    h('div',null,h('b',null,postsCount()),h('span',null,'комментариев и сообщений')));
-}
 function logout(){
   if (!confirm('Выйти из аккаунта?')) return;
   pb.authStore.clear();
@@ -2602,17 +2595,33 @@ function cabinetPage(){
     h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи на барахолке и переписка. А ещё вы появитесь в «Счастливом мире».'),
     authForms(tab || (refOf() ? 'register' : '')),
     h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
-  return [cabinetHead(), challengesSection(), cabinetTabs(tab, tid)];
+  // like the home page: who you are and what matters now first, then the tabs with everything else
+  return [cabinetHead(), cabinetTabs(tab, tid)];
+}
+/* «Сейчас»: short cards under the character — the challenge of today, messages, things, a friend */
+function cabinetNow(){
+  const box = h('div',{class:'cab-now'});
+  live(()=>{
+    if (!COM.me) return;
+    const act = challenges().filter(ch=>!chStats(ch).over), unread = unreadCount(), things = myItems().filter(l=>l.status!=='gone').length;
+    const todayMarks = act.reduce((n,ch)=>n + (((ch.log||{})[iso(new Date())]||[]).length), 0), todayAll = act.reduce((n,ch)=>n + ch.habits.length, 0);
+    const card = (ic, t, sub, href, hot) => h('a',{class:'now-card'+(hot ? ' hot' : ''),href}, h('span',{class:'now-ic','aria-hidden':'true'},ic), h('span',{class:'now-t'},t), h('span',{class:'now-s'},sub));
+    box.replaceChildren(
+      card('🏁','Челленджи', act.length ? 'Сегодня отмечено '+todayMarks+' из '+todayAll : 'Начните первый — 7–30 дней', '/kabinet?tab=challenges', act.length && todayMarks < todayAll),
+      card('💬','Сообщения', unread ? 'Новых: '+unread : 'Новых нет', '/kabinet?tab=chats', unread > 0),
+      card('📦','Барахолка', things ? 'Мои вещи: '+things : 'Отдать или продать вещь', '/kabinet?tab=things'),
+      card('🎁','Пригласить друга', '+'+rulePoints('invite_friend',40)+' вам, +'+rulePoints('invited',50)+' другу', '/kabinet?tab=path#invite'));
+  });
+  return box;
 }
 function cabinetHead(){
-  const head = h('div',{class:'cab-head'}), grow = h('div'), stats = h('div');
+  const head = h('div',{class:'cab-head'}), grow = h('div');
   live(()=>{
     const me = COM.me; if (!me) return;
     head.replaceChildren(h('div',{class:'mono cab-ava','aria-hidden':'true'}, emojiOf(COM.uid)),
       h('div',{style:'flex:1;min-width:0'}, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick), h('div',{class:'hint'}, levelName(me.level),' · с нами с ', dt(me.joined), COM.verified ? h('span',{class:'mail-ok'},' · ✓ почта подтверждена') : null)),
       h('button',{type:'button',class:'btn ghost small cab-logout',onclick:logout},'Выйти'));
     grow.replaceChildren(growthBlock() || '');
-    stats.replaceChildren(statsRow());
   });
   const verify = !COM.verified && COM.email ? h('div',{class:'card',style:'padding:12px 14px;gap:6px'},
     h('b',null,'Подтвердите почту'),
@@ -2625,19 +2634,19 @@ function cabinetHead(){
     h('span',{'aria-hidden':'true',style:'font-size:28px'},'📝'),
     h('div',{style:'flex:1;min-width:200px'}, h('b',null,'Заполните профиль — +'+rulePoints('profile_complete',20)+' к росту'), h('div',{class:'hint'},'Возраст, город и ваша эко-цель — пара минут.')),
     h('a',{class:'btn small',href:'/kabinet?tab=profile#cabinet-tabs'},'Заполнить')) : ''); });
-  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, nudge, grow, stats));
+  return h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap',style:'display:grid;gap:18px'}, head, verify, nudge, grow, cabinetNow()));
 }
 // old tab addresses still open the right place after the tabs were merged
 const TAB_ALIAS = {xp:'path', settings:'profile', suggest:'mine', drafts:'articles', inbox:'articles'};
 function cabinetTabs(tab, tid){
-  let cur = TAB_ALIAS[tab] || tab || (unreadCount() ? 'chats' : 'path'), lastKey = null, openTid = tid || null, tabBtns = {};
+  let cur = TAB_ALIAS[tab] || tab || (location.hash==='#challenges' ? 'challenges' : unreadCount() ? 'chats' : 'path'), lastKey = null, openTid = tid || null, tabBtns = {};
   const openThread = id=>{ openTid = id; paint(true); };
   const body = h('div',{style:'display:grid;gap:16px'});
   const lists = {};
   function build(){
     const me = COM.me;
     // my things — for every member; site management — a separate row, only for Dasha and moderators
-    const mineTabs = [['path','🌱 Мой эко путь'],['profile','👤 Профиль и настройки'],['chats','💬 Сообщения'],['things','📦 Мои вещи'],['mine','✍️ Мои публикации']];
+    const mineTabs = [['path','🌱 Мой эко путь'],['challenges','🏁 Челленджи'],['chats','💬 Сообщения'],['things','📦 Барахолка'],['mine','✍️ Публикации'],['profile','⚙️ Профиль и настройки']];
     const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Проверка'],['fb','💡 Обратная связь']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
     if (!mineTabs.concat(adminTabs).some(([k])=>k===cur)) cur = 'path';
     tabBtns = {};
@@ -2645,8 +2654,9 @@ function cabinetTabs(tab, tid){
     const out = [row(mineTabs)];
     if (adminTabs.length) out.push(h('div',{class:'admin-bar'}, h('div',{class:'admin-l'},'🛠 Управление сайтом', h('span',{class:'hint'},' — видите только вы', COM.owner ? '' : ' и модераторы')), row(adminTabs)));
     if (cur==='things') out.push(...thingsPanel(lists));
-    if (cur==='profile') out.push(profilePanel(), inviteCard());
-    if (cur==='path') out.push(ecoPath(), xpHistory());
+    if (cur==='profile') out.push(profilePanel());
+    if (cur==='path') out.push(ecoPath(), xpHistory(), inviteCard());
+    if (cur==='challenges') out.push(challengesSection());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); lists.svc = h('div',{class:'list'});
       out.push(h('h3',{style:'font-size:20px'},'Объявления барахолки'), h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder,
@@ -3006,23 +3016,24 @@ function ecoPath(){
         stat(me.xp||0, 'очков роста'), stat(chs.filter(ch=>chStats(ch).passed).length, 'челленджей пройдено'),
         stat(Math.max(me.leaves||0, leavesTotal()), 'отметок-листочков'), stat(bestStreak(), 'дней подряд — рекорд'))]; }
   return h('div',{class:'eco-path'}, head, badgeBox,
-    h('div',{class:'card'}, h('h3',null,'Хронология'), timeline));
+    h('details',{class:'card fold'}, h('summary',null, h('h3',null,'Хронология'), h('span',{class:'hint'},'когда что произошло')), timeline));
 }
 
 /* ---------- points history: what the points came for (written by the server) ---------- */
 function xpHistory(){
-  const box = h('div',{class:'card xp-hist'}, h('p',{class:'muted'},'Загружаем историю…'));
+  const inner = h('div',{style:'display:grid;gap:10px'}, h('p',{class:'muted'},'Загружаем историю…')), total = h('span',{class:'status accepted'});
+  live(()=>{ total.textContent = 'Всего: '+(COM.me ? COM.me.xp : 0); });
+  const box = h('details',{class:'card xp-hist fold'}, h('summary',null, h('h3',null,'История очков роста'), total), inner);
   pb.collection('xp_log').getFullList({filter:pb.filter('user = {:u}',{u:COM.uid}), sort:'-created', requestKey:null}).then(list=>{
     const total = list.reduce((s,x)=>s+(x.points||0),0);
     const row = x=>{ const [ic] = GROW_WAYS[x.key] || ['✨'];
       return h('li',{class:'xp-row'}, h('span',{class:'xp-ic','aria-hidden':'true'},ic),
         h('div',{class:'xp-t'}, h('b',null,x.title), h('span',{class:'hint'}, x.initial ? 'начислено до появления истории' : dt(tsOf(x)), x.count > 1 ? ' · ×'+x.count : '')),
         h('span',{class:'xp-pts'+(x.points<0?' neg':'')}, (x.points>0?'+':'')+x.points)); };
-    box.replaceChildren(
-      h('div',{class:'pf-head'}, h('h3',null,'История очков роста'), h('span',{class:'status accepted'},'Всего: '+(COM.me ? COM.me.xp : total))),
+    inner.replaceChildren(
       h('p',{class:'hint'},'Здесь видно, за что и когда пришли очки. Очки за приглашённого друга приходят сразу, как только он зарегистрируется по вашей ссылке.'),
       list.length ? h('ul',{class:'xp-list'}, list.map(row)) : h('p',{class:'hint'},'Пока пусто — история появится после первого действия.'));
-  }).catch(()=>box.replaceChildren(h('p',{class:'hint'},'Не удалось загрузить историю, попробуйте позже.')));
+  }).catch(()=>inner.replaceChildren(h('p',{class:'hint'},'Не удалось загрузить историю, попробуйте позже.')));
   return box;
 }
 /* invitation link: a friend who signs up by it gets a big bonus, you get points as soon as they sign up */
@@ -3059,12 +3070,13 @@ function backupCard(){
     const when = st.newest ? new Date(st.newest.at).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}) : '';
     const mb = st.newest ? (st.newest.size/1048576).toFixed(1).replace('.',',')+' МБ' : '';
     box.replaceChildren(
-      h('div',{class:'pf-head'}, h('h3',null, st.ok ? '✅ Резервные копии в порядке' : '⚠️ С резервными копиями проблема'),
+      h('div',{class:'pf-head'}, h('h3',null, st.ok ? '✅ Резервные копии в порядке' : st.cron && !st.newest ? '⏳ Резервные копии включены' : '⚠️ С резервными копиями проблема'),
         h('a',{class:'btn ghost small',href:'/_/#/settings/backups',target:'_blank',rel:'noopener'},'Все копии')),
       h('p',{class:'hint'}, !st.cron ? 'Автоматические копии выключены — включите их в настройках.' : st.newest
         ? 'Последняя копия: '+when+' ('+mb+'). Копий сохранено: '+st.count+'. Новая делается каждую ночь в 04:00 по Москве.'
-        : 'Копий пока нет — первая появится ночью в 04:00 по Москве.'),
-      st.ok ? null : h('p',{class:'hint'},'Если подключён Telegram, каждое утро в 10:00 бот напомнит, пока копия не появится.'));
+        : 'Первая копия появится ночью в 04:00 по Москве. Сделать её прямо сейчас: «Все копии» → «Initialize new backup».'),
+      st.newest && !st.ok ? h('p',{class:'hint'},'Если подключён Telegram, каждое утро в 10:00 бот напомнит, пока свежая копия не появится.') : null,
+      h('p',{class:'hint'},'💾 Раз в месяц скачивайте копию на компьютер: «Все копии» → значок скачивания у верхней. 1-го числа бот напомнит в Telegram.'));
   }).catch(()=>box.replaceChildren(h('p',{class:'hint'},'Не удалось узнать состояние резервных копий.')));
   return box;
 }
