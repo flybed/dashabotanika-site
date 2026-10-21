@@ -22,8 +22,9 @@ sudo chmod 600 /etc/dashabotanika/telegram.env
 sudo systemctl restart pocketbase
 ```
 
-Сервис PocketBase читает этот файл при запуске (`EnvironmentFile` в `deploy/pocketbase.service`). Вебхук
-(`https://dashabotanika.ru/api/tg/hook`, с секретом в заголовке) бот ставит сам при первой привязке и обновляет раз в 6 часов.
+Сервис PocketBase читает этот файл при запуске (`EnvironmentFile` в `deploy/pocketbase.service`).
+Сообщения боту сервер забирает сам (`getUpdates`) раз в минуту и каждые 3 секунды, пока человек подключает бота
+в кабинете, — входящие запросы от Telegram к серверу не нужны (вебхук до нашего сервера не доходил).
 
 ## Как устроено
 - `pocketbase/pb_hooks/tg.js` — логика, `tg.pb.js` — маршруты и расписание (напоминания в :07 каждого часа).

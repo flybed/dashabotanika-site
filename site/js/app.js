@@ -171,7 +171,7 @@ function render(){
       siteMenu(path)
     )),
     h('main',null, path !== '/' ? backBar() : null, ...page.render()),
-    h('footer',null, h('div',{class:'wrap'},
+    h('footer',null, h('div',{class:'wrap'+(ART_RE.test(path) || path==='/politika' ? ' narrow' : path==='/kabinet' && accState()!=='member' ? ' narrow auth' : '')},
       h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/politika'},'Политика конфиденциальности')),
       h('span',{id:'edit-slot'})
     )),
@@ -516,6 +516,10 @@ function challengesSection(){
     const first = new Date(y, m-1, 1), daysIn = new Date(y, m, 0).getDate(), lead = (first.getDay()+6)%7;
     const title = first.toLocaleDateString('ru-RU',{month:'long', year:'numeric'});
     const shift = n => { const d = new Date(y, m-1+n, 1); calMonth = iso(d).slice(0,7); calDay = null; paint(); };
+    // only months with challenges: from the first start to the last end (and always the current month)
+    const chs = challenges(), cur = today.slice(0,7);
+    const minM = chs.reduce((a,ch)=>ch.start.slice(0,7) < a ? ch.start.slice(0,7) : a, cur);
+    const maxM = chs.reduce((a,ch)=>{ const e = addDays(ch.start, ch.days-1).slice(0,7); return e > a ? e : a; }, cur);
     let monthChecks = 0, fullDays = 0;
     const cells = [...Array(lead)].map(()=>h('span',{class:'cal-pad'}));
     for (let i=1; i<=daysIn; i++){
@@ -537,8 +541,8 @@ function challengesSection(){
             on.has(hb.id) ? '✓ ' : '', hb.name))))));
     }
     return h('div',{class:'card cal',id:'calendar'},
-      h('div',{class:'cal-head'}, h('button',{type:'button',class:'btn ghost small','aria-label':'Предыдущий месяц',onclick:()=>shift(-1)},'←'),
-        h('h3',null,'Календарь привычек · ', title), h('button',{type:'button',class:'btn ghost small','aria-label':'Следующий месяц',onclick:()=>shift(1)},'→')),
+      h('div',{class:'cal-head'}, h('button',{type:'button',class:'btn ghost small','aria-label':'Предыдущий месяц',disabled:calMonth <= minM ? '' : null,onclick:()=>shift(-1)},'←'),
+        h('h3',null,'Календарь привычек · ', title), h('button',{type:'button',class:'btn ghost small','aria-label':'Следующий месяц',disabled:calMonth >= maxM ? '' : null,onclick:()=>shift(1)},'→')),
       h('p',{class:'hint'},'За месяц: ',monthChecks,' ',plural(monthChecks,'отметка','отметки','отметок'),', ',fullDays,' ',plural(fullDays,'день','дня','дней'),' — всё отмечено. Нажмите на день, чтобы посмотреть или дополнить.'),
       h('div',{class:'cal-grid'}, DOW.map(w=>h('span',{class:'cal-w'},w)), cells),
       h('div',{class:'cal-legend'}, h('span',null,h('i',{class:'lg full'}),'всё'), h('span',null,h('i',{class:'lg part'}),'частично'), h('span',null,h('i',{class:'lg miss'}),'пропуск')),
@@ -2221,8 +2225,7 @@ function cabinetTabs(tab, tid){
         h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
         h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
         h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf),
-        tgCard(),
-        h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:logout},'Выйти из аккаунта')));
+        tgCard());
     }
     if (cur==='mine'){
       const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
@@ -2246,6 +2249,7 @@ function cabinetTabs(tab, tid){
       out.push(h('h3',{style:'font-size:20px'},'Черновики от помощника'), h('p',{class:'muted'},'Прочитайте, поправьте и опубликуйте — статья сразу появится в журнале со своей страницей.'), lists.drafts,
         h('h3',{style:'font-size:20px'},'Предложения участников'), h('p',{class:'muted'},'Новости, статьи и идеи от участников. Видите только вы и модераторы.'), lists.inbox);
     }
+    out.push(h('div',{class:'cab-foot'}, h('button',{type:'button',class:'btn ghost small',onclick:logout},'Выйти из аккаунта')));
     return out;
   }
   const statusLabel = s => s==='accepted' ? 'В журнале' : s==='declined' ? 'Не подошло' : 'На рассмотрении';
@@ -2360,18 +2364,25 @@ function profilePanel(){
     const p = PROFILE.rec || {};
     const age = h('input',{id:'pf-age',type:'number',min:'6',max:'110',inputmode:'numeric',value:p.age||''});
     const gender = h('select',{id:'pf-gender'}, h('option',{value:''},'— выберите —'), ['Женский','Мужской','Не хочу указывать'].map(o=>h('option',{selected:p.gender===o},o)));
-    const country = h('input',{id:'pf-country',maxlength:'60',value:p.country||'',placeholder:'Россия',autocomplete:'country-name'});
-    const city = h('input',{id:'pf-city',maxlength:'80',value:p.city||'',placeholder:'Новосибирск',autocomplete:'address-level2'});
+    const country = h('input',{id:'pf-country',maxlength:'60',value:p.country||'',placeholder:'Например, Россия',autocomplete:'country-name'});
+    const city = h('input',{id:'pf-city',maxlength:'80',value:p.city||'',placeholder:'Например, Новосибирск',autocomplete:'address-level2'});
     const goals = new Set(p.goals||[]);
     const goalBtns = ECO_GOALS.map(g=>{ const b = h('button',{type:'button',class:'chip'+(goals.has(g)?' on':''),'aria-pressed':String(goals.has(g))},g);
       b.addEventListener('click',()=>{ goals.has(g) ? goals.delete(g) : goals.add(g); b.classList.toggle('on',goals.has(g)); b.setAttribute('aria-pressed',String(goals.has(g))); }); return b; });
-    const btn = h('button',{type:'submit',class:'btn small'},'Сохранить профиль');
+    const btn = h('button',{type:'submit',class:'btn pf-save'},'Сохранить профиль');
+    const left = h('div',{class:'pf-left'});
+    const paintLeft = ()=>{
+      const miss = [[age.value,'возраст'],[gender.value,'пол'],[country.value.trim(),'страна'],[city.value.trim(),'город'],[goals.size,'эко-цель']].filter(([v])=>!v).map(([,l])=>l);
+      left.replaceChildren(miss.length ? h('span',null,'Заполнено ',5-miss.length,' из 5. Осталось: ',miss.join(', '),' — и получите +',pts,' к росту.') : h('span',{class:'ok'},'✓ Всё заполнено — нажмите «Сохранить профиль».'));
+    };
     const pts = rulePoints('profile_complete',20), done = profileDone(p);
     const f = h('form',{class:'pf-form'},
       h('div',{class:'fields'}, h('label',{for:'pf-age'},'Возраст',age), h('label',{for:'pf-gender'},'Пол',gender)),
       h('div',{class:'fields'}, h('label',{for:'pf-country'},'Страна',country), h('label',{for:'pf-city'},'Город',city)),
       h('div',null, h('div',{class:'pf-l'},'Моя цель в экологии ', h('span',{class:'hint'},'(можно несколько)')), h('div',{class:'chips pf-goals'}, goalBtns)),
+      left,
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, btn, h('span',{class:'hint'},'Профиль видите только вы и Даша.')));
+    f.addEventListener('input', paintLeft); f.addEventListener('change', paintLeft); f.addEventListener('click', ()=>setTimeout(paintLeft)); paintLeft();
     f.addEventListener('submit', async e=>{ e.preventDefault();
       const a = parseInt(age.value,10);
       const data = {age: a>=6 && a<=110 ? a : null, gender:gender.value, country:country.value.trim(), city:city.value.trim(), goals:[...goals]};
@@ -2409,7 +2420,7 @@ function tgCard(){
   const waitForLink = ()=>{
     clearInterval(waitTimer); let n = 0;
     waitTimer = setInterval(()=>{ if (!box.isConnected || ++n > 100){ clearInterval(waitTimer); return; }
-      pb.collection('tg_subs').getFullList({requestKey:null}).then(l=>{ if (l[0]){ clearInterval(waitTimer); paint(l[0]); toast('Telegram подключён! Выберите, что присылать'); } }).catch(()=>{}); }, 3000);
+      pb.send('/api/tg/poll',{method:'POST', requestKey:null}).catch(()=>{}).then(()=>pb.collection('tg_subs').getFullList({requestKey:null})).then(l=>{ if (l[0]){ clearInterval(waitTimer); paint(l[0]); toast('Telegram подключён! Выберите, что присылать'); } }).catch(()=>{}); }, 3000);
   };
   const connect = async btn=>{
     const note = box.querySelector('.tg-note');

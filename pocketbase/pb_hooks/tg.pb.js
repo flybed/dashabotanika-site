@@ -11,11 +11,13 @@ routerAdd("POST", "/api/tg/link", (e) => {
     const hint = /unauthorized|not found/i.test(err) ? "похоже, токен неверный — проверьте его в @BotFather и положите заново" : "сервер не смог связаться с Telegram"
     return e.json(200, { url: "", reason: "telegram", message: "Telegram не ответил: " + hint + (err ? " (" + err + ")." : ".") })
   }
-  tg.ensureWebhook()
   return e.json(200, { url })
 }, $apis.requireAuth("users"))
 
-// сообщения боту приходят сюда; Telegram подписывает их секретом (см. ensureWebhook)
+// пока человек подключает бота, кабинет каждые несколько секунд просит забрать новые сообщения боту
+routerAdd("POST", "/api/tg/poll", (e) => e.json(200, { got: require(`${__hooks}/tg.js`).poll(e.app) }), $apis.requireAuth("users"))
+
+// запасной путь, если когда-нибудь включат вебхук: Telegram подписывает сообщения секретом
 routerAdd("POST", "/api/tg/hook", (e) => {
   const tg = require(`${__hooks}/tg.js`)
   if (!tg.token() || e.request.header.get("X-Telegram-Bot-Api-Secret-Token") !== tg.hookSecret()) return e.json(403, {})
@@ -28,7 +30,7 @@ routerAdd("POST", "/api/tg/run", (e) => e.json(200, { sent: require(`${__hooks}/
 
 // раз в час: у кого сейчас выбранное время — напоминание; вебхук обновляем время от времени
 cronAdd("tg-remind", "7 * * * *", () => { require(`${__hooks}/tg.js`).remindAll($app, false) })
-cronAdd("tg-webhook", "17 */6 * * *", () => { require(`${__hooks}/tg.js`).ensureWebhook(true) })
+cronAdd("tg-poll", "* * * * *", () => { require(`${__hooks}/tg.js`).poll($app) })
 
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/tg.js`).onChatMessage(e.app, e.record) }, "messages")
 
