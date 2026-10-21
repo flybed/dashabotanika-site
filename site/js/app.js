@@ -957,8 +957,8 @@ const PAGES = {
   '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection()]; }},
 };
 let SEC_H1 = false, PAGE_UNSUBS = [];
-function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] || ART_RE.test(p) ? p : '/'; }
-const pageOf = path => PAGES[path] || articlePage(path);
+function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] || ART_RE.test(p) || CITY_RE.test(p) ? p : '/'; }
+const pageOf = path => PAGES[path] || (CITY_RE.test(path) ? cityPage(path) : articlePage(path));
 function scrollToHash(hash){
   const el = hash && hash.length > 1 && !/^#(cert|verify|reset|email)\//.test(hash) ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
   if (el) el.scrollIntoView(); else window.scrollTo(0,0);
@@ -1824,7 +1824,22 @@ function worldSection(){
 /* ---------- useful eco services: where to take recyclables, batteries, clothes — by city ---------- */
 const SVC_CATS = ['Карты пунктов приёма','Пункты и вывоз вторсырья','Батарейки и техника','Одежда и вещи','Экоакции и сообщества'];
 const SVC_CITY_KEY = 'db-svc-city', ALL_RU = 'Вся Россия';
-function servicesSection(){
+// pages for search: «Куда сдать … в Казани» — for every city with its own services (the same list the server uses, pb_hooks/seo.js)
+const CITY_RE = /^\/kuda-sdat\/[a-z0-9-]+$/;
+const CITY_IN = {'Москва':'Москве','Санкт-Петербург':'Санкт-Петербурге','Новосибирск':'Новосибирске','Екатеринбург':'Екатеринбурге','Казань':'Казани','Нижний Новгород':'Нижнем Новгороде',
+  'Челябинск':'Челябинске','Красноярск':'Красноярске','Самара':'Самаре','Уфа':'Уфе','Ростов-на-Дону':'Ростове-на-Дону','Омск':'Омске','Краснодар':'Краснодаре','Воронеж':'Воронеже',
+  'Пермь':'Перми','Волгоград':'Волгограде','Тюмень':'Тюмени','Саратов':'Саратове','Тольятти':'Тольятти','Ижевск':'Ижевске','Барнаул':'Барнауле','Иркутск':'Иркутске','Хабаровск':'Хабаровске',
+  'Ярославль':'Ярославле','Владивосток':'Владивостоке','Томск':'Томске','Оренбург':'Оренбурге','Кемерово':'Кемерове','Калининград':'Калининграде','Сочи':'Сочи','Тула':'Туле','Рязань':'Рязани'};
+const inCity = c => CITY_IN[c] ? 'в '+CITY_IN[c] : '— '+c;
+const cityUrl = c => '/kuda-sdat/'+slugify(c);
+function cityPage(path){
+  const slug = path.split('/')[2];
+  const city = ()=>[...new Set(COM.services.filter(x=>x.status==='approved').map(x=>x.city))].find(c=>c!==ALL_RU && slugify(c)===slug);
+  const c = city();
+  return {title:(c ? 'Куда сдать вторсырьё, батарейки и технику '+inCity(c) : 'Куда сдать вторсырьё')+' — DashaBotanika', render:()=>[servicesSection({cityOf:city})]};
+}
+function servicesSection(opts){
+  const cityOf = opts && opts.cityOf;
   let city = ''; try{ city = localStorage.getItem(SVC_CITY_KEY) || ''; }catch(e){}
   let cat = '';
   const list = h('div'), cityBox = h('div'), catBox = h('div'), mineBox = h('div');
@@ -1832,10 +1847,12 @@ function servicesSection(){
   function paint(){
     const all = COM.services.filter(x=>x.status==='approved');
     const cities = [...new Set(all.map(x=>x.city).filter(c=>c && c!==ALL_RU))].sort((a,b)=>a.localeCompare(b,'ru'));
+    if (cityOf){ const c = cityOf(); if (c){ city = c; document.title = 'Куда сдать вторсырьё, батарейки и технику '+inCity(c)+' — DashaBotanika'; } head.replaceChildren(sectionHeadFor(c)); }
     if (!city && PROFILE.rec && cities.some(c=>norm(c)===norm(PROFILE.rec.city))) city = cities.find(c=>norm(c)===norm(PROFILE.rec.city));
     const sel = h('select',{id:'svc-city','aria-label':'Город'}, h('option',{value:''},'Все города'), cities.map(c=>h('option',{value:c,selected:c===city?'':null},c)));
-    sel.addEventListener('change',()=>{ city = sel.value; try{ localStorage.setItem(SVC_CITY_KEY, city); }catch(e){} paint(); });
-    cityBox.replaceChildren(h('label',{class:'svc-city',for:'svc-city'},'📍 Ваш город', sel));
+    sel.addEventListener('change',()=>{ city = sel.value; try{ localStorage.setItem(SVC_CITY_KEY, city); }catch(e){} if (cityOf) go(city ? cityUrl(city) : '/servisy'); else paint(); });
+    cityBox.replaceChildren(h('label',{class:'svc-city',for:'svc-city'},'📍 Ваш город', sel),
+      city && !cityOf ? h('a',{class:'hint',href:cityUrl(city)},'Страница города: куда сдать ',inCity(city),' →') : null);
     catBox.replaceChildren(h('div',{class:'chips svc-cats'}, [['','Все']].concat(SVC_CATS.map(c=>[c,c])).map(([k,l])=>h('button',{type:'button',class:'chip'+(cat===k?' on':''),'aria-pressed':String(cat===k),onclick:()=>{ cat = k; paint(); }},l))));
     const shown = all.filter(x=>(!city || x.city===city || x.city===ALL_RU) && (!cat || x.category===cat))
       .sort((a,b)=>(a.city===ALL_RU) - (b.city===ALL_RU) || a.name.localeCompare(b.name,'ru'));
@@ -1850,7 +1867,6 @@ function servicesSection(){
     mineBox.replaceChildren(...(mine.length ? [h('h3',{style:'font-size:18px;margin-top:10px'},'Мои предложения'), h('div',{class:'list'}, mine.map(x=>h('div',{class:'li'},
       h('div',{class:'meta'}, h('span',{class:'status '+(x.status==='approved'?'accepted':x.status==='rejected'?'declined':'')}, x.status==='approved' ? 'В подборке' : x.status==='rejected' ? 'Не подошло' : 'На проверке'), h('span',null,x.city)), h('b',null,x.name))))] : []));
   }
-  live(paint);
   // suggest a service: members only, goes to Dasha for checking
   const f = {name:h('input',{id:'sv-name',maxlength:'120'}), city:h('input',{id:'sv-city',maxlength:'80',placeholder:'Например, Казань или «Вся Россия»'}),
     category:h('select',{id:'sv-cat'}, SVC_CATS.map(c=>h('option',null,c))), accepts:h('input',{id:'sv-acc',maxlength:'300',placeholder:'Например, пластик, стекло, батарейки'}),
@@ -1871,9 +1887,19 @@ function servicesSection(){
     pb.collection('services').create({name:v('name'), city:v('city'), category:f.category.value, accepts:v('accepts'), url, note:v('note'), suggested_by:COM.uid})
       .then(()=>{ Object.values(f).forEach(el=>{ if (el.tagName!=='SELECT') el.value=''; }); toast('Спасибо! Даша проверит и добавит'); }).catch(writeErr);
   });
+  function sectionHeadFor(c){
+    SEC_H1 = true;
+    return c ? sectionHead('Куда сдать', 'Куда сдать вторсырьё, батарейки и технику '+inCity(c), 'Сервисы и пункты приёма '+inCity(c)+' и те, что работают по всей России. Перед поездкой уточняйте график на сайте.')
+      : sectionHead('Куда сдать','Полезные сервисы для экологии','Компании и проекты, которые принимают вторсырьё, батарейки, технику и вещи. Выберите город — покажем, что работает рядом и по всей России.');
+  }
+  const head = h('div',null, sectionHeadFor(null));
+  live(paint);
   return h('section',{class:'band',id:'services'}, h('div',{class:'wrap'},
-    sectionHead('Куда сдать','Полезные сервисы для экологии','Компании и проекты, которые принимают вторсырьё, батарейки, технику и вещи. Выберите город — покажем, что работает рядом и по всей России.'),
+    head,
     h('div',{class:'svc-bar'}, cityBox, catBox), list,
+    cityOf ? h('div',{class:'card city-tips'}, h('h2',{style:'font-size:22px'},'Как подготовить вторсырьё'),
+      h('ul',null, ['Пластик и стекло — ополосните и снимите крышки; бутылки сплющите.','Бумагу и картон — сухими, без скотча и жирных пятен; коробки сложите.','Металлические банки — ополосните, можно смять.','Батарейки и лампы — только в специальные боксы, не в общий контейнер.','Одежду и вещи в хорошем состоянии лучше отдать: барахолка, благотворительные пункты.'].map(t=>h('li',null,t))),
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/#sort'},'Схема сортировки'), h('a',{class:'btn ghost small',href:'/baraholka'},'Барахолка'), h('a',{class:'btn ghost small',href:'/servisy'},'Все города'))) : null,
     h('p',{class:'hint',style:'margin-top:12px'},'Условия и адреса меняются — перед поездкой уточняйте на сайте сервиса.'),
     form, mineBox));
 }
