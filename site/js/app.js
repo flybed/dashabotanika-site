@@ -1084,7 +1084,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], refs:[], services:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], refs:[], services:[], reports:[], myReports:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -1119,6 +1119,23 @@ function joinHint(what){
   return h('p',{class:'hint'},'Чтобы '+what+', ', h('button',{type:'button',class:'linkish',onclick:()=>openAccount()},'войдите или зарегистрируйтесь'),'. Это займёт минуту.');
 }
 
+/* report a comment: pick a reason; Dasha and moderators see it in «Проверка» */
+ // comments with reports nobody has decided on yet (admins and moderators see all reports)
+const openReports = () => { const by = {}; COM.reports.filter(r=>!r.status).forEach(r=>{ (by[r.comment] = by[r.comment] || []).push(r); });
+  return Object.keys(by).map(id=>({c:COM.comments.find(x=>x.id===id), rs:by[id]})).filter(x=>x.c); };
+const REPORT_REASONS = ['Спам или реклама','Грубость или оскорбление','Не по теме','Другое'];
+function reportBtn(c){
+  if (COM.myReports.includes(c.id)) return h('span',{class:'cm-reported'},'⚑ жалоба отправлена');
+  const box = h('span',{class:'cm-report'});
+  const btn = h('button',{type:'button',class:'linkish cm-report-btn',title:'Пожаловаться на комментарий',onclick:()=>{
+    box.replaceChildren(h('span',{class:'hint'},'Что не так? '), ...REPORT_REASONS.map(r=>h('button',{type:'button',class:'chip',onclick:()=>{
+      pb.collection('reports').create({comment:c.id, reporter:COM.uid, reason:r}).then(()=>{ COM.myReports.push(c.id); toast('Спасибо! Модератор посмотрит'); refresh(); })
+        .catch(e=>{ if (e && e.status===400){ COM.myReports.push(c.id); refresh(); } else writeErr(e); });
+    }}, r)), h('button',{type:'button',class:'linkish',onclick:()=>box.replaceChildren(btn)},'отмена'));
+  }}, '⚑ Пожаловаться');
+  box.append(btn);
+  return box;
+}
 function commentsBlock(target){
   let open = false, lastSt = null;
   const toggle = h('button',{type:'button',class:'cm-toggle'});
@@ -1141,7 +1158,8 @@ function commentsBlock(target){
     if (!open) return;
     list.replaceChildren(...(items.length ? items.map(c=>h('div',{class:'cm-item'},
       h('div',null, h('span',{'aria-hidden':'true'},emojiOf(c.author)+' '), h('b',null,nameOf(c.author)),' ', h('span',{class:'meta'},dt(c.ts)),
-        canDelete(c.author) ? h('button',{type:'button',class:'x',title:'Удалить комментарий','aria-label':'Удалить комментарий',onclick:()=>delDoc('comments',c.id)},'×') : null),
+        canDelete(c.author) ? h('button',{type:'button',class:'x',title:'Удалить комментарий','aria-label':'Удалить комментарий',onclick:()=>delDoc('comments',c.id)},'×') : null,
+        accState()==='member' && c.author!==COM.uid ? reportBtn(c) : null),
       h('div',{style:'white-space:pre-line'},c.text))) : [h('div',{class:'hint'},'Комментариев пока нет.')]));
     const st = accState();
     if (st !== lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? form() : joinHint('комментировать')); }
@@ -2280,7 +2298,7 @@ function cabinetTabs(tab, tid){
     const me = COM.me;
     // my things — for every member; site management — a separate row, only for Dasha and moderators
     const mineTabs = [['path','🌱 Мой эко путь'],['profile','👤 Профиль и настройки'],['chats','💬 Сообщения'],['things','📦 Мои вещи'],['mine','✍️ Мои публикации']];
-    const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Объявления'],['fb','💡 Обратная связь']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
+    const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Проверка'],['fb','💡 Обратная связь']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
     if (!mineTabs.concat(adminTabs).some(([k])=>k===cur)) cur = 'path';
     tabBtns = {};
     const row = list => h('div',{class:'tabs',role:'tablist'}, list.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }));
@@ -2292,7 +2310,8 @@ function cabinetTabs(tab, tid){
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); lists.svc = h('div',{class:'list'});
       out.push(h('h3',{style:'font-size:20px'},'Объявления барахолки'), h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder,
-        h('h3',{style:'font-size:20px'},'Предложенные сервисы'), h('p',{class:'muted'},'Компании и проекты, которые участники предложили для раздела «Полезные сервисы».'), lists.svc); }
+        h('h3',{style:'font-size:20px'},'Предложенные сервисы'), h('p',{class:'muted'},'Компании и проекты, которые участники предложили для раздела «Полезные сервисы».'), lists.svc,
+        h('h3',{style:'font-size:20px'},'Жалобы на комментарии'), h('p',{class:'muted'},'Участники отметили эти комментарии. Удалите или оставьте — автор жалобы не узнаёт, кто решал.'), lists.rep = h('div',{class:'list'})); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
     if (cur==='profile'){
       const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
@@ -2344,6 +2363,15 @@ function cabinetTabs(tab, tid){
     if (lists.things && lists.things.isConnected) paintThings(lists.things);
     if (lists.chats && lists.chats.isConnected) paintChats(lists.chats, openThread);
     if (lists.moder && lists.moder.isConnected) paintModeration(lists.moder);
+    if (lists.rep && lists.rep.isConnected){
+      const open = openReports();
+      lists.rep.replaceChildren(...(open.length ? open.map(({c, rs})=>h('div',{class:'li'},
+        h('div',{class:'meta'}, h('span',{class:'status declined'},'⚑ ',rs.length,' ',plural(rs.length,'жалоба','жалобы','жалоб')), h('span',null,[...new Set(rs.map(r=>r.reason))].join(', ')), h('b',null,emojiOf(c.author),' ',nameOf(c.author)), h('span',null,dt(c.ts))),
+        h('div',{style:'white-space:pre-line;font-size:15px'},c.text),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
+          h('button',{type:'button',class:'btn small',onclick:()=>pb.collection('comments').delete(c.id).then(()=>toast('Комментарий удалён')).catch(writeErr)},'Удалить комментарий'),
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>Promise.all(rs.map(r=>pb.collection('reports').update(r.id,{status:'kept'}))).then(()=>toast('Оставили')).catch(writeErr)},'Оставить')))) : [h('p',{class:'hint'},'Жалоб нет.')]));
+    }
     if (lists.svc && lists.svc.isConnected){
       const pend = COM.services.filter(x=>!x.status);
       lists.svc.replaceChildren(...(pend.length ? pend.map(x=>h('div',{class:'li'},
@@ -2386,7 +2414,7 @@ function cabinetTabs(tab, tid){
     if (force || key !== lastKey){ lastKey = key; PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build().filter(x=>x!=null)); }
     paintLists();
     const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
-    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length + COM.services.filter(x=>!x.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('articles', COM.admin ? newDrafts().length + COM.sugg.filter(s=>!s.status).length : 0);
+    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length + COM.services.filter(x=>!x.status).length + openReports().length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('articles', COM.admin ? newDrafts().length + COM.sugg.filter(s=>!s.status).length : 0);
   }
   live(()=>paint(false));
   return h('section',{class:'band',id:'cabinet-tabs'}, h('div',{class:'wrap'}, body));
@@ -3151,6 +3179,7 @@ render();
     startPresence();
     if (COM.admin) watch('drafts',{sort:'-created'}, l=>{ COM.drafts = l; });
     watch('referrals',{}, l=>{ COM.refs = l; });
+    watch('reports',{sort:'-created'}, l=>{ COM.myReports = l.filter(r=>r.reporter===COM.uid).map(r=>r.comment); COM.reports = l; });
     loadProfile();
     watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
     try{
