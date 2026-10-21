@@ -2045,7 +2045,8 @@ function characterPicker(name, selected, custom){
   // characters come in groups (звери, растения, редкие, птицы…), each a row you scroll sideways
   const paint = ()=>{
     const groups = [];
-    COM.characters.filter(c=>c.kind!=='custom').forEach(c=>{ const g = c.group || ''; let x = groups.find(y=>y.g===g); if (!x) groups.push(x = {g, list:[]}); x.list.push(c); });
+    // a character with an owner (Слон — Дашин) is shown only to its owner
+    COM.characters.filter(c=>c.kind!=='custom' && (!c.reserved_for || c.reserved_for===COM.uid)).forEach(c=>{ const g = c.group || ''; let x = groups.find(y=>y.g===g); if (!x) groups.push(x = {g, list:[]}); x.list.push(c); });
     const cc = customChar();
     list.replaceChildren(...groups.map(({g,list:cs})=>h('div',{class:'chars-sec','data-g':g},
       g && groups.length > 1 ? h('div',{class:'chars-g'},g,h('span',null,' · ',cs.length)) : null,

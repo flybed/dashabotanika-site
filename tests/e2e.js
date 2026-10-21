@@ -306,6 +306,13 @@ const T = '#cabinet-tabs ';
   await r3.click('.acc-btn'); await r3.waitForURL('**/kabinet'); await r3.waitForTimeout(400);
   check('registration opens with the invitation banner', (await r3.textContent('.invite-banner')).includes('Лиза приглашает') && !!(await r3.$('#rg-email')));
   await r3.fill('#rg-email','friend@test.local'); await r3.fill('#rg-pass','secret1234'); await r3.fill('#rg-nick','Друг');
+  // the elephant belongs to Dasha: hidden from others, and the server refuses it
+  const eleph = (await api('GET','/collections/characters/records?filter='+encodeURIComponent("name='Слон'"))).items[0];
+  await api('PATCH','/collections/characters/records/'+eleph.id,{reserved_for:dasha.id},t);
+  await r3.reload({waitUntil:'networkidle'}); await r3.waitForTimeout(500);
+  await r3.fill('#rg-email','friend@test.local'); await r3.fill('#rg-pass','secret1234'); await r3.fill('#rg-nick','Друг');
+  const takeEleph = await fetch(B+'/api/collections/users/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'el@test.local',password:'secret12',passwordConfirm:'secret12',name:'Слонёнок',character:eleph.id})});
+  check('the elephant is only for Dasha: hidden in the picker and refused by the server', !(await r3.$('.char:has-text("Слон")')) && takeEleph.status===400);
   // own character from the dice; without the consent box the form does not go
   await r3.click('.own button:has-text("Сгенерировать")');
   const ownName = await r3.inputValue('.own input');
