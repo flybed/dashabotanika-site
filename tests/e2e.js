@@ -121,6 +121,14 @@ const T = '#cabinet-tabs ';
   await p.locator('#menu .shop input').first().check();
   check('shopping list with ticks', (await p.$$('#menu .shop li')).length > 5 && (await p.$$('#menu .shop label.on')).length===1);
   await p.locator('#menu').screenshot({path:S+'/21-menu.png'});
+  // articles for you: a guest picks a topic in the journal, the matching article comes first; the home page follows
+  await p.goto(B+'/zhurnal', {waitUntil:'networkidle'});
+  check('journal asks «Что вам интересно?» with topic chips', (await p.$$('.fy-chips .chip')).length===8 && !(await p.$('.for-you .fy-t')));
+  await p.click('.fy-chips .chip:has-text("сортировать")'); await p.waitForSelector('.for-you .fy-t');
+  check('a chosen topic shows «Для вас» with the matching article and why', (await p.textContent('.for-you')).includes('Сортировка дома за один вечер') && (await p.textContent('.for-you .picked-why')).includes('сортировать'));
+  await p.goto(B+'/', {waitUntil:'networkidle'});
+  check('the home page shows «Для вас в журнале» for the remembered interest', (await p.textContent('#journal')).includes('Для вас в журнале') && (await p.textContent('#journal .card')).includes('Сортировка дома'));
+  await p.evaluate(()=>localStorage.removeItem('db-art-interests'));
   await p.goto(B+'/moda', {waitUntil:'networkidle'});
   check('/moda: fashion with h1, market teaser and 4 products with "Смотреть больше"', !!(await p.$('h1:has-text("Одежда")')) && !!(await p.$('#market')) && (await p.$$('#goods .product')).length===4 && !!(await p.$('#goods a[href="/tovary"]')));
   check('goods preview says the goods will be on sale soon', (await p.textContent('#goods')).includes('Скоро эти товары можно будет купить'));
