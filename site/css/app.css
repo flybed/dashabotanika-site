@@ -1093,3 +1093,7 @@ details.fold > summary h3{margin:0}
 details.fold > summary::after{content:"Показать ▾";margin-left:auto;font-size:13px;font-weight:800;color:var(--moss)}
 details.fold[open] > summary::after{content:"Свернуть ▴"}
 details.fold[open] > summary{margin-bottom:12px}
+/* profile & account: short summaries, editors on demand */
+.pf-sum{display:flex;flex-wrap:wrap;gap:6px 16px;font-weight:700}
+.acc-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.acc-em{font-size:34px;line-height:1}
