@@ -382,4 +382,4 @@ function sitemap(app) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
 }
 
-module.exports = { render, sitemap, slugify }
+module.exports = { render, sitemap, slugify, articleSlug }

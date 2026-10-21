@@ -7,6 +7,8 @@ Type=simple
 User=pocketbase
 Group=pocketbase
 WorkingDirectory=/opt/pocketbase
+# IndexNow: сообщать Яндексу о новых страницах (только на боевом сервере), см. pb_hooks/indexnow.js
+Environment=INDEXNOW=on
 # токен Telegram-бота (TG_TOKEN=…), файл root:root 600, в репозиторий не попадает; «-» — можно без него
 EnvironmentFile=-/etc/dashabotanika/telegram.env
 # ключ Yandex AI Studio для ИИ-помощника по фото (YC_API_KEY=…, YC_FOLDER=…), см. docs/ai-helper.md
