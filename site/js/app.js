@@ -2664,14 +2664,27 @@ function cabinetTabs(tab, tid){
         h('h3',{style:'font-size:20px'},'Жалобы на комментарии'), h('p',{class:'muted'},'Участники отметили эти комментарии. Удалите или оставьте — автор жалобы не узнаёт, кто решал.'), lists.rep = h('div',{class:'list'})); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(backupCard(), h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
     if (cur==='profile'){
-      const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
-      const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить имя'));
-      f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2) return;
-        pb.collection('users').update(COM.uid,{name:v.slice(0,30)}).then(()=>toast('Имя обновлено')).catch(writeErr); });
-      const pick = characterPicker('acc-char', me.character, {emoji:me.customEmoji, name:me.customName});
-      const cf = h('form',{style:'display:grid;gap:8px'}, pick, h('div',null,h('button',{type:'submit',class:'btn ghost small'},'Сменить персонажа')));
-      cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value) return;
-        pb.collection('users').update(COM.uid,pickData(pick)).then(()=>toast('Персонаж обновлён')).catch(writeErr); });
+      // name and character are shown as they are; the editors open only on «Изменить» / «Сменить персонажа»
+      const nameBox = h('div',{class:'acc-row'}), charBox = h('div',{class:'acc-char'});
+      const showName = ()=>nameBox.replaceChildren(h('b',null,COM.me.nick), h('button',{type:'button',class:'btn ghost small',onclick:editName},'Изменить'));
+      function editName(){
+        const nick = h('input',{id:'acc-nick',maxlength:'30',value:COM.me.nick});
+        const f = h('form',{class:'cm-form'}, nick, h('button',{type:'submit',class:'btn small'},'Сохранить'), h('button',{type:'button',class:'btn ghost small',onclick:showName},'Отмена'));
+        f.addEventListener('submit',e=>{ e.preventDefault(); const v=nick.value.trim(); if(v.length<2){ nick.focus(); return; }
+          pb.collection('users').update(COM.uid,{name:v.slice(0,30)}).then(()=>{ COM.me.nick = v.slice(0,30); toast('Имя обновлено'); showName(); }).catch(writeErr); });
+        nameBox.replaceChildren(f); nick.focus();
+      }
+      const showChar = ()=>{ const c = charOf(COM.me.character);
+        charBox.replaceChildren(h('div',{class:'acc-row'}, h('span',{class:'acc-em','aria-hidden':'true'}, emojiOf(COM.uid)), h('b',null, COM.me.customName || (c && c.name) || 'Персонаж'),
+          h('button',{type:'button',class:'btn ghost small',onclick:editChar},'Сменить персонажа'))); };
+      function editChar(){
+        const pick = characterPicker('acc-char', COM.me.character, {emoji:COM.me.customEmoji, name:COM.me.customName});
+        const cf = h('form',{style:'display:grid;gap:8px'}, pick, h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'submit',class:'btn small'},'Сохранить персонажа'), h('button',{type:'button',class:'btn ghost small',onclick:showChar},'Отмена')));
+        cf.addEventListener('submit',e=>{ e.preventDefault(); if (!pick.value) return;
+          pb.collection('users').update(COM.uid,pickData(pick)).then(()=>{ toast('Персонаж обновлён'); setTimeout(showChar, 300); }).catch(writeErr); });
+        charBox.replaceChildren(cf);
+      }
+      showName(); showChar();
       out.push(h('div',{class:'card acc-card'}, h('h3',null,'Аккаунт и персонаж'),
         h('div',{class:'hint',style:'font-weight:800'},'Почта'),
         h('div',{class:'mail-row'}, h('b',null,COM.email||'—'),
@@ -2679,8 +2692,8 @@ function cabinetTabs(tab, tid){
           COM.verified ? null : h('button',{type:'button',class:'btn ghost small',onclick:e=>{ const b = e.currentTarget; b.disabled = true; b.textContent = 'Отправляю…';
             pb.collection('users').requestVerification(COM.email).then(()=>{ b.textContent = 'Письмо отправлено ✓'; toast('Письмо отправлено, проверьте почту и папку «Спам»'); },()=>{ b.disabled = false; b.textContent = 'Отправить письмо ещё раз'; toast('Не получилось отправить письмо, попробуйте позже'); }); }},'Отправить письмо ещё раз')),
         h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
-        h('label',{for:'acc-nick',class:'hint',style:'font-weight:800'},'Имя на сайте'), f,
-        h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), cf),
+        h('div',{class:'hint',style:'font-weight:800'},'Имя на сайте'), nameBox,
+        h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), charBox),
         tgCard());
     }
     if (cur==='mine'){
@@ -2835,8 +2848,18 @@ function loadProfile(){
 }
 function profilePanel(){
   const box = h('div',{class:'card profile-card'});
+  let editing = false;
   function paint(){
     const p = PROFILE.rec || {};
+    // a filled profile is a short summary; the form opens only to change something
+    if (profileDone(p) && !editing){
+      box.replaceChildren(
+        h('div',{class:'pf-head'}, h('h3',null,'Мой профиль'), h('button',{type:'button',class:'btn ghost small pf-edit',onclick:()=>{ editing = true; paint(); }},'Изменить')),
+        h('div',{class:'pf-sum'}, h('span',null, p.age+' '+plural(p.age,'год','года','лет')), p.gender && p.gender!=='Не хочу указывать' ? h('span',null,p.gender) : null, h('span',null,'📍 '+[p.city,p.country].filter(Boolean).join(', '))),
+        h('div',{class:'chips'}, (p.goals||[]).map(g=>h('span',{class:'chip on'},g))),
+        h('p',{class:'hint'},'По этим целям сайт подбирает статьи и вещи с барахолки. Профиль видите только вы и Даша.'));
+      return;
+    }
     const age = h('input',{id:'pf-age',type:'number',min:'6',max:'110',inputmode:'numeric',value:p.age||''});
     const gender = h('select',{id:'pf-gender'}, h('option',{value:''},'— выберите —'), ['Женский','Мужской','Не хочу указывать'].map(o=>h('option',{selected:p.gender===o},o)));
     const country = h('input',{id:'pf-country',maxlength:'60',value:p.country||'',placeholder:'Например, Россия',autocomplete:'country-name'});
@@ -2867,7 +2890,7 @@ function profilePanel(){
       try{
         PROFILE.rec = PROFILE.rec ? await pb.collection('profiles').update(PROFILE.rec.id, data) : await pb.collection('profiles').create(Object.assign({owner:COM.uid}, data));
         toast(!was && profileDone(PROFILE.rec) ? 'Профиль заполнен! +'+pts+' к росту персонажа' : 'Профиль сохранён');
-        paint();
+        editing = false; paint();
       }catch(err){ btn.disabled = false; writeErr(err); }
     });
     box.replaceChildren(
