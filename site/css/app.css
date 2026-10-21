@@ -701,6 +701,9 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 
 /* "back" on inner pages */
 .backbar{display:flex;gap:14px;align-items:center;padding-top:14px;padding-bottom:0}
+/* the wave on top of a coloured band must not cover «Назад» and «На главную» */
+.backbar{position:relative;z-index:2}
+.backbar + section.band.alt{margin-top:28px}
 .back-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:800;font-size:14px;padding:7px 14px;border-radius:999px;cursor:pointer}
 .back-btn:hover{border-color:var(--moss)}
 .back-home{font-weight:700;font-size:14px;color:var(--moss)}
@@ -1013,3 +1016,6 @@ footer .linkish{font:inherit;color:inherit;text-decoration:underline;background:
 input[type=file]{font:inherit;font-size:15px;color:var(--muted);max-width:100%}
 input[type=file]::file-selector-button{font:inherit;font-weight:800;font-size:14px;padding:7px 16px;margin-right:12px;border-radius:999px;border:1.5px solid var(--moss);background:var(--surface);color:var(--moss);cursor:pointer;transition:background .15s,color .15s}
 input[type=file]::file-selector-button:hover{background:var(--moss);color:var(--on-moss)}
+.like.pop{animation:like-pop .35s ease}
+@keyframes like-pop{40%{transform:scale(1.18)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){ .like.pop{animation:none} }
