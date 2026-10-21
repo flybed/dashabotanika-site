@@ -316,8 +316,18 @@ const CAIRN_SCENE = '<svg viewBox="0 0 400 500" aria-label="Пирамидка �
   '<circle cx="318" cy="92" r="30" style="fill:var(--sun)" opacity=".85"/></svg>';
 const CAIRN_ICON = '<svg class="cairn" viewBox="0 0 34 34" aria-hidden="true"><ellipse cx="17" cy="28" rx="12" ry="4.5" style="fill:var(--stone)"/><ellipse cx="17.5" cy="20.5" rx="9" ry="3.8" style="fill:var(--stone-hi)"/><ellipse cx="16.5" cy="14" rx="6.5" ry="3" style="fill:var(--stone)"/><path d="M17 11c0-4 2-7 6-8-1 4-3 6-6 8Z" style="fill:var(--moss)"/></svg>';
 const photoURL = id => String(id);
-function photoImg(id, alt, fallbackHTML){
-  const img = h('img',{src:photoURL(id), alt, loading:'lazy'});
+// Лёгкие версии фото: для своих картинок рядом лежит копия «-480», для загруженных PocketBase делает миниатюры.
+const SMALL_IMG = /^\/img\/[\w-]+\.webp$/;
+function photoSrc(id){
+  const u = photoURL(id);
+  if (SMALL_IMG.test(u)) return {src:u, srcset:u.replace(/\.webp$/,'-480.webp')+' 480w, '+u+' 960w'};
+  if (/^\/api\/files\/photos\/[^?]+\.jpe?g$/i.test(u)) return {src:u+'?thumb=960x0', srcset:u+'?thumb=480x0 480w, '+u+'?thumb=960x0 960w'};
+  return {src:u};
+}
+function photoImg(id, alt, fallbackHTML, opts){
+  const o = opts||{}, ps = photoSrc(id);
+  const img = h('img',{src:ps.src, srcset:ps.srcset||null, sizes:ps.srcset ? (o.sizes||'(max-width: 700px) 100vw, 480px') : null, alt,
+    loading:o.eager ? 'eager' : 'lazy', decoding:'async', fetchpriority:o.eager ? 'high' : null});
   img.addEventListener('error',()=>{ const f=h('div',{html:fallbackHTML||'',style:'width:100%;height:100%'}); img.replaceWith(f); });
   return img;
 }
@@ -329,7 +339,7 @@ function pickAndUpload(onDone){
     if (f.size > 15*1024*1024){ toast('Фото больше 15 МБ, уменьшите его'); return; }
     toast('Загружаю фото…');
     try{
-      const fd = new FormData(); fd.append('file', f); fd.append('uploaded_by', COM.uid);
+      const fd = new FormData(); fd.append('file', await fitPhoto(f)); fd.append('uploaded_by', COM.uid);
       const r = await pb.collection('photos').create(fd);
       onDone('/api/files/photos/'+r.id+'/'+encodeURIComponent(r.file)); markDirty(); render(); toast('Фото добавлено. Не забудьте сохранить');
     }catch(e){
@@ -345,7 +355,7 @@ function uploadBtn(label, onDone, extraClass){
 function heroArt(){
   const id = STATE.photos.hero;
   return h('div',{class:'hero-art'},
-    h('div',{class:'pebble'}, id ? photoImg(id, STATE.about.name||'Фото', CAIRN_SCENE) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
+    h('div',{class:'pebble'}, id ? photoImg(id, STATE.about.name||'Фото', CAIRN_SCENE, {eager:true}) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
     h('div',{html:STONES,style:'display:contents'}),
     h('div',{html:SPRIG,style:'display:contents'}),
     id && STATE.about.name ? h('span',{class:'caption'},STATE.about.name) : null,
@@ -773,7 +783,7 @@ function articlePage(path){
       h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/#journal'},'Журнал')),
       h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null),
       h('h1',null,it.title),
-      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title)) : null,
+      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title, '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
       h('div',{class:'art-body'}, it.body),
@@ -1209,7 +1219,7 @@ function feedbackSection(){
       btn.disabled = true; btn.textContent = 'Отправляю…';
       try{
         const fd = new FormData(); fd.append('author', COM.uid); fd.append('text', t.slice(0,3000));
-        fl.forEach(x=>fd.append('photos', x));
+        for (const x of fl) fd.append('photos', await fitPhoto(x));
         await pb.collection('feedback').create(fd);
         f.reset(); toast('Спасибо! Даша прочитает и ответит');
       }catch(err){ writeErr(err); }
@@ -1443,7 +1453,7 @@ function thingsPanel(lists){
     try{
       const fd = new FormData();
       Object.entries({seller:COM.uid, title:t, kind:kind.value, price:kind.value==='Продам' ? price.value.trim() : '', condition:cond.value.trim(), city:city.value.trim(), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
-      if (fl) fd.append('photo', fl);
+      if (fl) fd.append('photo', await fitPhoto(fl, 1200));
       await pb.collection('listings').create(fd);
       f.reset(); toast('Отправлено! Объявление появится после проверки');
     }catch(err){ writeErr(err); }
@@ -1480,7 +1490,7 @@ function paintModeration(el){
     const reason = h('input',{maxlength:'200',placeholder:'Причина отказа (увидит автор)','aria-label':'Причина отказа'});
     const set = data => write('listings/'+it.id, ()=>pb.collection('listings').update(it.id, data));
     return h('div',{class:'li'},
-      it.photo ? h('img',{src:it.photo,alt:'',style:'width:120px;aspect-ratio:4/3;object-fit:cover;border-radius:8px'}) : null,
+      it.photo ? h('img',{src:it.photo,alt:'',loading:'lazy',decoding:'async',style:'width:120px;aspect-ratio:4/3;object-fit:cover;border-radius:8px'}) : null,
       h('div',{class:'meta'}, h('span',{class:'status'},it.kind), h('b',null,nameOf(it.seller)), h('span',null,dt(it.ts)), h('span',null,priceLabel(it))),
       h('b',null,it.title),
       h('div',{style:'font-size:14px;white-space:pre-line'}, [it.condition && 'Состояние: '+it.condition, it.city && 'Где: '+it.city, it.note].filter(Boolean).join('\n')),
@@ -2029,6 +2039,24 @@ function menuSection(){
 
 /* ---------- smart helper (AI): photo of a plate or of packaging → advice (Yandex AI Studio, see pb_hooks/ai.js) ---------- */
 // the photo is made smaller in the browser (max 1024 px) before it is sent; it is not stored anywhere
+// Перед загрузкой уменьшаем фото с телефона (часто 4–10 МБ) до разумных 1600 px — грузится быстрее и у нас, и у гостей.
+// Если браузер не умеет открыть файл (например, HEIC), отправляем как есть.
+function fitPhoto(file, max){
+  max = max || 1600;
+  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) return Promise.resolve(file);
+  return new Promise(ok=>{
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = ()=>{ URL.revokeObjectURL(url);
+      const k = Math.min(1, max/Math.max(img.width, img.height));
+      if (k === 1 && file.size < 700*1024){ ok(file); return; }
+      const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b=>ok(b && b.size < file.size ? new File([b], file.name.replace(/\.\w+$/,'')+'.jpg', {type:'image/jpeg'}) : file), 'image/jpeg', 0.85);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); ok(file); };
+    img.src = url;
+  });
+}
 function shrinkPhoto(file){
   return new Promise((ok, fail)=>{
     const img = new Image(), url = URL.createObjectURL(file);
