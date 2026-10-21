@@ -247,6 +247,19 @@ const T = '#cabinet-tabs ';
   await p.click(T+'button:has-text("В работе")'); await p.waitForTimeout(600);
   await q.goto(B+'/#feedback'); await q.waitForSelector('#feedback .fb-reply:has-text("Уже делаю")');
   check('feedback reply visible to author', !!(await q.$('#feedback .status:has-text("В работе")')));
+  // Liza reports Dasha's comment; Dasha sees it in «Проверка» and decides
+  const dt0 = (await api('POST','/collections/users/auth-with-password',{identity:'dasha@test.local',password:'secret1234'})).token;
+  const dashaComment = await api('POST','/collections/comments/records',{target:'articles:a1', author:dasha.id, text:'Комментарий для проверки жалоб'},dt0);
+  if (dashaComment){
+    const lt = (await api('POST','/collections/users/auth-with-password',{identity:'liza@test.local',password:'secret1234'})).token;
+    const rep = await api('POST','/collections/reports/records',{comment:dashaComment.id, reporter:(await api('GET','/collections/users/records?filter='+encodeURIComponent('name="Лиза"'),null,t)).items[0].id, reason:'Не по теме'},lt);
+    const again = await fetch(B+'/api/collections/reports/records',{method:'POST',headers:{'Content-Type':'application/json',Authorization:lt},body:JSON.stringify({comment:dashaComment.id, reporter:rep.reporter, reason:'Другое'})});
+    check('a member can report a comment once', !!rep.id && again.status===400);
+    await p.goto(B+'/kabinet?tab=moder', {waitUntil:'networkidle'}); await p.waitForTimeout(600);
+    check('admin sees the report in «Проверка» with a count', (await p.textContent('.admin-bar')).includes('Проверка (') && (await p.textContent(T)).includes('Не по теме'));
+    await p.locator(T+'.li:has-text("Не по теме") button:has-text("Оставить")').click(); await p.waitForTimeout(600);
+    check('«Оставить» closes the report', !(await p.textContent(T)).includes('Не по теме'));
+  } else check('there is a comment of Dasha to report', false);
   await p.click('.tabs button:has-text("Участники")'); await p.waitForTimeout(600);
   const sum = await p.textContent(T+'.people-sum');
   check('people summary: 2 total, online counted', /2\s*участника/.test(sum) && /онлайн/.test(sum) && (await p.$$(T+'.online-dot.on')).length >= 1);

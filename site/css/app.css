@@ -956,3 +956,9 @@ footer .wrap.narrow.auth{max-width:640px}
 .svc-city-tag{background:var(--paper)}
 .svc-form{margin-top:28px}
 @media (min-width:1001px){.sn-row{grid-template-columns:repeat(13,minmax(0,1fr))}}
+/* reports on comments */
+.cm-report{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:8px}
+.cm-report .chip{cursor:pointer;font:inherit;font-size:12px;font-weight:700;padding:3px 10px}
+.cm-report-btn{font-size:12px;color:var(--muted);text-decoration:none;font-weight:700}
+.cm-report-btn:hover{color:var(--clay)}
+.cm-reported{font-size:12px;color:var(--muted);margin-left:8px}
