@@ -267,14 +267,20 @@ function interestsSection(){
 /* a peek at the community world: who lives there, and a door to the whole map */
 function worldTeaser(){
   const row = h('div',{class:'wt-row'}), count = h('p',{class:'muted'}), cta = h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
+  // a miniature of the world itself: the same meadow, the same places — a door to /mir
+  const mini = h('div',{class:'world wt-mini'});
   live(()=>{
     const ids = Object.keys(COM.members).filter(id=>COM.members[id].character).sort((a,b)=>COM.members[b].joined-COM.members[a].joined);
     row.replaceChildren(...ids.slice(0,14).map(id=>h('span',{class:'wt-em',title:COM.members[id].nick}, emojiOf(id))));
+    const all = worldIds();
+    mini.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...all.slice(0,60).map((id,i)=>{ const [x,y] = worldPos(i, all.length);
+      return h('span',{class:'wt-dw'+(isDasha(id)?' first':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%'}, emojiOf(id)); }));
     count.textContent = ids.length ? 'Жителей в мире: '+ids.length+'. Каждый участник — животное или растение, которое растёт вместе с его эко-привычками.' : 'Каждый участник — животное или растение, которое растёт вместе с его эко-привычками.';
     cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Поселиться'));
   });
-  return h('section',{class:'band alt',id:'world-teaser'}, h('div',{class:'wrap'},
-    sectionHead('Счастливый мир','Наш эко-мир'), row, count, cta));
+  return h('section',{class:'band alt',id:'world-teaser'}, h('div',{class:'wrap wt'},
+    h('div',null, sectionHead('Счастливый мир','Наш эко-мир'), row, count, cta),
+    h('a',{href:'/mir',class:'wt-link','aria-label':'Открыть «Счастливый мир»'}, mini)));
 }
 
 /* ---------- first steps: a guide like in games — what to do here, one step at a time ---------- */
@@ -340,10 +346,14 @@ const CAIRN_ICON = '<svg class="cairn" viewBox="0 0 34 34" aria-hidden="true"><e
 const photoURL = id => String(id);
 // Лёгкие версии фото: для своих картинок рядом лежит копия «-480», для загруженных PocketBase делает миниатюры.
 const SMALL_IMG = /^\/img\/[\w-]+\.webp$/;
+// The browser picks by the screen: the light copy for ordinary screens, the full photo for Retina (x2, x3).
+// Widths are the real ones, so on a 3x phone it takes the biggest file instead of a blurry one.
+const IMG_W = {coffee:900, fashion:900, globe:1200, 'hero-dasha':960, hero:900, owl:1200};
 function photoSrc(id){
   const u = photoURL(id);
-  if (SMALL_IMG.test(u)) return {src:u, srcset:u.replace(/\.webp$/,'-480.webp')+' 480w, '+u+' 960w'};
-  if (/^\/api\/files\/photos\/[^?]+\.jpe?g$/i.test(u)) return {src:u+'?thumb=960x0', srcset:u+'?thumb=480x0 480w, '+u+'?thumb=960x0 960w'};
+  if (SMALL_IMG.test(u)) return {src:u, srcset:u.replace(/\.webp$/,'-480.webp')+' 480w, '+u+' '+(IMG_W[u.slice(5,-5)]||960)+'w'};
+  // uploads are shrunk to 1600 px before upload, so the original is the Retina version
+  if (/^\/api\/files\/photos\/[^?]+\.jpe?g$/i.test(u)) return {src:u+'?thumb=960x0', srcset:u+'?thumb=480x0 480w, '+u+'?thumb=960x0 960w, '+u+' 1600w'};
   return {src:u};
 }
 function photoImg(id, alt, fallbackHTML, opts){
@@ -1300,11 +1310,12 @@ function dealBtn(ref, title, seller, kind){
 }
 function myItems(){ return COM.listings.filter(l=>l.seller===COM.uid); }
 function setMyItemStatus(id, status){ return write('listings/'+id, ()=>pb.collection('listings').update(id,{status})).catch(writeErr); }
-function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, photo:fileURL(r,'photo','600x450'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
+function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
 function userListingCard(it){
   const mine = it.seller === COM.uid;
-  const img = it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',style:'width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block'}) : null;
+  // the 600 px thumb for ordinary screens, the original (up to 1200 px) for Retina
+  const img = it.photo ? h('img',{src:it.photo,srcset:it.photoFull ? it.photo+' 600w, '+it.photoFull+' 1200w' : null,sizes:'(max-width: 560px) 100vw, 380px',alt:it.title,loading:'lazy',decoding:'async',style:'width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block'}) : null;
   if (img) img.addEventListener('error',()=>img.remove());
   return h('article',{class:'card'},
     img,
@@ -1837,6 +1848,15 @@ const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slic
   '<g><circle cx="380" cy="352" r="3" fill="#F3D35B"/><circle cx="560" cy="378" r="3" fill="#E98AA0"/><circle cx="720" cy="340" r="3" fill="#F3D35B"/><circle cx="880" cy="370" r="3" fill="#E98AA0"/><circle cx="640" cy="400" r="3" fill="#FFFFFF"/><circle cx="460" cy="404" r="3" fill="#F3D35B"/><circle cx="960" cy="400" r="3" fill="#FFFFFF"/></g>'+
   '</svg>';
 
+// who lives in the world and where: Dasha first, then by the day they joined
+const isDasha = id => COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон';
+const worldIds = () => Object.keys(COM.members).filter(id=>COM.members[id].character)
+  .sort((a,b)=>isDasha(a)!==isDasha(b) ? (isDasha(a) ? -1 : 1) : COM.members[a].joined-COM.members[b].joined);
+// first places are chosen spots on the meadow (Dasha in the middle), then a spiral around them
+function worldPos(i, n){
+  const spot = WORLD_SPOTS[i], r = Math.sqrt(i/(n+1)), a = i*2.39996;
+  return spot ? spot : [62 + Math.cos(a)*r*34, 82 + Math.sin(a)*r*11];
+}
 const WORLD_SPOTS = [[62,80],[46,77],[78,77],[38,89],[54,91],[70,90],[87,86],[30,78],[94,78],[62,95],[46,96],[82,95]];
 
 /* private messages between members: a chat whose "seller" is the other member */
@@ -1863,18 +1883,13 @@ function worldSection(){
   const cta = h('div',{style:'margin-top:14px'});
   let lastKey = null;
   live(()=>{
-    const isDasha = id => COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон';
-    const ids = Object.keys(COM.members).filter(id=>COM.members[id].character)
-      .sort((a,b)=>isDasha(a)!==isDasha(b) ? (isDasha(a) ? -1 : 1) : COM.members[a].joined-COM.members[b].joined);
+    const ids = worldIds();
     const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level).join()+COM.characters.length+COM.levels.map(l=>l.name).join()+'|'+COM.uid;
     if (key === lastKey) return; lastKey = key;
     const n = ids.length;
     box.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
       const m = COM.members[id];
-      const r = Math.sqrt(i/(n+1)), a = i*2.39996;
-      // first places are chosen spots on the meadow (Dasha in the middle), then a spiral around them
-      const spot = WORLD_SPOTS[i];
-      const x = spot ? spot[0] : 62 + Math.cos(a)*r*34, y = spot ? spot[1] : 82 + Math.sin(a)*r*11;
+      const [x, y] = worldPos(i, n);
       const label = m.nick+' · '+levelName(m.level);
       const el = h('div',{class:'dweller st-'+(m.level||1)+(isDasha(id)?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%','aria-label':label,tabindex:'0'},
         h('span',{class:'em'}, emojiOf(id)), n <= 40 || isDasha(id) || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null,
