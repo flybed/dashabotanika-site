@@ -36,10 +36,10 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 const NAV_GROUPS = [
   ['Сообщество', [['/#world','Счастливый мир'],['/#journal','Журнал'],['/baraholka','Барахолка'],['/#feedback','Обратная связь']]],
   ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/#game','Игра «Эко-уборка»'],['/#calc','Переработка и сортировка']]],
-  ['Жить экологично', [['/tovary','Товары'],['/#food','Еда'],['/#menu','Конструктор меню'],['/#fashion','Мода'],['/#cafes','Кафе'],['/#air','Чистота воздуха']]]
+  ['Жить экологично', [['/servisy','Полезные сервисы'],['/tovary','Товары'],['/#food','Еда'],['/#menu','Конструктор меню'],['/#fashion','Мода'],['/#cafes','Кафе'],['/#air','Чистота воздуха']]]
 ];
 // the same sections as round icons under the first screen
-const SECTIONS = [['🌍','Мир','/#world'],['🏁','Челленджи','/kabinet#challenges'],['🎓','Эко-тест','/eko-test'],['🎮','Игра','/#game'],['🌤️','Воздух','/#air'],['♻️','Переработка','/#calc'],
+const SECTIONS = [['🌍','Мир','/#world'],['🏁','Челленджи','/kabinet#challenges'],['🎓','Эко-тест','/eko-test'],['🎮','Игра','/#game'],['🌤️','Воздух','/#air'],['♻️','Переработка','/#calc'],['🗺️','Сервисы','/servisy'],
   ['🛍️','Товары','/tovary'],['📦','Барахолка','/baraholka'],['🥗','Еда','/#food'],['👗','Мода','/#fashion'],['☕','Кафе','/#cafes'],['📖','Журнал','/#journal']];
 
 const MATERIALS = [
@@ -954,6 +954,7 @@ const PAGES = {
   '/baraholka': {title:'Барахолка: отдать, обменять, продать — DashaBotanika', render:()=>{ SEC_H1 = true; return [marketSection()]; }},
   '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
   '/politika': {title:'Политика конфиденциальности — DashaBotanika', render:()=>[privacyPage()]},
+  '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection()]; }},
 };
 let SEC_H1 = false, PAGE_UNSUBS = [];
 function currentPath(){ const p = location.pathname.replace(/\/+$/,'') || '/'; return PAGES[p] || ART_RE.test(p) ? p : '/'; }
@@ -1083,7 +1084,7 @@ function watch(coll, opts, apply){
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
 function nameSpan(id){ const s = h('b'); live(()=>{ s.textContent = nameOf(id); }); return s; }
-const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], refs:[], levels:[], characters:[] };
+const COM = { uid:null, admin:false, owner:false, ready:false, me:null, members:{}, presence:{}, growthRules:[], likes:[], reads:{}, reviews:[], comments:[], feedback:[], listings:[], threads:{}, sugg:[], drafts:[], refs:[], services:[], levels:[], characters:[] };
 let LIVE = [], MODAL_LIVE = [];
 function live(fn){ LIVE.push(fn); fn(); return fn; }
 function mlive(fn){ MODAL_LIVE.push(fn); fn(); return fn; }
@@ -1820,6 +1821,63 @@ function worldSection(){
   ));
 }
 
+/* ---------- useful eco services: where to take recyclables, batteries, clothes — by city ---------- */
+const SVC_CATS = ['Карты пунктов приёма','Пункты и вывоз вторсырья','Батарейки и техника','Одежда и вещи','Экоакции и сообщества'];
+const SVC_CITY_KEY = 'db-svc-city', ALL_RU = 'Вся Россия';
+function servicesSection(){
+  let city = ''; try{ city = localStorage.getItem(SVC_CITY_KEY) || ''; }catch(e){}
+  let cat = '';
+  const list = h('div'), cityBox = h('div'), catBox = h('div'), mineBox = h('div');
+  const norm = x => String(x||'').trim().toLowerCase().replace(/ё/g,'е');
+  function paint(){
+    const all = COM.services.filter(x=>x.status==='approved');
+    const cities = [...new Set(all.map(x=>x.city).filter(c=>c && c!==ALL_RU))].sort((a,b)=>a.localeCompare(b,'ru'));
+    if (!city && PROFILE.rec && cities.some(c=>norm(c)===norm(PROFILE.rec.city))) city = cities.find(c=>norm(c)===norm(PROFILE.rec.city));
+    const sel = h('select',{id:'svc-city','aria-label':'Город'}, h('option',{value:''},'Все города'), cities.map(c=>h('option',{value:c,selected:c===city?'':null},c)));
+    sel.addEventListener('change',()=>{ city = sel.value; try{ localStorage.setItem(SVC_CITY_KEY, city); }catch(e){} paint(); });
+    cityBox.replaceChildren(h('label',{class:'svc-city',for:'svc-city'},'📍 Ваш город', sel));
+    catBox.replaceChildren(h('div',{class:'chips svc-cats'}, [['','Все']].concat(SVC_CATS.map(c=>[c,c])).map(([k,l])=>h('button',{type:'button',class:'chip'+(cat===k?' on':''),'aria-pressed':String(cat===k),onclick:()=>{ cat = k; paint(); }},l))));
+    const shown = all.filter(x=>(!city || x.city===city || x.city===ALL_RU) && (!cat || x.category===cat))
+      .sort((a,b)=>(a.city===ALL_RU) - (b.city===ALL_RU) || a.name.localeCompare(b.name,'ru'));
+    list.replaceChildren(shown.length ? h('div',{class:'grid g3'}, shown.map(x=>h('article',{class:'card svc'},
+      h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag'},x.category), h('span',{class:'tag svc-city-tag'},'📍 ',x.city)),
+      h('h3',{style:'font-size:20px'},x.name),
+      x.accepts ? h('p',{style:'font-size:15px'}, h('b',null,'Принимают: '), x.accepts) : null,
+      x.note ? h('p',{class:'muted',style:'font-size:14px;flex:1'},x.note) : h('span',{style:'flex:1'}),
+      x.url ? h('a',{class:'btn small',href:x.url,target:'_blank',rel:'noopener nofollow',style:'align-self:flex-start'},'На сайт ↗') : null)))
+      : h('div',{class:'empty'}, COM.ready ? 'В этом городе пока ничего нет — посмотрите «Все города» или предложите свой сервис ниже.' : 'Загружаем…'));
+    const mine = COM.services.filter(x=>x.suggested_by===COM.uid && COM.uid);
+    mineBox.replaceChildren(...(mine.length ? [h('h3',{style:'font-size:18px;margin-top:10px'},'Мои предложения'), h('div',{class:'list'}, mine.map(x=>h('div',{class:'li'},
+      h('div',{class:'meta'}, h('span',{class:'status '+(x.status==='approved'?'accepted':x.status==='rejected'?'declined':'')}, x.status==='approved' ? 'В подборке' : x.status==='rejected' ? 'Не подошло' : 'На проверке'), h('span',null,x.city)), h('b',null,x.name))))] : []));
+  }
+  live(paint);
+  // suggest a service: members only, goes to Dasha for checking
+  const f = {name:h('input',{id:'sv-name',maxlength:'120'}), city:h('input',{id:'sv-city',maxlength:'80',placeholder:'Например, Казань или «Вся Россия»'}),
+    category:h('select',{id:'sv-cat'}, SVC_CATS.map(c=>h('option',null,c))), accepts:h('input',{id:'sv-acc',maxlength:'300',placeholder:'Например, пластик, стекло, батарейки'}),
+    url:h('input',{id:'sv-url',inputmode:'url',placeholder:'например, ecopunkt.ru'}), note:h('textarea',{id:'sv-note',maxlength:'600',style:'min-height:80px',placeholder:'Чем полезен, условия, график'})};
+  const form = h('form',{class:'form svc-form'},
+    h('h3',{style:'font-size:20px'},'Предложить сервис'),
+    h('p',{class:'hint'},'Знаете компанию или проект, который принимает вторсырьё, технику или вещи? Расскажите — Даша проверит и добавит в подборку.'),
+    h('div',{class:'fields'}, h('label',{for:'sv-name'},'Название',f.name), h('label',{for:'sv-city'},'Город',f.city)),
+    h('div',{class:'fields'}, h('label',{for:'sv-cat'},'Что это',f.category), h('label',{for:'sv-url'},'Сайт',f.url)),
+    h('label',{for:'sv-acc'},'Что принимают',f.accepts), h('label',{for:'sv-note'},'Комментарий',f.note),
+    h('div',null, h('button',{type:'submit',class:'btn'},'Отправить на проверку')));
+  form.addEventListener('submit', e=>{ e.preventDefault();
+    if (accState()!=='member'){ openAccount('register'); return; }
+    const v = k => f[k].value.trim();
+    if (v('name').length < 2){ f.name.focus(); return; }
+    if (!v('city')){ f.city.focus(); return; }
+    let url = v('url'); if (url && !/^https?:\/\//.test(url)) url = 'https://'+url;
+    pb.collection('services').create({name:v('name'), city:v('city'), category:f.category.value, accepts:v('accepts'), url, note:v('note'), suggested_by:COM.uid})
+      .then(()=>{ Object.values(f).forEach(el=>{ if (el.tagName!=='SELECT') el.value=''; }); toast('Спасибо! Даша проверит и добавит'); }).catch(writeErr);
+  });
+  return h('section',{class:'band',id:'services'}, h('div',{class:'wrap'},
+    sectionHead('Куда сдать','Полезные сервисы для экологии','Компании и проекты, которые принимают вторсырьё, батарейки, технику и вещи. Выберите город — покажем, что работает рядом и по всей России.'),
+    h('div',{class:'svc-bar'}, cityBox, catBox), list,
+    h('p',{class:'hint',style:'margin-top:12px'},'Условия и адреса меняются — перед поездкой уточняйте на сайте сервиса.'),
+    form, mineBox));
+}
+
 /* ---------- menu builder: a week of simple eco dishes for your goal and diet, with a shopping list ---------- */
 // m: b/l/d — завтрак/обед/ужин; d: vegan | veg | fish | meat; has: what is inside (for «без …»); g: goals it suits
 const DISHES = [
@@ -2206,7 +2264,9 @@ function cabinetTabs(tab, tid){
     if (cur==='profile') out.push(profilePanel(), inviteCard());
     if (cur==='path') out.push(ecoPath(), xpHistory());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
-    if (cur==='moder'){ lists.moder = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder); }
+    if (cur==='moder'){ lists.moder = h('div',{class:'list'}); lists.svc = h('div',{class:'list'});
+      out.push(h('h3',{style:'font-size:20px'},'Объявления барахолки'), h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder,
+        h('h3',{style:'font-size:20px'},'Предложенные сервисы'), h('p',{class:'muted'},'Компании и проекты, которые участники предложили для раздела «Полезные сервисы».'), lists.svc); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
     if (cur==='profile'){
       const nick = h('input',{id:'acc-nick',maxlength:'30',value:me.nick});
@@ -2258,6 +2318,16 @@ function cabinetTabs(tab, tid){
     if (lists.things && lists.things.isConnected) paintThings(lists.things);
     if (lists.chats && lists.chats.isConnected) paintChats(lists.chats, openThread);
     if (lists.moder && lists.moder.isConnected) paintModeration(lists.moder);
+    if (lists.svc && lists.svc.isConnected){
+      const pend = COM.services.filter(x=>!x.status);
+      lists.svc.replaceChildren(...(pend.length ? pend.map(x=>h('div',{class:'li'},
+        h('div',{class:'meta'}, h('span',{class:'status'},'На проверке'), h('span',null,x.category), h('span',null,'📍 ',x.city), x.suggested_by ? h('span',null,'от ',nameOf(x.suggested_by)) : null),
+        h('b',null,x.name), x.accepts ? h('div',{style:'font-size:15px'},'Принимают: ',x.accepts) : null, x.note ? h('div',{class:'hint'},x.note) : null,
+        x.url ? h('a',{href:x.url,target:'_blank',rel:'noopener nofollow'},x.url) : null,
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
+          h('button',{type:'button',class:'btn small',onclick:()=>pb.collection('services').update(x.id,{status:'approved'}).then(()=>toast('Добавлено в подборку')).catch(writeErr)},'Добавить в подборку'),
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('services').update(x.id,{status:'rejected'}).catch(writeErr)},'Отклонить')))) : [h('p',{class:'hint'},'Новых предложений нет.')]));
+    }
     if (lists.people && lists.people.isConnected) paintPeople(lists.people);
     if (lists.mySugg && lists.mySugg.isConnected){
       const it = COM.sugg.filter(s=>s.author===COM.uid);
@@ -2290,7 +2360,7 @@ function cabinetTabs(tab, tid){
     if (force || key !== lastKey){ lastKey = key; PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = []; for (const k in lists) delete lists[k]; body.replaceChildren(...build().filter(x=>x!=null)); }
     paintLists();
     const badge = (k,n)=>{ const b = tabBtns[k]; if (b && b.isConnected) b.textContent = b.dataset.l + (n ? ' ('+n+')' : ''); };
-    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('articles', COM.admin ? newDrafts().length + COM.sugg.filter(s=>!s.status).length : 0);
+    badge('chats', unreadCount()); badge('moder', COM.admin ? pendingListings().length + COM.services.filter(x=>!x.status).length : 0); badge('fb', COM.admin ? COM.feedback.filter(f=>!f.status).length : 0); badge('articles', COM.admin ? newDrafts().length + COM.sugg.filter(s=>!s.status).length : 0);
   }
   live(()=>paint(false));
   return h('section',{class:'band',id:'cabinet-tabs'}, h('div',{class:'wrap'}, body));
@@ -3016,6 +3086,7 @@ render();
   watch('levels',{sort:'rank'}, l=>{ COM.levels = l; });
   watch('growth_rules',{sort:'sort'}, l=>{ COM.growthRules = l; });
   watch('likes',{fields:'id,user,target'}, l=>{ COM.likes = l; });
+  watch('services',{sort:'name'}, l=>{ COM.services = l; });
   const auth = pb.authStore;
   if (auth.isValid && auth.record && auth.record.collectionName==='users'){
     try{ await pb.collection('users').authRefresh({requestKey:null}); }catch(e){ if (e && (e.status===401 || e.status===404)) auth.clear(); }

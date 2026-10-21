@@ -119,6 +119,18 @@ function page(path, d, k, app) {
         `<h2>Примеры вопросов</h2><ul>${k.QUESTIONS.map((q) => `<li>${esc(q.q)}</li>`).join("")}</ul>`, true),
     })
   }
+  if (path === "/servisy") {
+    let items = []
+    try { items = app.findRecordsByFilter("services", "status = 'approved'", "city,name", 300, 0) } catch (e) {}
+    const cities = [...new Set(items.map((r) => r.getString("city")).filter((c) => c && c !== "Вся Россия"))]
+    return Object.assign(base, {
+      title: "Полезные сервисы для экологии: куда сдать вторсырьё, батарейки и технику — DashaBotanika",
+      description: "Подборка компаний и проектов, которые принимают вторсырьё, батарейки, технику и вещи" + (cities.length ? ": " + cities.slice(0, 6).join(", ") + " и вся Россия." : " по всей России."),
+      crumbs: [["Полезные сервисы", "/servisy"]],
+      body: sec("services", "Куда сдать", "Полезные сервисы для экологии", "Компании и проекты, которые принимают вторсырьё, батарейки, технику и вещи.",
+        items.map((r) => `<article><h3>${esc(r.getString("name"))}</h3><p>${esc(r.getString("category"))} · ${esc(r.getString("city"))}</p>${r.getString("accepts") ? `<p>Принимают: ${esc(r.getString("accepts"))}</p>` : ""}${r.getString("note") ? `<p>${esc(r.getString("note"))}</p>` : ""}</article>`).join("\n"), true),
+    })
+  }
   if (path === "/politika") {
     return Object.assign(base, {
       title: "Политика конфиденциальности — DashaBotanika",
@@ -210,7 +222,7 @@ function render(app, path) {
 function sitemap(app) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl)
-  const urls = [["/", "weekly", "1.0"], ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"]]
+  const urls = [["/", "weekly", "1.0"], ["/servisy", "weekly", "0.8"], ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   ;(d.articles || []).forEach((a) => {
     urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
