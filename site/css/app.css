@@ -1064,3 +1064,15 @@ input[type=file]::file-selector-button:hover{background:var(--moss);color:var(--
 .md-b{font:inherit;font-size:13.5px;font-weight:800;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
 .md-b:hover,.md-b.on{border-color:var(--moss);color:var(--moss)}
 .md-preview{border:1.5px dashed var(--line);border-radius:14px;padding:16px 18px;background:var(--paper);font-size:16px;line-height:1.6}
+
+/* photo frame editor */
+.crop-sheet{width:min(720px,100%)}
+.crop-view{width:100%;aspect-ratio:4/3;border-radius:14px;display:block;background:var(--soft);touch-action:none;cursor:grab}
+.crop-view:active{cursor:grabbing}
+.crop-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.crop-zoom{display:flex;gap:8px;align-items:center;flex:1 1 200px;font-size:18px}
+.crop-zoom input{flex:1}
+.crop-tools .btn.on{border-color:var(--moss);color:var(--moss)}
+.mk-photo-box{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.mk-photo-box:empty{display:none}
+.mk-thumb{width:160px;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid var(--line)}

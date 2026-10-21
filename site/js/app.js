@@ -1615,6 +1615,13 @@ function thingsPanel(lists){
   const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город, район или метро'});
   const note = h('textarea',{id:'mk-note',maxlength:'1500'});
   const file = h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp'});
+  // the photo goes through the frame editor right after choosing; the finished frame is what we upload
+  let framed = null;
+  const photoBox = h('div',{class:'mk-photo-box'});
+  const showFramed = ()=>{ photoBox.replaceChildren(...(framed ? [h('img',{src:URL.createObjectURL(framed),alt:'Кадр для объявления',class:'mk-thumb'}),
+    h('button',{type:'button',class:'btn ghost small',onclick:editFrame},'✂️ Изменить кадр')] : [])); };
+  async function editFrame(){ const fl = file.files && file.files[0]; if (!fl) return; const r = await cropPhoto(fl); if (r){ framed = r; showFramed(); } else if (!framed){ file.value = ''; } }
+  file.addEventListener('change', ()=>{ framed = null; showFramed(); editFrame(); });
   const btn = h('button',{type:'submit',class:'btn'},'Отправить на проверку');
   const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
     h('div',{class:'fields'},
@@ -1622,7 +1629,7 @@ function thingsPanel(lists){
       h('label',{for:'mk-kind'},'Формат',kind), h('label',{for:'mk-price'},'Цена (если продаёте)',price),
       h('label',{for:'mk-cond'},'Состояние',cond), h('label',{for:'mk-city'},'Где забрать',city)),
     h('label',{for:'mk-note'},'Описание: размер, бренд, особенности',note),
-    h('label',{for:'mk-photo'},'Фото (необязательно)',file),
+    h('label',{for:'mk-photo'},'Фото (необязательно)',file), photoBox,
     h('div',null,btn));
   f.addEventListener('submit', async e=>{
     e.preventDefault();
@@ -1633,9 +1640,9 @@ function thingsPanel(lists){
     try{
       const fd = new FormData();
       Object.entries({seller:COM.uid, title:t, kind:kind.value, price:kind.value==='Продам' ? price.value.trim() : '', condition:cond.value.trim(), city:city.value.trim(), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
-      if (fl) fd.append('photo', await fitPhoto(fl, 1200));
+      if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
       await pb.collection('listings').create(fd);
-      f.reset(); toast('Отправлено! Объявление появится после проверки');
+      f.reset(); framed = null; showFramed(); toast('Отправлено! Объявление появится после проверки');
     }catch(err){ writeErr(err); }
     btn.disabled = false; btn.textContent = 'Отправить на проверку';
   });
@@ -2356,6 +2363,83 @@ function openModal(build){
   sheet.append(h('button',{type:'button',class:'btn ghost small close no-print',onclick:closeModal},'Закрыть'));
   build(sheet);
   const f = sheet.querySelector('input,textarea,button:not(.close)'); if (f) f.focus();
+}
+
+/* ---------- a light photo editor: frame 4:3, move with a finger or mouse, zoom, turn, or keep the whole photo ----------
+   Returns the finished frame as a JPEG file (or null when cancelled). The site never crops it again. */
+function cropPhoto(file, opts){
+  const o = Object.assign({ratio:4/3, out:1200, title:'Кадр для объявления'}, opts||{});
+  return new Promise(resolve=>{
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(file); }; // the browser cannot open it (e.g. HEIC) — send as is
+    img.onload = ()=>{
+      let src = img, rot = 0, fit = false, zoom = 1, cx = 0.5, cy = 0.5, done = false;
+      const finish = v => { if (done) return; done = true; URL.revokeObjectURL(url); resolve(v); };
+      const turned = ()=>{ // the source turned by 90° steps
+        if (!rot) return img;
+        const c = document.createElement('canvas'), q = rot % 180 !== 0;
+        c.width = q ? img.height : img.width; c.height = q ? img.width : img.height;
+        const g = c.getContext('2d'); g.translate(c.width/2, c.height/2); g.rotate(rot*Math.PI/180); g.drawImage(img, -img.width/2, -img.height/2);
+        return c;
+      };
+      // where the frame sits on the source: cover-scale × zoom, centre (cx, cy) kept inside the photo
+      const frame = ()=>{
+        const sw = src.width, sh = src.height, fw = Math.min(sw, sh*o.ratio)/zoom, fh = fw/o.ratio;
+        cx = Math.min(Math.max(cx, fw/2/sw), 1 - fw/2/sw); cy = Math.min(Math.max(cy, fh/2/sh), 1 - fh/2/sh);
+        return {x:cx*sw - fw/2, y:cy*sh - fh/2, w:fw, h:fh};
+      };
+      const draw = (cv, W)=>{
+        const H = Math.round(W/o.ratio); cv.width = W; cv.height = H;
+        const g = cv.getContext('2d'); g.fillStyle = '#EDE6D6'; g.fillRect(0,0,W,H);
+        if (fit){ // whole photo with soft blurred edges
+          const k = Math.max(W/src.width, H/src.height);
+          g.save(); g.filter = 'blur('+Math.round(W/40)+'px) brightness(1.05) saturate(.9)';
+          g.drawImage(src, (W - src.width*k)/2, (H - src.height*k)/2, src.width*k, src.height*k); g.restore();
+          const s2 = Math.min(W/src.width, H/src.height);
+          g.drawImage(src, (W - src.width*s2)/2, (H - src.height*s2)/2, src.width*s2, src.height*s2);
+        } else { const f = frame(); g.drawImage(src, f.x, f.y, f.w, f.h, 0, 0, W, H); }
+      };
+      const view = h('canvas',{class:'crop-view','aria-label':'Кадр: двигайте фото пальцем или мышью'});
+      const range = h('input',{type:'range',min:'1',max:'3',step:'0.01',value:'1','aria-label':'Масштаб'});
+      const paint = ()=>{ const W = Math.round(view.clientWidth * (window.devicePixelRatio||1)) || 640; draw(view, W); range.disabled = fit; };
+      // drag and pinch
+      const pts = new Map(); let pinch0 = 0, zoom0 = 1;
+      view.addEventListener('pointerdown', e=>{ view.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+        if (pts.size === 2){ const [a,b] = [...pts.values()]; pinch0 = Math.hypot(a[0]-b[0], a[1]-b[1]); zoom0 = zoom; } });
+      view.addEventListener('pointermove', e=>{
+        if (!pts.has(e.pointerId) || fit) return;
+        const prev = pts.get(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+        if (pts.size === 2){ const [a,b] = [...pts.values()]; zoom = Math.min(3, Math.max(1, zoom0 * Math.hypot(a[0]-b[0], a[1]-b[1]) / pinch0)); range.value = zoom; }
+        else { const f = frame(), per = f.w / view.clientWidth; cx -= (e.clientX - prev[0]) * per / src.width; cy -= (e.clientY - prev[1]) * per / src.height; }
+        paint();
+      });
+      const up = e=>{ pts.delete(e.pointerId); };
+      view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
+      view.addEventListener('wheel', e=>{ if (fit) return; e.preventDefault(); zoom = Math.min(3, Math.max(1, zoom * (e.deltaY < 0 ? 1.08 : 1/1.08))); range.value = zoom; paint(); }, {passive:false});
+      range.addEventListener('input', ()=>{ zoom = +range.value; paint(); });
+      const fitBtn = h('button',{type:'button',class:'btn ghost small'},'Целиком');
+      fitBtn.onclick = ()=>{ fit = !fit; fitBtn.textContent = fit ? 'Заполнить кадр' : 'Целиком'; fitBtn.classList.toggle('on', fit); paint(); };
+      openModal(sheet=>{
+        sheet.classList.add('crop-sheet');
+        MODAL_UNSUBS.push(()=>finish(null));
+        sheet.append(h('h3',null,o.title),
+          h('p',{class:'hint'},'Двигайте фото пальцем или мышью, приближайте ползунком. «Целиком» — вся фотография с мягкими полями по бокам.'),
+          view,
+          h('div',{class:'crop-tools'},
+            h('label',{class:'crop-zoom'},'🔍', range),
+            h('button',{type:'button',class:'btn ghost small',title:'Повернуть на 90°',onclick:()=>{ rot = (rot + 90) % 360; src = turned(); cx = cy = 0.5; paint(); }},'↻ Повернуть'),
+            fitBtn),
+          h('div',{style:'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap'},
+            h('button',{type:'button',class:'btn ghost',onclick:()=>{ finish(null); closeModal(); }},'Отмена'),
+            h('button',{type:'button',class:'btn crop-ok',onclick:()=>{
+              const out = document.createElement('canvas'); draw(out, o.out);
+              out.toBlob(b=>{ finish(b ? new File([b], (file.name||'photo').replace(/\.\w+$/,'')+'.jpg', {type:'image/jpeg'}) : file); closeModal(); }, 'image/jpeg', 0.86);
+            }},'Готово')));
+        requestAnimationFrame(paint);
+      });
+    };
+    img.src = url;
+  });
 }
 
 /* «свой персонаж»: any icon from this palette and any name; the dice picks a ready-made pair */
