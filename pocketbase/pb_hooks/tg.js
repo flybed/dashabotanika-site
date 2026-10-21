@@ -188,4 +188,4 @@ function onNewArticles(app, list) {
   }
 }
 
-module.exports = { errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }
+module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }

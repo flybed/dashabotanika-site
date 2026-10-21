@@ -1020,3 +1020,4 @@ input[type=file]::file-selector-button:hover{background:var(--moss);color:var(--
 @keyframes like-pop{40%{transform:scale(1.18)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion: reduce){ .like.pop{animation:none} }
 .tour-left{display:flex;align-items:center;gap:12px}
+.backup-card{margin-bottom:16px}
