@@ -312,7 +312,22 @@ const T = '#cabinet-tabs ';
   await q.click('button:has-text("Отправить Даше")'); await q.waitForSelector('#feedback .li:has-text("тёмную тему")');
   await q.goto(B+'/kabinet?tab=things');
   await q.fill('#mk-title','Многоразовый шопер'); await q.selectOption('#mk-kind','Отдам даром'); await q.fill('#mk-note','Почти новый');
+  // a vertical photo opens the frame editor: move it, keep it whole, the finished 4:3 frame is what gets uploaded
+  const tall = Buffer.from(await q.evaluate(()=>{ const c = document.createElement('canvas'); c.width = 600; c.height = 1200; const g = c.getContext('2d');
+    for (let y=0;y<1200;y+=60){ g.fillStyle = 'hsl('+(y/4)+',70%,55%)'; g.fillRect(0,y,600,60); } return c.toDataURL('image/jpeg',.9).split(',')[1]; }), 'base64');
+  await q.setInputFiles('#mk-photo', {name:'tall.jpg', mimeType:'image/jpeg', buffer:tall});
+  await q.waitForSelector('.crop-view');
+  const vb = await q.locator('.crop-view').boundingBox();
+  await q.mouse.move(vb.x+vb.width/2, vb.y+vb.height/2); await q.mouse.down(); await q.mouse.move(vb.x+vb.width/2, vb.y+vb.height/2-60, {steps:5}); await q.mouse.up();
+  check('frame editor opens for the chosen photo with zoom, turn and «whole photo»', !!(await q.$('.crop-tools input[type=range]')) && !!(await q.$('.crop-tools button:has-text("Повернуть")')) && !!(await q.$('.crop-tools button:has-text("Целиком")')));
+  await q.locator('.crop-sheet').screenshot({path:S+'/27-crop.png'});
+  await q.click('.crop-tools button:has-text("Целиком")'); await q.click('.crop-ok');
+  await q.waitForSelector('.mk-photo-box .mk-thumb');
+  check('the finished frame shows under the form with «Изменить кадр»', !!(await q.$('.mk-photo-box button:has-text("Изменить кадр")')));
   await q.click('button:has-text("Отправить на проверку")'); await q.waitForSelector('.toast:has-text("Отправлено")');
+  { const lst = (await api('GET','/collections/listings/records?filter='+encodeURIComponent('title="Многоразовый шопер"'),null,t)).items[0];
+    const dims = lst && lst.photo ? await q.evaluate(async u=>{ const b = await (await fetch(u)).blob(); const im = await createImageBitmap(b); return [im.width, im.height]; }, '/api/files/'+lst.collectionId+'/'+lst.id+'/'+lst.photo) : null;
+    check('the listing photo is the edited 4:3 frame (1200×900), not the tall original', !!dims && dims[0]===1200 && dims[1]===900); }
   await q.goto(B+'/baraholka');
   await q.click('#market button:has-text("Хочу купить")'); await q.waitForURL('**/kabinet?tab=chats**');
   await q.waitForSelector('#chat-input'); await q.fill('#chat-input','Здравствуйте! Платье ещё в продаже?'); await q.click(T+'button:has-text("Отправить")'); await q.waitForTimeout(800);
