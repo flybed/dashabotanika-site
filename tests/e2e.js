@@ -40,12 +40,19 @@ const T = '#cabinet-tabs ';
   const spot = await z.$eval('.tour-spot', e=>{ const r = e.getBoundingClientRect(); return [r.top, r.bottom]; });
   check('step 2 lights up the interest tiles on screen', (await z.textContent('.tour-tip')).includes('2 из 4') && spot[0] >= 0 && spot[1] <= 844 && spot[1] - spot[0] > 200);
   await z.screenshot({path:S+'/00c-tour-2.png'});
+  check('from step 2 there is a way back', !!(await z.$('.tour-tip .tour-back')));
+  await z.click('.tour-tip .tour-back'); await z.waitForTimeout(400);
+  check('«Назад» returns to the previous step', (await z.textContent('.tour-tip')).includes('1 из 4') && !(await z.$('.tour-tip .tour-back')));
+  await z.click('.tour-tip button:has-text("Далее")'); await z.waitForTimeout(300);
   await z.click('.tour-tip button:has-text("Далее")'); await z.waitForTimeout(400);
   check('step 3 invites to join', (await z.textContent('.tour-tip')).includes('Присоединяйтесь'));
   await z.click('.tour-tip button:has-text("Далее")'); await z.waitForTimeout(400);
   await z.click('.tour-tip button:has-text("Понятно")');
-  check('the tour closes and is remembered', !(await z.$('.tour')) && await z.evaluate(()=>localStorage.getItem('db-tour-done')==='1'));
+  check('the tour closes at once, nothing dark stays, it is remembered', !(await z.$('.tour')) && await z.evaluate(()=>localStorage.getItem('db-tour-done')==='1'));
   await z.reload(); await z.waitForTimeout(1200); check('splash only once per visit, the tour only once', !(await z.$('#splash')) && !(await z.$('.tour')));
+  // a reload in the middle of the tour does not start it again
+  await z.evaluate(()=>localStorage.removeItem('db-tour-done')); await z.click('footer button:has-text("Показать подсказки")'); await z.waitForSelector('.tour-tip h3');
+  await z.reload(); await z.waitForTimeout(1500); check('a reload in the middle of the tour does not show it again', !(await z.$('.tour')));
   await z.click('footer button:has-text("Показать подсказки")'); await z.waitForSelector('.tour-tip h3');
   await z.keyboard.press('Escape'); check('the tour can be shown again from the footer and closed with Esc', !(await z.$('.tour')));
   // the home page is a crossroads: six interest tiles, the page fits a phone screen without sideways scroll

@@ -3284,10 +3284,12 @@ const TOUR = [
 ];
 let TOUR_EL = null;
 function tourDone(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(e){ return true; } }
+function rememberTour(){ try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){} }
 function endTour(){
-  if (!TOUR_EL) return;
-  TOUR_EL.cleanup(); TOUR_EL.remove(); TOUR_EL = null;
-  try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){}
+  if (TOUR_EL){ TOUR_EL.cleanup(); TOUR_EL = null; }
+  // remove every dimmed layer at once, even a stray one, so the screen never stays dark
+  document.querySelectorAll('.tour').forEach(x=>x.remove());
+  rememberTour();
 }
 function startTour(){
   if (TOUR_EL) return;
@@ -3311,28 +3313,33 @@ function startTour(){
   const show = ()=>{
     const [sel, t, d] = TOUR[i], el = document.querySelector(sel);
     if (!el){ if (++i < TOUR.length) show(); else endTour(); return; }
+    if (TOUR_EL !== box) return;
     const val = v => typeof v === 'function' ? v() : v, last = i === TOUR.length - 1;
     tip.replaceChildren(
       h('div',{class:'eyebrow'},'Подсказка ',i+1,' из ',TOUR.length),
       h('h3',{id:'tour-t'}, val(t)), h('p',null, val(d)),
       h('div',{class:'tour-btns'},
-        last ? h('span') : h('button',{type:'button',class:'linkish',onclick:endTour},'Пропустить'),
-        h('button',{type:'button',class:'btn small',onclick:()=>{ if (last) endTour(); else { i++; show(); } }}, last ? 'Понятно!' : 'Далее →')));
+        h('div',{class:'tour-left'},
+          i > 0 ? h('button',{type:'button',class:'btn ghost small tour-back',onclick:()=>{ i--; show(); }},'← Назад') : null,
+          last ? null : h('button',{type:'button',class:'linkish',onclick:endTour},'Пропустить')),
+        h('button',{type:'button',class:'btn small tour-next',onclick:()=>{ if (last) endTour(); else { i++; show(); } }}, last ? 'Понятно!' : 'Далее →')));
     if (!el.closest('header')){
       const r = el.getBoundingClientRect();
       window.scrollTo({top: scrollY + r.top - (r.height > innerHeight*0.6 ? 80 : (innerHeight - r.height)/2), behavior:'instant'});
     }
-    requestAnimationFrame(()=>{ place(); tip.querySelector('.btn').focus(); });
+    requestAnimationFrame(()=>{ place(); tip.querySelector('.tour-next').focus(); });
   };
   const onKey = e=>{ if (e.key==='Escape') endTour(); };
   window.addEventListener('resize', place); window.addEventListener('scroll', place, {passive:true}); document.addEventListener('keydown', onKey);
   box.cleanup = ()=>{ window.removeEventListener('resize', place); window.removeEventListener('scroll', place); document.removeEventListener('keydown', onKey); };
   TOUR_EL = box; document.body.append(box);
-  setTimeout(show, 120);
+  rememberTour(); // shown once: a reload in the middle does not start it again
+  setTimeout(()=>{ if (TOUR_EL === box) show(); }, 120);
 }
 // first visit to the home page: after the splash screen is gone
 function maybeTour(){
   if (tourDone() || currentPath() !== '/') return;
+  if (accState()==='member' && COM.me && Date.now() - COM.me.joined > 86400000){ rememberTour(); return; }
   let n = 0;
   const wait = ()=>{ if (document.getElementById('splash') && n++ < 40){ setTimeout(wait, 250); return; } if (!tourDone() && currentPath()==='/' && !MODAL) startTour(); };
   setTimeout(wait, 600);
