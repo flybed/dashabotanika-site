@@ -58,6 +58,10 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/', {waitUntil:'networkidle'});
   const order = await p.$$eval('main > section', s=>s.map(x=>x.id));
   check('home order: people first — sections, first steps, about, world, exam, game, eco path; goods after the calculator; no second photo in about', order.slice(0,7).join()==='top,sections,steps,about,world,exam,game' && order[7]==='sort' && order.indexOf('goods') > order.indexOf('calc') && !(await p.$('#about .gallery')) && !order.includes('habits'));
+  { const hi = await p.$eval('.pebble img', i=>[i.getAttribute('loading'), i.getAttribute('srcset')||'', i.currentSrc]);
+    const small = await fetch(B+'/img/hero-dasha-480.webp');
+    check('photos: hero loads first with a small copy for phones, others lazy', hi[0]==='eager' && hi[1].includes('-480.webp 480w') && small.ok && (await p.$$eval('#about img, #fashion img', a=>a.every(i=>i.loading==='lazy'))));
+  }
   check('sections as round icons and first steps for a guest', (await p.$$('#sections .sn')).length===13 && (await p.textContent('#steps')).includes('0 из 7') && !!(await p.$('.hero-cta a[href="/kabinet?tab=register"]')));
   await p.click('#sort .sg-item:has-text("Батарейки")');
   check('sorting guide shows the chosen material', (await p.textContent('#sort .sg-card')).includes('Батарейки') && (await p.textContent('#sort .sg-card')).includes('Куда сдавать'));
@@ -208,7 +212,16 @@ const T = '#cabinet-tabs ';
   await p.fill('#ae-slug','plenka-zamena'); await p.locator('#ae-slug').blur();
   check('search snippet preview follows the fields', (await p.textContent('.snippet')).includes('5 идей для кухни') && (await p.textContent('.snippet')).includes('plenka-zamena'));
   const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.click('.art-editor button:has-text("Загрузить картинку")')]);
-  await chooser.setFiles(PHOTO); await p.waitForSelector('.toast:has-text("Фото добавлено")');
+  const bigJpg = Buffer.from(await p.evaluate(async ()=>{
+    const c = document.createElement('canvas'); c.width = 3000; c.height = 2000; const g = c.getContext('2d');
+    for (let i=0;i<3000;i+=5){ g.fillStyle = 'hsl('+(i%360)+','+(30+i%70)+'%,50%)'; g.fillRect(i,0,5,2000); }
+    return c.toDataURL('image/jpeg', 0.97).split(',')[1];
+  }), 'base64');
+  await chooser.setFiles({name:'phone.jpg', mimeType:'image/jpeg', buffer:bigJpg}); await p.waitForSelector('.toast:has-text("Фото добавлено")');
+  { const up = await p.$eval('.art-editor img, .art-cover img', i=>[i.getAttribute('src'), i.getAttribute('srcset')||'']).catch(()=>['','']);
+    const orig = up[0] ? await (await fetch(B+up[0].replace(/\?.*$/,''))).arrayBuffer() : new ArrayBuffer(0);
+    check('a big phone photo is shrunk before upload and shown through small copies', orig.byteLength > 0 && orig.byteLength < bigJpg.length && /\?thumb=960x0$/.test(up[0]) && up[1].includes('?thumb=480x0 480w'));
+  }
   await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
   const rArt = await (await fetch(B+'/zhurnal/plenka-zamena')).text(), rOld = await fetch(B+'/zhurnal/chem-zamenit-pischevuyu-plenku-5-idey');
   check('server page uses the SEO title, description and cover; the old address still opens', rArt.includes('<title>Чем заменить пищевую плёнку: 5 идей для кухни</title>') && rArt.includes('content="Восковые салфетки') && /property="og:image" content="https:\/\/dashabotanika\.ru\/api\/files\/photos\//.test(rArt) && rOld.status===200 && (await rOld.text()).includes('href="https://dashabotanika.ru/zhurnal/plenka-zamena"'));
