@@ -11,7 +11,8 @@ const PHOTO = path.join(__dirname, '..', 'site', 'img', 'owl.webp');
 async function su(){ const r = await fetch(B+'/api/collections/_superusers/auth-with-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identity:SU[0],password:SU[1]})}); return (await r.json()).token; }
 async function api(method, p, body, token){ const r = await fetch(B+'/api'+p,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:token}:{})},body:body?JSON.stringify(body):undefined}); return r.json(); }
 const errs = [];
-function watchPage(p, tag){ if (process.env.DEBUG_HTTP){ p.on('response', r=>{ if (r.status()>=400) console.log('HTTP', tag, r.status(), r.request().method(), r.url()); }); p.on('requestfailed', r=>console.log('FAILED-REQ', tag, r.url())); } p.route('https://mc.yandex.ru/**', r=>r.fulfill({body:'', contentType:'text/javascript'})); p.on('pageerror', e=>errs.push(tag+' pageerror: '+e.message)); p.on('console', m=>{ if (m.type()==='error' && !/fonts\.g/.test(m.text())) errs.push(tag+' console: '+m.text()); }); }
+let EXPECT_400 = false; // a test that makes the server refuse on purpose
+function watchPage(p, tag){ if (process.env.DEBUG_HTTP){ p.on('response', r=>{ if (r.status()>=400) console.log('HTTP', tag, r.status(), r.request().method(), r.url()); }); p.on('requestfailed', r=>console.log('FAILED-REQ', tag, r.url())); } p.route('https://mc.yandex.ru/**', r=>r.fulfill({body:'', contentType:'text/javascript'})); p.on('pageerror', e=>errs.push(tag+' pageerror: '+e.message)); p.on('console', m=>{ if (m.type()==='error' && !/fonts\.g/.test(m.text()) && !(EXPECT_400 && /status of 400/.test(m.text()))) errs.push(tag+' console: '+m.text()); }); }
 function check(name, cond){ console.log((cond ? 'PASS ' : 'FAIL ')+name); if (!cond) errs.push('check failed: '+name); }
 async function register(p, email, nick, charName){
   await p.click('.acc-btn');
@@ -188,8 +189,22 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/#journal'); await p.waitForTimeout(400);
   await p.locator('#journal a:has-text("Читать полностью")').first().click(); await p.waitForURL('**/zhurnal/*');
   check('article has its own page with h1 and text', /^\/zhurnal\/[a-z0-9-]+$/.test(new URL(p.url()).pathname) && !!(await p.$('#article h1')) && (await p.textContent('#article .art-body')).length > 100 && /DashaBotanika/.test(await p.title()));
-  await p.locator('#article .like').click(); await p.waitForTimeout(1200);
-  check('like counted on article', (await p.locator('#article .like').textContent()).includes('1'));
+  // a like shows at once, even when the server is slow; when the server refuses, it goes back with a message
+  await p.route('**/api/collections/likes/records', async r=>r.request().method()==='POST' ? (await new Promise(x=>setTimeout(x,500)), r.fulfill({status:400, contentType:'application/json', body:'{"status":400,"message":"no","data":{}}'})) : r.continue());
+  EXPECT_400 = true;
+  await p.locator('#article .like').click();
+  const optimistic = await p.$eval('#article .like', el=>el.getAttribute('aria-pressed'));
+  await p.waitForSelector('.toast:has-text("Проверьте")'); await p.waitForTimeout(300);
+  const after = await p.$eval('#article .like', el=>el.getAttribute('aria-pressed'));
+  check('like: shown at once ('+optimistic+'), rolled back ('+after+') with a message when the server refuses', optimistic==='true' && after==='false');
+  EXPECT_400 = false;
+  await p.unroute('**/api/collections/likes/records');
+  await p.route('**/api/collections/likes/records', async r=>{ await new Promise(x=>setTimeout(x,800)); r.continue(); });
+  const t0 = Date.now(); await p.locator('#article .like').click();
+  const fast = await p.$eval('#article .like', el=>el.getAttribute('aria-pressed')==='true' && el.textContent.includes('1')); const ms = Date.now() - t0;
+  check('like: the heart and the count change at once on a slow server ('+ms+' ms)', fast && ms < 300);
+  await p.waitForTimeout(1500); await p.unroute('**/api/collections/likes/records');
+  check('like counted on article', (await p.locator('#article .like').textContent()).includes('1') && (await api('GET','/collections/likes/records?filter='+encodeURIComponent("target~'articles:'"),null,t)).totalItems===1);
   // search engines get ready text: title, description, h1 and the article itself without running scripts
   const artPath = new URL(p.url()).pathname, raw = await (await fetch(B+artPath)).text();
   check('server page for an article has title, canonical, h1, text and Article markup', raw.includes('<link rel="canonical" href="https://dashabotanika.ru'+artPath+'">') && /<div id="app">[\s\S]*<h1>[^<]+<\/h1>[\s\S]*<p>/.test(raw) && raw.includes('"@type":"Article"') && raw.includes('/js/app.js'));
@@ -432,7 +447,9 @@ const T = '#cabinet-tabs ';
   check('market asks to fill the profile to pick items', (await r3.textContent('.picked')).includes('Подберём вещи для вас'));
   const ft = (await api('POST','/collections/users/auth-with-password',{identity:'friend@test.local',password:'secret1234'})).token;
   await api('POST','/collections/profiles/records',{owner:fr.id, age:30, gender:'Мужской', country:'Россия', city:'Москва', goals:['Меньше мусора и пластика']},ft);
-  await r3.goto(B+'/baraholka', {waitUntil:'networkidle'}); await r3.waitForTimeout(800);
+  await r3.goto(B+'/baraholka', {waitUntil:'networkidle'});
+  // the profile and the listings load separately: wait for the picked card instead of a fixed pause
+  await r3.waitForSelector('.picked .picked-card', {timeout:6000}).catch(()=>{});
   const picked = await r3.textContent('.picked');
   check('market picks items for the goals from the profile', picked.includes('Подобрано для вас') && picked.includes('Многоразовый шопер') && picked.includes('меньше мусора'));
   await q.goto(B+'/baraholka', {waitUntil:'networkidle'}); await q.screenshot({path:S+'/11-market-mobile.png'});

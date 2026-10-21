@@ -780,16 +780,29 @@ function markRead(articleId){
   COM.reads[articleId] = true;
   pb.collection('reads').create({user:COM.uid, article:articleId}).catch(()=>{});
 }
+// Likes react at once (optimistic): the heart changes on tap, the server catches up in the background.
+// If the server says no, the like goes back and a message explains why.
+const LIKE_PENDING = {};
 function likeBtn(target){
   const b = h('button',{type:'button',class:'like'});
   live(()=>{
-    const all = COM.likes.filter(l=>l.target===target), mine = all.find(l=>l.user===COM.uid);
+    const pend = LIKE_PENDING[target];
+    let all = COM.likes.filter(l=>l.target===target), mine = all.find(l=>l.user===COM.uid);
+    if (pend==='add' && !mine){ mine = {id:null, user:COM.uid, target}; all = all.concat(mine); }
+    if (pend==='del' && mine){ all = all.filter(l=>l!==mine); mine = null; }
     b.replaceChildren(mine ? '♥' : '♡', ' ', all.length || '');
     b.setAttribute('aria-pressed', String(!!mine));
     b.setAttribute('aria-label', (mine ? 'Убрать лайк' : 'Нравится')+(all.length ? ', лайков: '+all.length : ''));
     b.onclick = ()=>{
       if (accState()!=='member'){ toast('Лайки ставят участники — войдите или зарегистрируйтесь'); return; }
-      (mine ? pb.collection('likes').delete(mine.id) : pb.collection('likes').create({user:COM.uid, target})).catch(writeErr);
+      if (LIKE_PENDING[target]) return; // one tap at a time
+      const adding = !mine, real = COM.likes.find(l=>l.target===target && l.user===COM.uid);
+      LIKE_PENDING[target] = adding ? 'add' : 'del'; b.classList.remove('pop'); void b.offsetWidth; if (adding) b.classList.add('pop'); refresh();
+      (adding ? pb.collection('likes').create({user:COM.uid, target}) : pb.collection('likes').delete(real.id)).then(rec=>{
+        // keep the result locally, so the realtime reload that comes later changes nothing on screen
+        if (adding){ if (!COM.likes.some(l=>l.id===rec.id)) COM.likes = COM.likes.concat(rec); }
+        else COM.likes = COM.likes.filter(l=>l.id!==real.id);
+      }, e=>{ writeErr(e); }).finally(()=>{ delete LIKE_PENDING[target]; refresh(); });
     };
   });
   return b;
