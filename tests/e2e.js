@@ -99,6 +99,18 @@ const T = '#cabinet-tabs ';
   check('sorting guide shows the chosen material', (await p.textContent('#sort .sg-card')).includes('Батарейки') && (await p.textContent('#sort .sg-card')).includes('Куда сдавать'));
   await p.click('#calc button:has-text("Пока не сдаю")');
   check('calculator: "not recycling yet" sets zeros and encourages', (await p.textContent('#calc .result')).includes('Пока ноль') && (await p.inputValue('#calc-pet'))==='0');
+  // «куда сдать» guide: a page for every kind of recyclables and every plastic code, also for search engines
+  check('/sortirovka lists the guide: 11 kinds of recyclables and a link to plastic codes', (await p.$$('#kuda-sdat .g-tile')).length===11 && !!(await p.$('#kuda-sdat a[href="/markirovka"]')));
+  await p.click('#sort .sg-item:has-text("Батарейки")'); await p.click('#sort .sg-more'); await p.waitForURL('**/sortirovka/batareyki');
+  check('guide page: h1, accepted / not accepted, how to prepare, where, FAQ, related', !!(await p.$('h1:has-text("Куда сдать батарейки")')) && (await p.$$('.g-yes li')).length >= 3 && (await p.$$('.g-no li')).length >= 1 && (await p.$$('.g-steps li')).length >= 2 && (await p.$$('.g-faq details')).length >= 3 && !!(await p.$('.g-rel a[href="/sortirovka/tekhnika"]')) && /батарейки/i.test(await p.title()));
+  await p.locator('#guide').screenshot({path:S+'/28-guide.png'});
+  await p.goto(B+'/markirovka', {waitUntil:'networkidle'});
+  check('/markirovka: a table of codes 1–7 with links', (await p.$$('.mark-t tbody tr')).length===7 && !!(await p.$('.mark-t a[href="/markirovka/5-pp"]')));
+  await p.click('.mark-t a[href="/markirovka/3-pvc"]'); await p.waitForURL('**/markirovka/3-pvc');
+  check('code page shows where it is found and how often it is accepted', !!(await p.$('h1:has-text("3 PVC")')) && (await p.textContent('.g-accept')).includes('редко') && (await p.$$('.g-meter i.on')).length===1);
+  { const r1 = await (await fetch(B+'/sortirovka/batareyki')).text(), r2 = await (await fetch(B+'/markirovka/5-pp')).text(), r3 = await (await fetch(B+'/markirovka')).text(), sm = await (await fetch(B+'/sitemap.xml')).text();
+    check('guide pages are ready for search engines: title, h1, FAQ markup, breadcrumbs, sitemap', /<title>Куда сдать батарейки[^<]*<\/title>/.test(r1) && r1.includes('<h1>Куда сдать батарейки') && r1.includes('"@type":"FAQPage"') && r1.includes('"@type":"BreadcrumbList"')
+      && r2.includes('<h1>Маркировка 5 PP') && r3.includes('<table>') && sm.includes('/sortirovka/batareyki</loc>') && sm.includes('/markirovka/7-other</loc>') && (await fetch(B+'/sortirovka/net-takogo')).status===404); }
   await p.goto(B+'/vozduh', {waitUntil:'networkidle'});
   await p.route('https://geocoding-api.open-meteo.com/**', r=>r.fulfill({json:{results:[{name:'Новосибирск',admin1:'Новосибирская область',country:'Россия',latitude:55.03,longitude:82.92}]}}));
   await p.route('https://air-quality-api.open-meteo.com/**', r=>{ const hrs = Array.from({length:48},(_,i)=>'2026-10-20T'+String(i%24).padStart(2,'0')+':00');

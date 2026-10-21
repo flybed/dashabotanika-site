@@ -68,7 +68,7 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES"].forEach((name) => {
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES", "RECYCLE_PAGES"].forEach((name) => {
     // DISHES — массив, который дальше превращается в объекты через .map
     const m = src.match(new RegExp(name === "DISHES" ? `const DISHES = (\\[[\\s\\S]*?\\n\\])\\.map` : `const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
@@ -170,6 +170,22 @@ const SECTION_PAGES = {
   },
 }
 
+// Справочник «куда сдать» (RECYCLE_PAGES из app.js): страница на каждый вид вторсырья и код пластика.
+const guideUrl = (g) => (g.kind === "mark" ? "/markirovka/" + g.s.replace("markirovka-", "") : "/sortirovka/" + g.s)
+const ul = (list) => `<ul>${(list || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+function guideHtml(g, all) {
+  const mark = g.kind === "mark"
+  const rel = (g.rel || []).map((r) => (r === "markirovka" ? ["/markirovka", "Маркировка пластика"] : (x => x && [guideUrl(x), x.name])(all.find((x) => x.s === r)))).filter(Boolean)
+  return `<section id="guide"><div class="wrap"><p><a href="${mark ? "/markirovka" : "/sortirovka"}">${mark ? "Маркировка пластика" : "Сортировка"}</a></p><h1>${esc(g.h1)}</h1><p class="lead">${esc(g.intro)}</p>\n` +
+    (mark ? `<h2>Где встречается</h2>${ul(g.where_found)}<h2>Принимают ли в переработку</h2><p>${esc(g.accept)}. Зависит от пункта приёма — уточняйте на месте.</p>`
+      : `<h2>Что принимают</h2>${ul(g.yes)}<h2>Что не принимают</h2>${ul(g.no)}`) +
+    `<h2>Как подготовить</h2><ol>${g.prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` +
+    (g.where ? `<h2>Где сдать</h2>${ul(g.where)}` : "") + `<p><a href="/servisy">Пункты приёма в вашем городе</a></p>` +
+    (g.faq && g.faq.length ? `<h2>Частые вопросы</h2>${g.faq.map(([q, a]) => `<h3>${esc(q)}</h3><p>${esc(a)}</p>`).join("")}` : "") +
+    (rel.length ? `<p>Ещё по теме: ${rel.map(([u, n]) => `<a href="${u}">${esc(n)}</a>`).join(" · ")}</p>` : "") + `</div></section>`
+}
+const faqLd = (g) => (g.faq && g.faq.length ? [{ "@type": "FAQPage", mainEntity: g.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) }] : [])
+
 function homeHtml(d, k) {
   const arts = d.articles || []
   return [
@@ -251,7 +267,26 @@ function page(path, d, k, app) {
     })
   }
   const sp = SECTION_PAGES[path]
-  if (sp) return Object.assign(base, { title: sp.title, description: sp.description, crumbs: [[sp.name, path]], body: sp.body(d, k) })
+  if (sp) return Object.assign(base, { title: sp.title, description: sp.description, crumbs: [[sp.name, path]],
+    body: sp.body(d, k) + (path === "/sortirovka" ? `<section id="kuda-sdat"><div class="wrap"><h2>Куда сдать: по видам отходов</h2><ul>${k.RECYCLE_PAGES.filter((g) => g.kind === "mat").map((g) => `<li><a href="${guideUrl(g)}">${esc(g.h1)}</a></li>`).join("")}<li><a href="/markirovka">Маркировка пластика 1–7</a></li></ul></div></section>` : "") })
+  if (path === "/markirovka") {
+    const marks = k.RECYCLE_PAGES.filter((g) => g.kind === "mark")
+    return Object.assign(base, {
+      title: "Маркировка пластика 1–7 в треугольнике: расшифровка и что сдаётся — DashaBotanika",
+      description: "Что значат цифры 1–7 в треугольнике на упаковке: PET, HDPE, PVC, LDPE, PP, PS, OTHER. Где встречается каждый пластик и принимают ли его в переработку.",
+      crumbs: [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"]],
+      body: `<section><div class="wrap"><h1>Маркировка пластика: что значат цифры 1–7 в треугольнике</h1><p class="lead">Цифра в треугольнике — это код материала, а не обещание, что упаковку переработают.</p>
+<table><tr><th>Код</th><th>Материал</th><th>Где встречается</th><th>Принимают</th></tr>${marks.map((g) => `<tr><td><a href="${guideUrl(g)}">${g.code}</a></td><td>${esc(g.ab)}</td><td>${esc(g.where_found.slice(0, 2).join(", "))}</td><td>${esc(g.accept)}</td></tr>`).join("")}</table></div></section>`,
+    })
+  }
+  const gm = path.match(/^\/(sortirovka|markirovka)\/([a-z0-9-]+)$/)
+  if (gm) {
+    const g = k.RECYCLE_PAGES.find((x) => guideUrl(x) === path)
+    if (!g) return null
+    return Object.assign(base, { title: g.title, description: g.desc, ld: faqLd(g),
+      crumbs: g.kind === "mark" ? [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"], [g.name, path]] : [["Сортировка", "/sortirovka"], [g.name, path]],
+      body: guideHtml(g, k.RECYCLE_PAGES) })
+  }
   if (path === "/kabinet") return Object.assign(base, { title: "Личный кабинет — DashaBotanika", noindex: true, crumbs: [["Личный кабинет", "/kabinet"]], body: "<h1>Личный кабинет</h1>" })
   const m = path.match(/^\/zhurnal\/([^/]+)$/)
   if (m) {
@@ -338,6 +373,8 @@ function sitemap(app) {
   const urls = [["/", "weekly", "1.0"], ["/zhurnal", "daily", "0.9"], ["/eda", "monthly", "0.8"], ["/sortirovka", "monthly", "0.8"], ["/servisy", "weekly", "0.8"], ["/moda", "monthly", "0.7"],
     ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
+  urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
+  constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
   serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {
     urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)

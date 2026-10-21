@@ -1115,3 +1115,47 @@ details.fold[open] > summary{margin-bottom:12px}
 .fy-t{font-size:22px;margin:8px 0 12px}
 .fy-all{font-size:26px;margin:4px 0 16px}
 .spam-hint{background:color-mix(in srgb,var(--sun) 16%,transparent);border-radius:10px;padding:8px 12px;color:var(--ink)}
+
+/* recycling guide pages */
+.guide .wrap{display:grid;gap:18px}
+.g-head{display:flex;gap:18px;align-items:center}
+.g-head h1{font-size:clamp(28px,4.4vw,44px);line-height:1.12}
+.g-ic{flex:0 0 auto;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:44px;background:var(--surface);border:1px solid var(--line)}
+.g-ic.code{border-radius:20px;background:var(--moss);color:var(--on-moss);border:0;align-content:center;gap:0;line-height:1}
+.g-ic.code b{font-family:var(--font-display);font-size:40px}
+.g-ic.code span{font-size:13px;font-weight:800;letter-spacing:.06em}
+.g-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.guide h2{font-size:22px}
+.g-list{margin:0;padding-left:0;list-style:none;display:grid;gap:8px}
+.g-list li{position:relative;padding-left:26px;line-height:1.5}
+.g-list li::before{content:"•";position:absolute;left:8px;color:var(--moss);font-weight:800}
+.g-yes{border-color:color-mix(in srgb,var(--leaf) 55%,var(--line))}
+.g-yes .g-list li::before{content:"✓";left:4px}
+.g-no{border-color:color-mix(in srgb,var(--clay) 40%,var(--line))}
+.g-no .g-list li::before{content:"✕";left:4px;color:var(--clay)}
+.g-steps{margin:0;padding-left:22px;display:grid;gap:8px;line-height:1.5}
+.g-meter{display:flex;gap:6px;margin:4px 0 2px}
+.g-meter i{flex:1;height:10px;border-radius:5px;background:var(--soft)}
+.g-meter i.on{background:var(--moss)}
+.g-accept.lvl-0 .g-meter i,.g-accept.lvl-1 .g-meter i.on{background:var(--clay)}
+.g-accept.lvl-1 .g-meter i:not(.on){background:var(--soft)}
+.g-faq details{border-top:1px solid var(--soft);padding:10px 0}
+.g-faq summary{cursor:pointer;font-weight:800}
+.g-faq details p{margin:8px 0 0;color:var(--muted)}
+.g-rel{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.g-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.g-tile{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);text-decoration:none;color:var(--ink);transition:border-color .2s,transform .2s}
+.g-tile:hover{border-color:var(--moss);transform:translateY(-2px)}
+.g-tile > span:last-child{display:grid;gap:2px;min-width:0}
+.g-tile-ic{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:24px;background:var(--soft)}
+.g-tile-ic.code{border-radius:12px;background:var(--moss);color:var(--on-moss);font-family:var(--font-display);font-weight:800}
+.sg-more{margin-top:10px;align-self:flex-start}
+.mark-wrap{overflow-x:auto}
+.mark-t{width:100%;border-collapse:collapse;background:var(--surface);border-radius:var(--r);overflow:hidden;font-size:15.5px}
+.mark-t th,.mark-t td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--soft)}
+.mark-t th{font-size:13px;color:var(--muted)}
+.mark-t a{color:var(--moss);font-weight:800}
+.mark-code{font-size:20px;white-space:nowrap}
+.mark-t tr.lvl-0 td:last-child,.mark-t tr.lvl-1 td:last-child{color:var(--clay);font-weight:700}
+.mark-t tr.lvl-3 td:last-child{color:var(--moss);font-weight:700}
+@media (max-width:700px){ .g-grid{grid-template-columns:1fr} .g-ic{width:64px;height:64px;font-size:34px} .g-ic.code b{font-size:30px} }
