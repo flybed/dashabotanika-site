@@ -288,6 +288,7 @@ const T = '#cabinet-tabs ';
   await q.click('button:has-text("Сохранить профиль")'); await q.waitForSelector('.toast:has-text("Профиль заполнен")',{timeout:5000}); await q.waitForTimeout(800);
   const liza1 = await api('GET','/collections/users/records/'+liza.id);
   check('full profile gives +20', liza1.xp === liza.xp + 20);
+  check('the profile says what is left and has a logout at the bottom of every tab', !!(await q.$('.pf-left')) && !!(await q.$('#cabinet-tabs .cab-foot button:has-text("Выйти из аккаунта")')));
   await q.goto(B+'/', {waitUntil:'networkidle'}); await q.waitForTimeout(600);
   check('first steps count what is done (registered, profile)', (await q.$$('#steps .step.ok')).length >= 2 && !!(await q.$('#steps .step.next')) && await q.isVisible('#steps .steps-all'));
   await q.waitForSelector('#helper .ai-left:has-text("скоро заработает")',{timeout:5000}).catch(()=>{});

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Проверка Telegram-бота без настоящего Telegram: подставной api.telegram.org (TG_API) записывает вызовы.
-# Привязка из кабинета, вебхук с секретом, выбор уведомлений, напоминание о челлендже, личные сообщения, /stop.
+# Привязка из кабинета (сообщения боту сервер забирает сам — getUpdates), выбор уведомлений, напоминание о челлендже,
+# личные сообщения, /stop, запасной вебхук с секретом.
 #   PB=/path/to/pocketbase sh tests/telegram_test.sh
 set -eu
 PB=${PB:-pocketbase}
@@ -9,15 +10,24 @@ T=$(mktemp -d)
 trap 'kill $(cat "$T/pid" "$T/mock" 2>/dev/null) 2>/dev/null || true; rm -rf "$T"' EXIT
 python3 - "$T" <<'PY' &
 import json, sys, http.server
-calls = []
+calls, queue = [], []   # queue — сообщения боту, которые ждут getUpdates
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
         self.send_response(200); self.end_headers(); self.wfile.write(json.dumps(calls).encode())
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get('content-length') or 0)) or b'{}')
-        method = self.path.rsplit('/', 1)[-1]; calls.append([method, body])
-        res = {'ok': True, 'result': {'username': 'testbot'} if method == 'getMe' else True}
+        method = self.path.rsplit('/', 1)[-1]
+        if self.path == '/queue':   # тест кладёт сообщение «от человека»
+            queue.append(body); self.send_response(200); self.end_headers(); self.wfile.write(b'{}'); return
+        calls.append([method, body])
+        result = True
+        if method == 'getMe': result = {'username': 'testbot'}
+        if method == 'getUpdates':
+            off = body.get('offset', 0)
+            queue[:] = [u for u in queue if u['update_id'] >= off]   # подтверждённые Telegram больше не отдаёт
+            result = [] if body.get('limit') == 1 else list(queue)
+        res = {'ok': True, 'result': result}
         self.send_response(200); self.send_header('content-type', 'application/json'); self.end_headers(); self.wfile.write(json.dumps(res).encode())
 http.server.HTTPServer(('127.0.0.1', 8093), H).serve_forever()
 PY
@@ -46,13 +56,17 @@ for n in ['Аня','Боря']:
 st, r = req('POST','/tg/link',{},tok['Аня'])
 check('cabinet gets a t.me link with a one-time code', st == 200 and r.get('url','').startswith('https://t.me/testbot?start='))
 code = r.get('url','').rsplit('=',1)[-1]
-check('webhook is set with a secret', any(c[0]=='setWebhook' and c[1].get('secret_token') for c in calls()))
 secret = hashlib.sha256(b'dashabotanika-hook:test-token').hexdigest()[:48]
 st, _ = req('POST','/tg/hook',{'message':{'chat':{'id':555},'text':'/start '+code}},h={'X-Telegram-Bot-Api-Secret-Token':'wrong'})
 check('webhook without the secret is refused', st == 403)
-req('POST','/tg/hook',{'message':{'chat':{'id':555},'text':'/start '+code}},h={'X-Telegram-Bot-Api-Secret-Token':secret})
+queue = lambda upd: u.urlopen(u.Request('http://127.0.0.1:8093/queue', method='POST', data=json.dumps(upd).encode(), headers={'Content-Type':'application/json'}))
+queue({'update_id': 10, 'message': {'chat': {'id': 555}, 'text': '/start '+code}})
+st, r = req('POST','/tg/poll',{},tok['Аня'])
 subs = req('GET','/collections/tg_subs/records',None,tok['Аня'])[1]['items']
-check('/start links the chat, default topics chosen', len(subs)==1 and subs[0]['chat_id']=='555' and set(subs[0]['topics'])=={'challenge','messages','weekly'})
+check('the cabinet asks the server to fetch messages: /start links the chat, default topics chosen', r.get('got')==1 and len(subs)==1 and subs[0]['chat_id']=='555' and set(subs[0]['topics'])=={'challenge','messages','weekly'})
+check('webhook is switched off so updates can be fetched; the reply «Готово» is sent', any(c[0]=='deleteWebhook' for c in calls()) and any(c[0]=='sendMessage' and 'Готово' in c[1]['text'] for c in calls()))
+n0 = len(calls()); st, r = req('POST','/tg/poll',{},tok['Аня'])
+check('fetched messages are confirmed and not handled twice', r.get('got')==0 and not [c for c in calls()[n0:] if c[0]=='sendMessage'])
 check('another member does not see the subscription', req('GET','/collections/tg_subs/records',None,tok['Боря'])[1]['totalItems']==0)
 st, _ = req('PATCH','/collections/tg_subs/records/'+subs[0]['id'],{'chat_id':'999'},tok['Аня'])
 check('chat id cannot be changed from the site', st >= 400)
@@ -69,7 +83,7 @@ st, chat = req('POST','/collections/chats/records',{'key':key,'buyer':ids['Бо�
 n0 = len(calls()); req('POST','/collections/messages/records',{'chat':chat.get('id'),'from':ids['Боря'],'text':'Привет из мира!'},tok['Боря'])
 msg = [c for c in calls()[n0:] if c[0]=='sendMessage']
 check('new private message comes to Telegram', len(msg)==1 and 'Привет из мира!' in msg[0][1]['text'] and 'Боря' in msg[0][1]['text'])
-req('POST','/tg/hook',{'message':{'chat':{'id':555},'text':'/stop'}},h={'X-Telegram-Bot-Api-Secret-Token':secret})
+queue({'update_id': 11, 'message': {'chat': {'id': 555}, 'text': '/stop'}}); req('POST','/tg/poll',{},tok['Аня'])
 check('/stop turns everything off', req('GET','/collections/tg_subs/records',None,tok['Аня'])[1]['totalItems']==0)
 raise SystemExit(1 if fails else 0)
 PY

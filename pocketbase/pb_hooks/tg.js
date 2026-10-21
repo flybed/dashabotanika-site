@@ -35,12 +35,29 @@ function username() {
   botName = r && r.ok && r.result ? r.result.username : ""
   return botName
 }
-// вебхук ставим один раз после запуска (и потом по расписанию), а не при каждой привязке
-let hookSet = false
-function ensureWebhook(force) {
-  if (!token() || (hookSet && !force)) return
-  const r = call("setWebhook", { url: `${SITE}/api/tg/hook`, secret_token: hookSecret(), allowed_updates: ["message"] })
-  hookSet = !!(r && r.ok)
+// Сообщения боту сервер забирает сам (getUpdates) — раз в минуту и каждые несколько секунд, пока человек
+// подключает бота в кабинете. Так не нужно, чтобы Telegram мог достучаться до сервера (вебхук на нашем
+// сервере не доходил). Номер следующего сообщения и «замок» — в общем хранилище приложения.
+function poll(app) {
+  if (!token()) return 0
+  const store = app.store()
+  const busy = store.get("tg_poll_busy")
+  if (busy && Date.now() - busy < 20000) return 0
+  store.set("tg_poll_busy", Date.now())
+  let n = 0
+  try {
+    if (!store.get("tg_hook_off")) { const r = call("deleteWebhook", {}); if (r && r.ok) store.set("tg_hook_off", true) }
+    const offset = store.get("tg_offset") || 0
+    const r = call("getUpdates", offset ? { offset, timeout: 0, allowed_updates: ["message"] } : { timeout: 0, allowed_updates: ["message"] })
+    let next = offset
+    for (const u of (r && r.ok && r.result) || []) {
+      next = Math.max(next, u.update_id + 1)
+      try { onMessage(app, u.message) } catch (e) {}
+      n++
+    }
+    if (next !== offset) { store.set("tg_offset", next); call("getUpdates", { offset: next, limit: 1, timeout: 0 }) } // подтвердить полученное
+  } finally { store.remove("tg_poll_busy") }
+  return n
 }
 
 // код для ссылки t.me/<бот>?start=<код>
@@ -64,6 +81,7 @@ function onMessage(app, msg) {
     let link
     try { link = app.findFirstRecordByFilter("tg_links", "code = {:c}", { c: m[1] }) } catch (e) {}
     const fresh = link && Date.now() - new Date(link.getString("created").replace(" ", "T")).getTime() < 24 * 3600 * 1000
+    if (!link) { try { app.findFirstRecordByFilter("tg_subs", "chat_id = {:c}", { c: chatId }); return } catch (e) {} } // это повтор: уже подключено
     if (!fresh) { send(chatId, "Ссылка устарела. Откройте кабинет на сайте и нажмите «Подключить Telegram» ещё раз.", ["Открыть кабинет", SITE + "/kabinet?tab=settings"]); return }
     const userId = link.getString("user")
     let sub
@@ -170,4 +188,4 @@ function onNewArticles(app, list) {
   }
 }
 
-module.exports = { errorText, token, hookSecret, ensureWebhook, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }
+module.exports = { errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }
