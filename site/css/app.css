@@ -986,3 +986,16 @@ footer .wrap.narrow.auth{max-width:640px}
   .int-subs{padding:0 16px 14px}
   .wt-em{width:40px;height:40px;font-size:22px}
 }
+
+/* guided tour */
+.tour{position:fixed;inset:0;z-index:90}
+.tour-spot{position:fixed;border-radius:18px;box-shadow:0 0 0 200vmax rgba(18,22,14,.64), 0 0 0 3px var(--sun);transition:all .3s ease;pointer-events:none}
+.tour-tip{position:fixed;background:var(--surface);color:var(--ink);border-radius:18px;padding:18px 18px 14px;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);display:grid;gap:8px;transition:top .3s ease,left .3s ease}
+.tour-tip h3{font-size:21px}
+.tour-tip p{margin:0;font-size:15.5px;line-height:1.45;color:var(--muted)}
+.tour-tip::before{content:"";position:absolute;top:-8px;left:calc(var(--ax,50%) - 8px);width:16px;height:16px;background:var(--surface);transform:rotate(45deg);border-radius:3px}
+.tour-tip.up::before{top:auto;bottom:-8px}
+.tour-tip.over::before{display:none}
+.tour-btns{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:4px}
+footer .linkish{font:inherit;color:inherit;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer}
+@media (prefers-reduced-motion: reduce){ .tour-spot,.tour-tip{transition:none} }

@@ -182,7 +182,7 @@ function render(){
     )),
     h('main',null, path !== '/' ? backBar() : null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'+(ART_RE.test(path) || path==='/politika' ? ' narrow' : path==='/kabinet' && accState()!=='member' ? ' narrow auth' : '')},
-      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/o-proekte'},'О проекте'), ' · ', h('a',{href:'/o-proekte#feedback'},'Обратная связь'), ' · ', h('a',{href:'/politika'},'Политика конфиденциальности')),
+      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/o-proekte'},'О проекте'), ' · ', h('a',{href:'/o-proekte#feedback'},'Обратная связь'), ' · ', h('a',{href:'/politika'},'Политика конфиденциальности'), ' · ', h('button',{type:'button',class:'linkish',onclick:()=>startTour()},'Показать подсказки')),
       h('span',{id:'edit-slot'})
     )),
     editBar()
@@ -3246,6 +3246,70 @@ async function saveSite(){
 
 render();
 
+/* ---------- guided tour: the screen dims, a light shows where to tap, four short steps, once ---------- */
+const TOUR_KEY = 'db-tour-done';
+const TOUR = [
+  ['.burger','Все разделы — в меню','Еда, сортировка, мода, игры, журнал и всё остальное — здесь, в любой момент.'],
+  ['#interests .int-grid','Выберите, что вам интересно','Каждая плитка ведёт на свою страницу, а маленькие кнопки — сразу к нужному месту.'],
+  ['.acc-btn', ()=>accState()==='member' ? 'Ваш кабинет' : 'Присоединяйтесь', ()=>accState()==='member' ? 'Здесь ваш путь, челленджи, сообщения и настройки.' : 'Зарегистрируйтесь — копите очки роста, проходите челленджи и растите своего персонажа.'],
+  ['#world-teaser','Счастливый мир','Здесь живут все участники — животные и растения. Поселитесь и знакомьтесь с соседями.']
+];
+let TOUR_EL = null;
+function tourDone(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(e){ return true; } }
+function endTour(){
+  if (!TOUR_EL) return;
+  TOUR_EL.cleanup(); TOUR_EL.remove(); TOUR_EL = null;
+  try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){}
+}
+function startTour(){
+  if (TOUR_EL) return;
+  if (currentPath() !== '/') go('/');
+  let i = 0;
+  const spot = h('div',{class:'tour-spot'}), tip = h('div',{class:'tour-tip',role:'dialog','aria-modal':'true','aria-labelledby':'tour-t'});
+  const box = h('div',{class:'tour'}, spot, tip);
+  const place = ()=>{
+    const el = document.querySelector(TOUR[i][0]); if (!el) return;
+    const r = el.getBoundingClientRect(), pad = 8, topBar = 70;
+    const top = Math.max(r.top - pad, el.closest('header') ? 0 : topBar), bottom = Math.min(r.bottom + pad, innerHeight - 8);
+    Object.assign(spot.style, {left:(r.left-pad)+'px', top:top+'px', width:(r.width+pad*2)+'px', height:Math.max(0,bottom-top)+'px'});
+    const tw = Math.min(340, innerWidth - 32), below = innerHeight - bottom > tip.offsetHeight + 24 || top < tip.offsetHeight + 24;
+    tip.style.width = tw+'px';
+    const left = Math.min(Math.max(16, r.left + r.width/2 - tw/2), innerWidth - tw - 16), y = below ? Math.min(bottom + 14, innerHeight - tip.offsetHeight - 12) : Math.max(12, top - tip.offsetHeight - 14);
+    tip.style.left = left+'px'; tip.style.top = y+'px';
+    // the little arrow points at the lit element; no arrow when the element is taller than the screen and the tip sits on it
+    tip.style.setProperty('--ax', Math.min(Math.max(r.left + r.width/2 - left, 22), tw - 22)+'px');
+    tip.classList.toggle('up', !below); tip.classList.toggle('over', below ? y < bottom : y + tip.offsetHeight > top);
+  };
+  const show = ()=>{
+    const [sel, t, d] = TOUR[i], el = document.querySelector(sel);
+    if (!el){ if (++i < TOUR.length) show(); else endTour(); return; }
+    const val = v => typeof v === 'function' ? v() : v, last = i === TOUR.length - 1;
+    tip.replaceChildren(
+      h('div',{class:'eyebrow'},'Подсказка ',i+1,' из ',TOUR.length),
+      h('h3',{id:'tour-t'}, val(t)), h('p',null, val(d)),
+      h('div',{class:'tour-btns'},
+        last ? h('span') : h('button',{type:'button',class:'linkish',onclick:endTour},'Пропустить'),
+        h('button',{type:'button',class:'btn small',onclick:()=>{ if (last) endTour(); else { i++; show(); } }}, last ? 'Понятно!' : 'Далее →')));
+    if (!el.closest('header')){
+      const r = el.getBoundingClientRect();
+      window.scrollTo({top: scrollY + r.top - (r.height > innerHeight*0.6 ? 80 : (innerHeight - r.height)/2), behavior:'instant'});
+    }
+    requestAnimationFrame(()=>{ place(); tip.querySelector('.btn').focus(); });
+  };
+  const onKey = e=>{ if (e.key==='Escape') endTour(); };
+  window.addEventListener('resize', place); window.addEventListener('scroll', place, {passive:true}); document.addEventListener('keydown', onKey);
+  box.cleanup = ()=>{ window.removeEventListener('resize', place); window.removeEventListener('scroll', place); document.removeEventListener('keydown', onKey); };
+  TOUR_EL = box; document.body.append(box);
+  setTimeout(show, 120);
+}
+// first visit to the home page: after the splash screen is gone
+function maybeTour(){
+  if (tourDone() || currentPath() !== '/') return;
+  let n = 0;
+  const wait = ()=>{ if (document.getElementById('splash') && n++ < 40){ setTimeout(wait, 250); return; } if (!tourDone() && currentPath()==='/' && !MODAL) startTour(); };
+  setTimeout(wait, 600);
+}
+
 /* ---------- connect to the backend ---------- */
 (async ()=>{
   try{ const w = sessionStorage.getItem('db-welcome'); if (w){ sessionStorage.removeItem('db-welcome'); setTimeout(()=>toast(w), 400); } }catch(e){}
@@ -3276,6 +3340,7 @@ render();
   }
   COM.ready = true;
   render();
+  maybeTour();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
   watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,verified'}, l=>{
     const m = {}; l.forEach(r=>{ if (r.role!=='writer' || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper is not a dweller
