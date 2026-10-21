@@ -947,3 +947,12 @@ footer .wrap.narrow.auth{max-width:640px}
 .cab-foot{padding-top:10px;border-top:1px solid var(--line);margin-top:6px}
 .cal-head .btn[disabled]{opacity:.35;cursor:default}
 .form label.consent,.consent{align-items:flex-start}.consent input{margin-top:1px}
+/* useful services */
+.svc-bar{display:grid;gap:12px;margin-bottom:18px}
+.svc-city{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:800}
+.svc-city select{min-width:220px;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;background-color:var(--surface);font-weight:700}
+.svc-cats{margin-top:0}
+.svc-cats .chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
+.svc-city-tag{background:var(--paper)}
+.svc-form{margin-top:28px}
+@media (min-width:1001px){.sn-row{grid-template-columns:repeat(13,minmax(0,1fr))}}
