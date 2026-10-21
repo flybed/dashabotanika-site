@@ -1097,7 +1097,8 @@ function privacyPage(){
         'Технические данные: IP-адрес, время посещения, тип браузера и устройства. Они нужны для работы и защиты сайта.'])),
     sec('3. Зачем',
       ul(['Чтобы вы могли зарегистрироваться, входить в кабинет и пользоваться им: челленджи, рост персонажа, сертификаты, барахолка, переписка.',
-        'Чтобы отправлять служебные письма: подтверждение почты и восстановление пароля. Рекламных рассылок без вашего отдельного согласия нет.',
+        'Чтобы отправлять служебные письма: подтверждение почты и восстановление пароля.',
+        'Чтобы присылать письма, которые вы сами выбрали в кабинете (личные сообщения, новые статьи, письмо недели). Выбор — это ваше отдельное согласие: время отметки сохраняется, а отписаться можно в любой момент — ссылкой «Отписаться» в каждом письме или в кабинете. Рекламных рассылок нет.',
         'Чтобы проверять объявления и защищать сайт от спама и злоупотреблений.',
         'Чтобы понимать, что на сайте полезно, и делать его лучше (обезличенная статистика посещений).'])),
     sec('4. На каком основании',
@@ -1107,7 +1108,7 @@ function privacyPage(){
     sec('6. Кто ещё может их видеть',
       ul(['Другие посетители видят только ваше имя на сайте, персонажа, уровень и то, что вы сами опубликовали (комментарии, объявления). Почту и профиль они не видят.',
         'Администратор и модераторы сайта видят то, что нужно для проверки объявлений и ответов на обратную связь; профиль видит только администратор.',
-        'Мы не продаём и не передаём ваши данные третьим лицам. Исключения — сервисы, без которых сайт не работает: хостинг (серверы сайта), почтовый сервис для отправки служебных писем, сервис статистики Яндекс.Метрика, Yandex Cloud для разбора фото в ИИ-помощнике и Telegram, если вы сами подключили уведомления, — а также случаи, прямо предусмотренные законом.'])),
+        'Мы не продаём и не передаём ваши данные третьим лицам. Исключения — сервисы, без которых сайт не работает: хостинг (серверы сайта), почтовый сервис Unisender Go для отправки писем (служебных и выбранных вами), сервис статистики Яндекс.Метрика, Yandex Cloud для разбора фото в ИИ-помощнике и Telegram, если вы сами подключили уведомления, — а также случаи, прямо предусмотренные законом.'])),
     sec('7. Cookie и хранилище браузера',
       h('p',null,'Сайт сохраняет в вашем браузере то, что нужно для работы: вход в аккаунт, результаты без регистрации, выбранный город для чистоты воздуха, скрытые подсказки. Для статистики подключена Яндекс.Метрика: она использует cookie и Вебвизор — обезличенную запись действий на страницах (поля с паролями не записываются), чтобы понять, что на сайте удобно, а что нет. Отключить cookie можно в настройках браузера — сайт продолжит работать, но вход придётся выполнять заново.')),
     sec('8. Ваши права',
@@ -2675,7 +2676,7 @@ function cabinetTabs(tab, tid){
         nameBox.replaceChildren(f); nick.focus();
       }
       const showChar = ()=>{ const c = charOf(COM.me.character);
-        charBox.replaceChildren(h('div',{class:'acc-row'}, h('span',{class:'acc-em','aria-hidden':'true'}, emojiOf(COM.uid)), h('b',null, COM.me.customName || (c && c.name) || 'Персонаж'),
+        charBox.replaceChildren(h('div',{class:'acc-row'}, h('span',{class:'acc-em','aria-hidden':'true'}, COM.me.customEmoji || (c && c.emoji) || emojiOf(COM.uid)), h('b',null, COM.me.customName || (c && c.name) || 'Персонаж'),
           h('button',{type:'button',class:'btn ghost small',onclick:editChar},'Сменить персонажа'))); };
       function editChar(){
         const pick = characterPicker('acc-char', COM.me.character, {emoji:COM.me.customEmoji, name:COM.me.customName});
@@ -2694,7 +2695,7 @@ function cabinetTabs(tab, tid){
         h('p',{class:'hint'},'Почту видите только вы. Она нужна для входа и восстановления пароля.'),
         h('div',{class:'hint',style:'font-weight:800'},'Имя на сайте'), nameBox,
         h('div',{class:'hint',style:'font-weight:800'},'Мой персонаж в «Счастливом мире»'), charBox),
-        tgCard());
+        notifyCard());
     }
     if (cur==='mine'){
       const kind = h('select',{id:'sg-kind'}, ['Новость','Статья','Идея для сайта'].map(o=>h('option',null,o)));
@@ -2903,14 +2904,15 @@ function profilePanel(){
   return box;
 }
 /* ---------- Telegram: the member chooses what the bot sends and when ---------- */
-const TG_TOPICS = [
-  ['challenge','🌱 Напоминание о челлендже','каждый день в выбранное время, если что-то ещё не отмечено'],
-  ['nudge','🏁 Предложение начать новый челлендж','по воскресеньям, если сейчас челленджа нет'],
-  ['messages','💬 Новые личные сообщения','сразу, когда вам пишут'],
-  ['articles','📖 Новые статьи в журнале','когда Даша публикует статью'],
-  ['weekly','🌍 Что нового в «Счастливом мире»','по воскресеньям: новые участники, вещи и статьи']
+// what can be sent and where: e-mail only for what is not daily (a daily e-mail would be too much)
+const NOTIFY_ROWS = [
+  ['challenge','🌱 Напоминание о челлендже','каждый день в выбранное время, если что-то ещё не отмечено',{tg:true}],
+  ['nudge','🏁 Начать новый челлендж','по воскресеньям, если сейчас челленджа нет',{tg:true}],
+  ['messages','💬 Личные сообщения','когда вам пишут; на почту — не чаще раза в 3 часа',{tg:true, mail:true}],
+  ['articles','📖 Новые статьи','когда Даша публикует статью',{tg:true, mail:true}],
+  ['weekly','📬 Письмо недели','по воскресеньям: новые статьи, жизнь «Счастливого мира» и ваш прогресс',{tg:true, mail:true}]
 ];
-function tgCard(){
+function notifyCard(){
   const box = h('div',{class:'card tg-card',id:'tg'}, h('p',{class:'muted'},'Загружаем…'));
   // Telegram opens in a new tab (opened right on the click, so the browser does not block it);
   // the card checks by itself when the member has pressed «Start»
@@ -2938,36 +2940,44 @@ function tgCard(){
       if (note){ note.hidden = false; note.className = 'tg-note tg-err'; note.textContent = msg; } else toast(msg);
     }
   };
-  function paint(sub){
-    const head = h('div',{class:'pf-head'}, h('h3',null,'Уведомления в Telegram'), sub ? h('span',{class:'status accepted'},'✓ подключено') : null);
-    if (!sub){
-      box.replaceChildren(head,
-        h('p',null,'Бот напомнит про челлендж и расскажет, что нового в сообществе. Что именно присылать, вы выберете сами.'),
-        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
-          h('button',{type:'button',class:'btn small',onclick:e=>connect(e.currentTarget)},'Подключить Telegram'),
-          h('button',{type:'button',class:'btn ghost small',onclick:load},'Я подключил(а) — обновить')),
-        h('p',{class:'hint'},'Откроется Telegram — нажмите «Start» в боте и вернитесь сюда.'),
-        h('p',{class:'tg-note',hidden:true,role:'status'}));
-      return;
-    }
-    const want = new Set(sub.topics||[]);
-    const boxes = TG_TOPICS.map(([k,t,d])=>{ const c = h('input',{type:'checkbox',checked:want.has(k)?'':null,'data-k':k}); return h('label',{class:'tg-topic'}, c, h('span',null, h('b',null,t), h('span',{class:'hint'},d))); });
-    const hour = h('select',{'aria-label':'Время напоминания'}, Array.from({length:17},(_,i)=>i+7).map(x=>h('option',{value:x,selected:x===sub.hour?'':null}, String(x).padStart(2,'0')+':00')));
-    const on = h('input',{type:'checkbox',checked:sub.enabled?'':null});
-    const save = h('button',{type:'button',class:'btn small',onclick:()=>{
-      const topics = boxes.map(l=>l.querySelector('input')).filter(c=>c.checked).map(c=>c.dataset.k);
-      pb.collection('tg_subs').update(sub.id,{topics, hour:+hour.value, tz:-new Date().getTimezoneOffset(), enabled:on.checked}).then(r=>{ toast(on.checked && topics.length ? 'Уведомления сохранены' : 'Уведомления выключены'); paint(r); }).catch(writeErr);
+  // one table: what to send × where (e-mail, Telegram); e-mail is sent only for what the member ticked
+  let NREC = null;
+  function paint(sub, nrec){
+    if (nrec !== undefined) NREC = nrec;
+    const mail = new Set((NREC && NREC.email_topics)||[]), tgw = new Set((sub && sub.enabled && sub.topics)||[]);
+    const rows = NOTIFY_ROWS.map(([k,t,d,ch])=>{
+      const m = ch.mail ? h('input',{type:'checkbox','data-k':k,'data-c':'mail',checked:mail.has(k)?'':null,'aria-label':t+' — на почту'}) : h('span',{class:'hint',title:'Только в Telegram'},'—');
+      const g = h('input',{type:'checkbox','data-k':k,'data-c':'tg',checked:tgw.has(k)?'':null,disabled:sub?null:'','aria-label':t+' — в Telegram'});
+      return h('tr',null, h('th',{scope:'row'}, h('b',null,t), h('span',{class:'hint'},d)), h('td',null,m), h('td',null,g));
+    });
+    const hour = h('select',{'aria-label':'Время напоминания'}, Array.from({length:17},(_,i)=>i+7).map(x=>h('option',{value:x,selected:sub && x===sub.hour?'':null}, String(x).padStart(2,'0')+':00')));
+    const pick = c => [...box.querySelectorAll('input[data-c="'+c+'"]')].filter(x=>x.checked).map(x=>x.dataset.k);
+    const save = h('button',{type:'button',class:'btn small notify-save',onclick:async ()=>{
+      save.disabled = true;
+      try{
+        const email_topics = pick('mail');
+        NREC = NREC ? await pb.collection('notify').update(NREC.id,{email_topics}) : await pb.collection('notify').create({user:COM.uid, email_topics});
+        if (sub){ const topics = pick('tg'); sub = await pb.collection('tg_subs').update(sub.id,{topics, hour:+hour.value, tz:-new Date().getTimezoneOffset(), enabled:topics.length > 0}); }
+        toast('Уведомления сохранены'); paint(sub);
+      }catch(err){ writeErr(err); save.disabled = false; }
     }},'Сохранить');
-    box.replaceChildren(head,
-      h('label',{class:'tg-topic tg-main'}, on, h('span',null, h('b',null,'Присылать уведомления'))),
-      h('div',{class:'hint',style:'font-weight:800'},'Что присылать'), h('div',{class:'tg-topics'}, boxes),
-      h('label',{class:'tg-hour'},'Во сколько напоминать о челлендже ', hour, h('span',{class:'hint'},' (ваше местное время)')),
+    box.replaceChildren(
+      h('div',{class:'pf-head'}, h('h3',null,'🔔 Уведомления'), sub ? h('span',{class:'status accepted'},'✓ Telegram подключён') : null),
+      h('p',{class:'hint'},'Отметьте, что и куда присылать. Письма приходят на ', h('b',null,COM.email||'вашу почту'), COM.verified ? '' : ' (почта не подтверждена — письма могут не дойти)', '. В каждом письме есть «Отписаться».'),
+      h('div',{class:'notify-wrap'}, h('table',{class:'notify-t'},
+        h('thead',null, h('tr',null, h('th',null,''), h('th',{scope:'col'},'✉️ Почта'), h('th',{scope:'col'},'✈️ Telegram'))), h('tbody',null, rows))),
+      sub ? h('label',{class:'tg-hour'},'Напоминать о челлендже в ', hour, h('span',{class:'hint'},' (ваше местное время)'))
+        : h('div',{class:'notify-tg'}, h('p',{class:'hint'},'Чтобы получать уведомления в Telegram, подключите бота — откроется Telegram, нажмите там «Start».'),
+            h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'button',class:'btn ghost small',onclick:e=>connect(e.currentTarget)},'Подключить Telegram'),
+              h('button',{type:'button',class:'btn ghost small',onclick:load},'Я подключил(а) — обновить')),
+            h('p',{class:'tg-note',hidden:true,role:'status'})),
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, save,
-        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отключить Telegram-бота?')) pb.collection('tg_subs').delete(sub.id).then(()=>{ toast('Telegram отключён'); paint(null); }).catch(writeErr); }},'Отключить Telegram')));
+        sub ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отключить Telegram-бота?')) pb.collection('tg_subs').delete(sub.id).then(()=>{ toast('Telegram отключён'); paint(null); }).catch(writeErr); }},'Отключить Telegram') : null));
   }
-  function load(){ pb.collection('tg_subs').getFullList({requestKey:null}).then(l=>paint(l[0]||null)).catch(()=>paint(null)); }
+  function load(){ Promise.all([pb.collection('tg_subs').getFullList({requestKey:null}).catch(()=>[]), pb.collection('notify').getFullList({requestKey:null}).catch(()=>[])])
+    .then(([t,n])=>paint(t[0]||null, n[0]||null)); }
   load();
-  return box;
+  return h('div',{id:'notify'}, box);
 }
 
 /* ---------- «Мой эко путь»: badges and a timeline of what you have done ---------- */
