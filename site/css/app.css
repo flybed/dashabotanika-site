@@ -1114,3 +1114,4 @@ details.fold[open] > summary{margin-bottom:12px}
 .fy-chips .chip{font-size:13.5px;padding:6px 12px}
 .fy-t{font-size:22px;margin:8px 0 12px}
 .fy-all{font-size:26px;margin:4px 0 16px}
+.spam-hint{background:color-mix(in srgb,var(--sun) 16%,transparent);border-radius:10px;padding:8px 12px;color:var(--ink)}

@@ -169,6 +169,7 @@ const T = '#cabinet-tabs ';
   check('old links /kabinet#challenges open the challenges tab', !!(await p.$('#challenges button:has-text("Создать челлендж")')));
   await p.click('.tabs button:has-text("Профиль и настройки")');
   check('settings show email and its status', (await p.textContent('.mail-row')).includes('dasha@test.local') && (await p.textContent('.mail-row')).includes('не подтверждена'));
+  check('until the email is confirmed, the cabinet says to look in «Спам»', (await p.textContent('#cabinet')).includes('«Спам»') && (await p.textContent('.acc-card')).includes('«Спам»'));
   await api('PATCH','/collections/users/records/'+dasha.id,{verified:true},t);
   await p.reload({waitUntil:'networkidle'}); await p.click('.tabs button:has-text("Профиль и настройки")');
   check('verified email shown as confirmed', (await p.textContent('.mail-row')).includes('✓ подтверждена') && !!(await p.$('.mail-ok')));
