@@ -29,6 +29,39 @@ const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</
 const cut = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s }
 const paras = (s) => String(s || "").split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("\n")
 
+// Текст статьи с разметкой (## заголовки, **жирный**, > совет, --- разделитель, списки, ![подпись](фото)) — в HTML для поисковиков.
+const okUrl = (u) => /^(https?:\/\/|\/)[^\s()"<>]+$/.test(u)
+function mdInline(t) {
+  return esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[\s(«])_([^_]+)_/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (all, x, u) => okUrl(u) ? `<a href="${u}">${x}</a>` : all).replace(/\n/g, "<br>")
+}
+function mdHtml(src) {
+  const out = []
+  let para = [], list = null, quote = null
+  const flush = () => {
+    if (para.length) { out.push(`<p>${mdInline(para.join("\n"))}</p>`); para = [] }
+    if (list) { out.push(`<${list.t}>${list.items.map((x) => `<li>${mdInline(x)}</li>`).join("")}</${list.t}>`); list = null }
+    if (quote) { out.push(`<aside>${quote.map((x) => `<p>${mdInline(x)}</p>`).join("")}</aside>`); quote = null }
+  }
+  for (const raw of String(src || "").replace(/\r/g, "").split("\n")) {
+    const l = raw.trim()
+    let m
+    if (!l) { if (para.length || quote) flush(); continue }
+    if ((m = l.match(/^(#{1,3})\s+(.+)$/))) { flush(); const t = m[1].length === 3 ? "h3" : "h2"; out.push(`<${t}>${mdInline(m[2])}</${t}>`); continue }
+    if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(l)) { flush(); out.push("<hr>"); continue }
+    if ((m = l.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && okUrl(m[2])) { flush(); out.push(`<figure><img src="${m[2]}" alt="${esc(m[1])}" loading="lazy">${m[1] ? `<figcaption>${esc(m[1])}</figcaption>` : ""}</figure>`); continue }
+    if ((m = l.match(/^>\s?(.*)$/))) { if (para.length || list) { const q = quote; quote = null; flush(); quote = q } (quote = quote || []).push(m[1]); continue }
+    const li = l.match(/^\d+[.)]\s+(.+)$/) ? ["ol", l.replace(/^\d+[.)]\s+/, "")] : l.match(/^[-—–•*]\s+(.+)$/) ? ["ul", l.replace(/^[-—–•*]\s+/, "")] : null
+    if (li) { if (para.length || quote || (list && list.t !== li[0])) flush(); (list = list || { t: li[0], items: [] }).items.push(li[1]); continue }
+    if (list || quote) flush()
+    para.push(l)
+  }
+  flush()
+  return out.join("\n")
+}
+const mdPlain = (s) => String(s || "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
+  .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm, "").replace(/^\s*(-{3,}|❦+)\s*$/gm, "").trim()
+
 function read(path) { return toString($os.readFile(path)) }
 
 // Постоянные тексты (советы, ткани, рецепты, вопросы теста) живут в скрипте сайта — берём оттуда.
@@ -227,14 +260,14 @@ function page(path, d, k, app) {
     if (!a) return null
     const url = `/zhurnal/${articleSlug(a)}`
     // свои заголовок и описание для поиска (поля SEO в редакторе статьи), иначе — из статьи
-    const desc = cut(a.seo_desc || a.lead || a.body, 200)
+    const desc = cut(a.seo_desc || a.lead || mdPlain(a.body), 200)
     const image = a.image ? (/^https?:/.test(a.image) ? a.image : ORIGIN + a.image) : null
     return Object.assign(base, {
       title: a.seo_title || `${a.title} — DashaBotanika`, description: desc, type: "article", canonical: url, image,
       crumbs: [["Журнал", "/zhurnal"], [a.title, url]],
       ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, datePublished: a.date || undefined, inLanguage: "ru", image: image || undefined,
         author: { "@type": "Person", name: (d.about || {}).name || "Даша" }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }],
-      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${paras(a.body)}</div></article>`,
+      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${mdHtml(a.body)}</div></article>`,
     })
   }
   return null

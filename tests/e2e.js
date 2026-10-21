@@ -285,6 +285,19 @@ const T = '#cabinet-tabs ';
   check('server page uses the SEO title, description and cover; the old address still opens', rArt.includes('<title>Чем заменить пищевую плёнку: 5 идей для кухни</title>') && rArt.includes('content="Восковые салфетки') && /property="og:image" content="https:\/\/dashabotanika\.ru\/api\/files\/photos\//.test(rArt) && rOld.status===200 && (await rOld.text()).includes('href="https://dashabotanika.ru/zhurnal/plenka-zamena"'));
   await p.goto(B+'/zhurnal/plenka-zamena', {waitUntil:'networkidle'});
   check('article shows its cover picture', !!(await p.$('#article .art-cover img')));
+  // the article text with marks: headings, bold, a tip, a divider, lists, a photo — via the editor buttons and typing
+  await p.click('#edit-slot button'); await p.waitForSelector('#ae-body');
+  await p.fill('#ae-body', 'Плёнка служит минуту, а лежит на свалке веками. Вот чем я её заменила.\n\n## Восковые салфетки\nОни **обнимают миску** и служат около года.\n\n> 💡 Совет:\n> мойте прохладной водой\n\n---\n\n## Крышки и контейнеры\n- стеклянные банки\n- силиконовые крышки\n\n## Что выбрать\n1. Начните с одной салфетки\n2. Добавьте крышки\n\n![Мои салфетки на кухне](/img/coffee.webp)');
+  await p.click('.md-b:has-text("Предпросмотр")');
+  check('editor: buttons for marks and a live preview', (await p.$$('.md-bar .md-b')).length >= 9 && !!(await p.$('.md-preview h2')));
+  await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000}); await p.waitForTimeout(400);
+  const art = await p.$eval('#article', el=>({h2:el.querySelectorAll('.art-body h2').length, tip:!!el.querySelector('.art-body .art-tip'), div:!!el.querySelector('.art-body .art-divider'),
+    strong:!!el.querySelector('.art-body strong'), ul:el.querySelectorAll('.art-body ul li').length, ol:el.querySelectorAll('.art-body ol li').length, fig:!!el.querySelector('.art-body .art-fig img'),
+    toc:el.querySelectorAll('.art-toc a').length, mins:/мин чтения/.test(el.textContent), raw:/##|\*\*|^>/m.test(el.querySelector('.art-body').textContent)}));
+  check('article: headings, bold, tip, divider, lists, photo, contents and reading time — no raw marks', art.h2===3 && art.tip && art.div && art.strong && art.ul===2 && art.ol===2 && art.fig && art.toc===3 && art.mins && !art.raw);
+  await p.locator('#article').screenshot({path:S+'/26-article.png'});
+  const rMd = await (await fetch(B+'/zhurnal/plenka-zamena')).text();
+  check('server page of the article carries the same structure for search engines', rMd.includes('<h2>Восковые салфетки</h2>') && rMd.includes('<strong>обнимают миску</strong>') && rMd.includes('<aside>') && rMd.includes('<hr>') && rMd.includes('<figcaption>Мои салфетки на кухне</figcaption>'));
   await p.goto(B+'/');
   await p.click('#edit-slot button'); await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000});
   // second user, mobile
