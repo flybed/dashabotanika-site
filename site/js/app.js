@@ -350,7 +350,16 @@ const SEASON = [
 const RECIPES = [
   ['Бульон из очистков','45 минут',['Складывайте в пакет в морозилке луковую шелуху, морковные хвостики, стебли петрушки и укропа.','Когда наберётся полный пакет, залейте 2 л воды, добавьте лавровый лист и перец горошком.','Варите 40 минут на слабом огне и процедите. Бульон хранится в холодильнике до 4 дней.']],
   ['Чипсы из яблочной кожуры','20 минут',['Кожуру от 4–5 яблок перемешайте с ложкой мёда и щепоткой корицы.','Разложите в один слой на противне с пергаментом.','Сушите при 120° 15–20 минут, пока не станут хрустящими.']],
-  ['Тыквенный суп и семечки','45 минут',['Мякоть тыквы запеките с луком и морковью при 200° 25 минут, пробейте блендером с бульоном.','Семечки отмойте от волокон, обсушите, сбрызните маслом и посолите.','Обжарьте семечки в духовке при 160° 15 минут и посыпьте ими суп.']]
+  ['Тыквенный суп и семечки','45 минут',['Мякоть тыквы запеките с луком и морковью при 200° 25 минут, пробейте блендером с бульоном.','Семечки отмойте от волокон, обсушите, сбрызните маслом и посолите.','Обжарьте семечки в духовке при 160° 15 минут и посыпьте ими суп.']],
+  ['Гренки из вчерашнего хлеба','15 минут',['Нарежьте подсохший хлеб кубиками по 1,5 см.','Перемешайте с ложкой масла, солью, сушёными травами и давленым чесноком.','Подсушите на противне при 180° 8–10 минут, один раз перемешав. Добавляйте в суп или салат.']],
+  ['Песто из ботвы','10 минут',['Возьмите пучок ботвы редиса или моркови, промойте и обсушите, грубые стебли уберите.','Пробейте блендером с горстью семечек или орехов, зубчиком чеснока, соком половины лимона и 4–5 ложками масла.','Посолите по вкусу. Храните в банке под слоем масла в холодильнике до 5 дней.']],
+  ['Крем-суп из остатков овощей','30 минут',['Обжарьте лук 5 минут, добавьте нарезанные остатки овощей: морковь, кабачок, брокколи, картошку.','Залейте водой или бульоном так, чтобы покрыло, и варите 15–20 минут до мягкости.','Пробейте блендером, посолите, по желанию добавьте ложку сливок или сметаны.']],
+  ['Оладьи из перезрелых бананов','20 минут',['Разомните 2 тёмных банана вилкой в пюре.','Вмешайте 2 яйца и 4 ложки муки или овсяных хлопьев, щепотку соли и корицы.','Жарьте небольшими оладьями на смазанной сковороде на среднем огне по 2 минуты с каждой стороны.']],
+  ['Хумус','15 минут',['Слейте жидкость с банки нута, но 3–4 ложки оставьте.','Пробейте нут блендером с 2 ложками тахини, соком половины лимона, зубчиком чеснока и солью.','Подливайте жидкость от нута, пока хумус не станет гладким. Сверху масло и паприка.']],
+  ['Чечевичные котлеты','40 минут',['Отварите стакан красной чечевицы в 2 стаканах воды 15 минут, до густого пюре, и остудите.','Добавьте тёртую морковь, обжаренный лук, 3 ложки муки или манки, соль и специи.','Сформуйте котлеты и запекайте при 190° 20 минут, перевернув в середине.']],
+  ['Овсяное печенье из двух ингредиентов','25 минут',['Разомните 2 спелых банана и смешайте со стаканом овсяных хлопьев.','Дайте постоять 5 минут, по желанию добавьте изюм или орехи.','Выложите ложкой на пергамент, приплюсните и выпекайте при 180° 15 минут.']],
+  ['Запечённые овощи с травами','40 минут',['Нарежьте крупно то, что есть: картофель, морковь, свёклу, лук, перец, кабачок.','Перемешайте с маслом, солью, розмарином или тимьяном.','Запекайте одним слоем при 200° 30–35 минут, один раз перемешав.']],
+  ['Фритата из остатков','20 минут',['Обжарьте на сковороде остатки овощей, картошки или макарон 3–4 минуты.','Взбейте 4 яйца с солью и щепоткой тёртого сыра, залейте содержимое сковороды.','Готовьте под крышкой на слабом огне 8–10 минут или доведите в духовке при 180° 10 минут.']]
 ];
 
 /* ---------- habits storage (db for signed-in, localStorage otherwise) ---------- */
@@ -989,7 +998,7 @@ function challengesSection(){
 /* ---------- editable collections ---------- */
 const SCHEMAS = {
   products:[{k:'title',l:'Название'},{k:'cat',l:'Категория (Кухня, Ванная…)'},{k:'replaces',l:'Чем заменяет'},{k:'why',l:'Почему это лучше',area:true}],
-  cafes:[{k:'name',l:'Название'},{k:'kind',l:'Тип (кофейня, веган-кафе…)'},{k:'city',l:'Город'},{k:'address',l:'Адрес'},{k:'note',l:'Почему я его люблю',area:true}],
+  cafes:[{k:'name',l:'Название'},{k:'kind',l:'Тип (кофейня, веган-кафе…)'},{k:'city',l:'Город'},{k:'address',l:'Адрес'},{k:'map',l:'Ссылка на Яндекс Карты'},{k:'note',l:'Почему я его люблю',area:true}],
   articles:[{k:'title',l:'Заголовок'},{k:'cat',l:'Рубрика',options:['Статья','Новость']},{k:'lead',l:'Короткое описание',area:true},{k:'body',l:'Текст',area:true}],
   market:[{k:'title',l:'Что за вещь'},{k:'kind',l:'Формат',options:['Продам','Обмен','Отдам даром']},{k:'price',l:'Цена (если продаю)'},{k:'condition',l:'Состояние'},{k:'note',l:'Описание',area:true}]
 };
@@ -1074,12 +1083,52 @@ function cafesSection(){
           h('h3',null,it.name),
           h('p',{class:'muted',style:'font-size:14px;font-weight:700'},[it.city,it.address].filter(Boolean).join(', ')),
           h('p',{style:'font-size:15px;flex:1'},it.note),
+          yandexMap(it.map) ? h('div',null, h('a',{class:'btn ghost small',href:yandexMap(it.map),target:'_blank',rel:'noopener'},'📍 На Яндекс Картах')) : null,
           commentsBlock('cafes:'+it.id)
         ))) : h('div',{class:'empty'},'Скоро здесь появятся любимые места.'),
-        addForm('cafes','Новое кафе')
+        addForm('cafes','Новое кафе'),
+        suggestCafe()
       )
     )
   ));
+}
+
+// only Yandex Maps links: https, a Yandex host and the maps path
+function yandexMap(url){
+  let u; try{ u = new URL(String(url||'').trim()); }catch(e){ return ''; }
+  if (u.protocol !== 'https:' || u.username || u.password || u.port) return '';
+  const ok = /^(www\.)?yandex\.(ru|com|by|kz|uz)$/.test(u.hostname) ? /^\/maps(\/|$)/.test(u.pathname) : /^maps\.yandex\.(ru|com)$/.test(u.hostname);
+  return ok ? u.href : '';
+}
+// readers suggest a place; it goes to Dasha as an idea in «Предложения»
+function suggestCafe(){
+  const box = h('div');
+  let shown = null;
+  live(()=>{
+    const st = accState();
+    if (st === shown) return; // live updates must not wipe what is being typed
+    shown = st;
+    if (st !== 'member'){ box.replaceChildren(h('div',{class:'card',style:'margin-top:20px'}, h('h3',{style:'font-size:18px'},'Знаете хорошее место?'), joinHint('предложить кафе'))); return; }
+    const name = h('input',{id:'cs-name',maxlength:'80'}), addr = h('input',{id:'cs-addr',maxlength:'160'}),
+      map = h('input',{id:'cs-map',type:'url',maxlength:'500',placeholder:'https://yandex.ru/maps/…'}), why = h('textarea',{id:'cs-why',maxlength:'2000'});
+    const f = h('form',{class:'form',style:'margin-top:20px'},
+      h('h3',{style:'font-size:18px'},'Предложить кафе'),
+      h('p',{class:'hint'},'Даша заглянет и, если понравится, добавит его в подборку.'),
+      h('div',{class:'fields'}, h('label',{for:'cs-name'},'Название',name), h('label',{for:'cs-addr'},'Город и адрес',addr),
+        h('label',{for:'cs-map',style:'grid-column:1/-1'},'Ссылка на Яндекс Карты (необязательно)',map),
+        h('label',{for:'cs-why',style:'grid-column:1/-1'},'Чем место хорошее',why)),
+      h('div',null,h('button',{type:'submit',class:'btn'},'Отправить Даше')));
+    f.addEventListener('submit',e=>{ e.preventDefault();
+      const n = name.value.trim(), a = addr.value.trim(), m = map.value.trim(), w = why.value.trim();
+      if (!n){ name.focus(); return; } if (!a){ addr.focus(); return; }
+      if (m && !yandexMap(m)){ toast('Нужна ссылка на Яндекс Карты'); map.focus(); return; }
+      if (!w){ why.focus(); return; }
+      const text = [a, yandexMap(m), w].filter(Boolean).join('\n\n');
+      pb.collection('suggestions').create({author:COM.uid, kind:'Идея для сайта', title:('Кафе: '+n).slice(0,120), text:text.slice(0,4000)})
+        .then(()=>{ f.reset(); toast('Спасибо! Даша посмотрит'); }).catch(writeErr); });
+    box.replaceChildren(f);
+  });
+  return box;
 }
 
 function markRead(articleId){
@@ -3066,7 +3115,7 @@ function openAccount(tab, tid){
   const q = new URLSearchParams();
   if (tab) q.set('tab', tab);
   if (tid) q.set('t', tid);
-  go('/kabinet'+(q.toString() ? '?'+q : ''));
+  go('/kabinet'+(q.toString() ? '?'+q : '')+(tid ? '#cabinet-tabs' : ''));
 }
 function logout(){
   if (!confirm('Выйти из аккаунта?')) return;
@@ -3097,9 +3146,9 @@ function cabinetNow(){
     const todayMarks = act.reduce((n,ch)=>n + (((ch.log||{})[iso(new Date())]||[]).length), 0), todayAll = act.reduce((n,ch)=>n + ch.habits.length, 0);
     const card = (ic, t, sub, href, hot) => h('a',{class:'now-card'+(hot ? ' hot' : ''),href}, h('span',{class:'now-ic','aria-hidden':'true'},ic), h('span',{class:'now-t'},t), h('span',{class:'now-s'},sub));
     box.replaceChildren(
-      card('🏁','Челленджи', act.length ? 'Сегодня отмечено '+todayMarks+' из '+todayAll : 'Начните первый — 7–30 дней', '/kabinet?tab=challenges', act.length && todayMarks < todayAll),
-      card('💬','Сообщения', unread ? 'Новых: '+unread : 'Новых нет', '/kabinet?tab=chats', unread > 0),
-      card('📦','Барахолка', things ? 'Мои вещи: '+things : 'Отдать или продать вещь', '/kabinet?tab=things'),
+      card('🏁','Челленджи', act.length ? 'Сегодня отмечено '+todayMarks+' из '+todayAll : 'Начните первый — 7–30 дней', '/kabinet?tab=challenges#cabinet-tabs', act.length && todayMarks < todayAll),
+      card('💬','Сообщения', unread ? 'Новых: '+unread : 'Новых нет', '/kabinet?tab=chats#cabinet-tabs', unread > 0),
+      card('📦','Барахолка', things ? 'Мои вещи: '+things : 'Отдать или продать вещь', '/kabinet?tab=things#cabinet-tabs'),
       card('🎁','Пригласить друга', '+'+rulePoints('invite_friend',40)+' вам, +'+rulePoints('invited',50)+' другу', '/kabinet?tab=path#invite'));
   });
   return box;
@@ -3759,7 +3808,7 @@ function gameSection(){
     G.items.push({k, n, x:40+Math.random()*(W-80), y:140+Math.random()*(H-180), r:(Math.random()-.5)*1.4}); }
   function start(){
     C = tok();
-    G = {t:60, score:0, ok:0, bad:0, items:[], fx:[], p:{x:W/2, y:H-50, carry:null, face:1, walk:0}, target:null, spawnT:0, cool:0, msg:null, msgT:0, deco:deco()};
+    G = {t:60, score:0, ok:0, bad:0, items:[], fx:[], p:{x:W/2, y:H-50, carry:null, face:1, walk:0}, target:null, aim:null, spawnT:0, cool:0, msg:null, msgT:0, deco:deco()};
     for (let i=0;i<5;i++) spawn();
     over.hidden = true; cv.focus(); last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
   }
@@ -3778,8 +3827,9 @@ function gameSection(){
     G.t -= d; if (G.t <= 0){ G.t = 0; finish(); return; }
     const p = G.p, sp = 230; let vx = 0, vy = 0;
     if (keys.ArrowLeft||keys.KeyA) vx -= 1; if (keys.ArrowRight||keys.KeyD) vx += 1;
-    if (keys.ArrowUp||keys.KeyW) vy -= 1; if (keys.ArrowDown||keys.KeyS) vy += 1;
-    if (vx||vy){ G.target = null; } else if (G.target){ const dx = G.target.x-p.x, dy = G.target.y-p.y, L = Math.hypot(dx,dy); if (L < 4) G.target = null; else { vx = dx/L; vy = dy/L; } }
+    const up = keys.ArrowUp||keys.KeyW;
+    if (up) vy -= 1; if (keys.ArrowDown||keys.KeyS) vy += 1;
+    if (vx||vy){ G.target = null; G.aim = null; } else if (G.target){ const dx = G.target.x-p.x, dy = G.target.y-p.y, L = Math.hypot(dx,dy); if (L < 4) G.target = null; else { vx = dx/L; vy = dy/L; } }
     const L = Math.hypot(vx,vy) || 1;
     if (vx||vy){ p.x += vx/L*sp*d; p.y += vy/L*sp*d; p.walk += d*10; if (vx) p.face = vx>0?1:-1; }
     p.x = Math.max(16, Math.min(W-16, p.x)); p.y = Math.max(118, Math.min(H-14, p.y));
@@ -3791,7 +3841,8 @@ function gameSection(){
       const b = bins.find(b=>p.x > b.x-6 && p.x < b.x+b.w+6 && p.y-44 < b.y+b.h);
       if (b){
         if (b.k === p.carry.k){ G.score += 10; G.ok++; G.fx.push({x:p.x, y:p.y-70, txt:'+10', c:C.moss, life:1}); p.carry = null; G.msg = null; }
-        else { G.score = Math.max(0, G.score-5); G.bad++; G.cool = 1; const right = BINS.find(x=>x.k===p.carry.k).l;
+        // a wrong bin costs points only when the player heads into it: up key or a tap on that bin, not walking along the row
+        else if (up || (G.aim && G.aim.x > b.x-6 && G.aim.x < b.x+b.w+6 && G.aim.y < b.y+b.h+30)){ G.score = Math.max(0, G.score-5); G.bad++; G.cool = 1; const right = BINS.find(x=>x.k===p.carry.k).l;
           G.fx.push({x:p.x, y:p.y-70, txt:'−5', c:C.clay, life:1}); G.msg = '«'+p.carry.n+'» — это '+right.toLowerCase(); G.msgT = 3; }
       }
     }
@@ -3869,8 +3920,8 @@ function gameSection(){
     }
   }
   const toCanvas = e => { const r = cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/r.width, y:(e.clientY-r.top)*H/r.height}; };
-  cv.addEventListener('pointerdown', e=>{ if (!G || G.over) return; G.target = toCanvas(e); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
-  cv.addEventListener('pointermove', e=>{ if (G && !G.over && e.buttons) G.target = toCanvas(e); });
+  cv.addEventListener('pointerdown', e=>{ if (!G || G.over) return; G.target = G.aim = toCanvas(e); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+  cv.addEventListener('pointermove', e=>{ if (G && !G.over && e.buttons) G.target = G.aim = toCanvas(e); });
   const KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS'];
   const kd = e=>{ if (!cv.isConnected){ window.removeEventListener('keydown',kd); window.removeEventListener('keyup',ku); return; }
     if (G && !G.over && KEYS.includes(e.code)){ const tg = e.target; if (tg && /INPUT|TEXTAREA|SELECT/.test(tg.tagName)) return; keys[e.code] = true; e.preventDefault(); } };
