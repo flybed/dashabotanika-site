@@ -23,6 +23,7 @@ onRecordAfterUpdateSuccess((e) => {
 }, "content")
 
 // письмо недели — по воскресеньям в 11:00 по Москве
+cronAdd("notify-articles", "* * * * *", () => { require(`${__hooks}/notify.js`).flushArticles($app) })
 cronAdd("notify-weekly", "0 8 * * 0", () => { require(`${__hooks}/notify.js`).weekly($app, false) })
 routerAdd("POST", "/api/notify/weekly", (e) => e.json(200, { sent: require(`${__hooks}/notify.js`).weekly(e.app, true) }), $apis.requireSuperuserAuth())
 

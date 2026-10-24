@@ -63,8 +63,17 @@ function onChatMessage(app, msg) {
   } catch (e) {}
 }
 
+// публикация статьи только ставит её в очередь, письма уходят из cron раз в минуту: сохранение не ждёт почтовый сервер
 function onNewArticles(app, list) {
   if (!list.length) return
+  const store = app.store(), q = store.get("notify_articles_queue") || []
+  for (const a of list.slice(0, 3)) q.push({ title: a.title, lead: a.lead, slug: a.slug || a.id })
+  store.set("notify_articles_queue", q)
+}
+function flushArticles(app) {
+  const store = app.store(), list = store.get("notify_articles_queue") || []
+  if (!list.length) return 0
+  store.set("notify_articles_queue", [])
   const arts = list.slice(0, 3)
   const html = arts.map((a) => `<p style="margin:0 0 14px;font-size:16px;line-height:1.5"><a href="${site(app)}/zhurnal/${esc(a.slug || a.id)}" style="color:#3A6234;font-weight:bold;font-size:18px">${esc(a.title)}</a><br>${esc(String(a.lead || "").slice(0, 220))}</p>`).join("")
   for (const rec of wanting(app, "articles")) send(app, rec, "articles", arts.length > 1 ? "Новые статьи в журнале DashaBotanika" : `«${arts[0].title}» — новая статья`, arts.length > 1 ? "Новые статьи" : "Новая статья", html, "Читать", `${site(app)}/zhurnal/${esc(arts[0].slug || arts[0].id)}`)
@@ -130,4 +139,4 @@ function unsubRoute(e) {
     : e.html(400, unsubPage("Ссылка устарела", "Не получилось найти подписку. Настроить письма можно в личном кабинете."))
 }
 
-module.exports = { onChatMessage, onNewArticles, weekly, unsubscribe, unsubRoute, site }
+module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, unsubscribe, unsubRoute, site }

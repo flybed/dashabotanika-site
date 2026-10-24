@@ -11,15 +11,18 @@ const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</
 
 // последняя ошибка Telegram — чтобы в кабинете было видно, что не так (токен, сеть)
 let lastError = ""
+// если Telegram недоступен (сеть сервера), на 5 минут перестаём к нему ходить: иначе каждый вызов ждёт таймаут и сайт тормозит
 function call(method, payload) {
   if (!token()) return null
+  const down = $app.store().get("tg_down_until") || 0
+  if (Date.now() < down) { lastError = "нет связи с api.telegram.org"; return null }
   try {
     const res = $http.send({ url: `${apiBase()}/bot${token()}/${method}`, method: "POST", body: JSON.stringify(payload || {}),
-      headers: { "content-type": "application/json" }, timeout: 8 })
+      headers: { "content-type": "application/json" }, timeout: 4 })
     const j = res.json
     if (!j || j.ok === false) lastError = (j && j.description) || ("ответ " + res.statusCode)
     return j
-  } catch (e) { lastError = "нет связи с api.telegram.org"; return null }
+  } catch (e) { lastError = "нет связи с api.telegram.org"; $app.store().set("tg_down_until", Date.now() + 5 * 60000); return null }
 }
 const errorText = () => lastError
 function send(chatId, html, button) {
@@ -181,11 +184,20 @@ function onChatMessage(app, msg) {
     }
   } catch (e) {}
 }
+// публикация статьи только ставит её в очередь, рассылает cron раз в минуту: сохранение не ждёт Telegram
 function onNewArticles(app, list) {
   if (!token() || !list.length) return
+  const store = app.store(), q = store.get("tg_articles_queue") || []
+  for (const a of list.slice(0, 3)) q.push({ title: a.title, lead: a.lead, slug: a.slug || a.id })
+  store.set("tg_articles_queue", q)
+}
+function flushArticles(app) {
+  const store = app.store(), list = store.get("tg_articles_queue") || []
+  if (!list.length) return 0
+  store.set("tg_articles_queue", [])
   for (const sub of subsWith(app, "articles")) {
-    for (const a of list.slice(0, 3)) send(sub.getString("chat_id"), `📖 Новая статья в журнале DashaBotanika:\n<b>${esc(a.title)}</b>\n\n${esc(String(a.lead || "").slice(0, 250))}`, ["Читать", `${SITE}/zhurnal/${a.slug || a.id}`])
+    for (const a of list) send(sub.getString("chat_id"), `📖 Новая статья в журнале DashaBotanika:\n<b>${esc(a.title)}</b>\n\n${esc(String(a.lead || "").slice(0, 250))}`, ["Читать", `${SITE}/zhurnal/${a.slug || a.id}`])
   }
 }
 
-module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles }
+module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles }

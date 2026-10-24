@@ -31,6 +31,7 @@ routerAdd("POST", "/api/tg/run", (e) => e.json(200, { sent: require(`${__hooks}/
 // раз в час: у кого сейчас выбранное время — напоминание; вебхук обновляем время от времени
 cronAdd("tg-remind", "7 * * * *", () => { require(`${__hooks}/tg.js`).remindAll($app, false) })
 cronAdd("tg-poll", "* * * * *", () => { require(`${__hooks}/tg.js`).poll($app) })
+cronAdd("tg-articles", "* * * * *", () => { require(`${__hooks}/tg.js`).flushArticles($app) })
 
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/tg.js`).onChatMessage(e.app, e.record) }, "messages")
 

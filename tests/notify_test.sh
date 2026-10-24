@@ -78,8 +78,12 @@ req('POST','/collections/messages/records',{'chat':chat['id'],'from':U['boris'][
 check('the next message within 3 hours does not send another e-mail', len(mails()) == before + 1)
 site = req('GET','/collections/content/records?filter=' + u.quote("key='site'"),None,su)[1]['items'][0]
 data = site['data']; data['articles'] = [{'id':'n1','cat':'Статья','date':time.strftime('%Y-%m-%d'),'title':'Куда сдать батарейки','lead':'Коротко о пунктах приёма.','body':'Текст','slug':'batareyki'}] + data.get('articles',[])
-req('PATCH','/collections/content/records/'+site['id'],{'data':data},su); time.sleep(2)
-art = [x for x in mails() if 'батарейки' in x['subject']]
+req('PATCH','/collections/content/records/'+site['id'],{'data':data},su)
+# the letter goes out from the queue (cron, once a minute), so publishing does not wait for the mail server
+for _ in range(70):
+    art = [x for x in mails() if 'батарейки' in x['subject']]
+    if art: break
+    time.sleep(1)
 check('a new article comes by e-mail to those who chose it', len(art) == 1 and '/zhurnal/batareyki' in art[0]['html'])
 st, r = req('POST','/notify/weekly',None,su); time.sleep(2)
 wk = [x for x in mails() if 'Письмо недели' in x['subject']]
