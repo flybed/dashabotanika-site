@@ -2,6 +2,14 @@
 # Caddy сам получает и продлевает сертификаты Let's Encrypt,
 # как только A-записи домена указывают на этот сервер.
 
+# Только HTTP/1.1 и HTTP/2, без HTTP/3 (QUIC по UDP): у части посетителей QUIC подвисает,
+# и страница открывается без стилей и скриптов, пока браузер не сдастся и не перейдёт на TCP.
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
 www.dashabotanika.ru {
 	redir https://dashabotanika.ru{uri} permanent
 }
