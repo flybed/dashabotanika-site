@@ -3335,8 +3335,8 @@ function paintDrafts(el){
     const box = h('div',{class:'li draft'});
     const head = h('div',{class:'meta'}, st(d), h('span',null,d.cat||'Статья'), h('span',null,dt(tsOf(d))), d.keywords ? h('span',{class:'hint'},'🔎 '+d.keywords) : null);
     if (!DRAFT_OPEN[d.id] || d.status){
-      box.append(head, h('b',null,d.title), d.lead ? h('div',{class:'muted',style:'font-size:15px'},d.lead) : null,
-        !d.status ? h('div',null, h('button',{type:'button',class:'btn small',onclick:()=>{ DRAFT_OPEN[d.id] = true; paintDrafts(el); }},'Читать и править')) : null);
+      box.append(...[head, h('b',null,d.title), d.lead ? h('div',{class:'muted',style:'font-size:15px'},d.lead) : null,
+        !d.status ? h('div',null, h('button',{type:'button',class:'btn small',onclick:()=>{ DRAFT_OPEN[d.id] = true; paintDrafts(el); }},'Читать и править')) : null].filter(Boolean)); // Element.append(null) пишет слово «null»
       return box;
     }
     const f = {title:h('input',{maxlength:'160',value:d.title}), lead:h('textarea',{maxlength:'400',style:'min-height:70px'}), body:h('textarea',{style:'min-height:340px'}),
