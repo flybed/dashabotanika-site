@@ -1821,7 +1821,7 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||''}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, gameBest:r.game_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||''}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
 function emojiOf(memberId){ const m = COM.members[memberId]; if (m && m.customEmoji) return m.customEmoji; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
@@ -2273,7 +2273,7 @@ function saveStats(){
   try{ localStorage.setItem(ME_KEY, JSON.stringify(STATS)); }catch(e){}
   if (pb && COM.uid){
     clearTimeout(statsTimer);
-    statsTimer = setTimeout(()=>{ pb.collection('users').update(COM.uid,{exam_best:STATS.examBest||0, game_best:STATS.gameBest||0, exam_passed:STATS.examPassed ? String(STATS.examPassed) : ''}).catch(()=>{}); }, 600);
+    statsTimer = setTimeout(()=>{ pb.collection('users').update(COM.uid,{exam_best:STATS.examBest||0, game_best:Math.min(STATS.gameBest||0, GAME_MAX), exam_passed:STATS.examPassed ? String(STATS.examPassed) : ''}).catch(()=>{}); }, 600);
   }
   refresh();
 }
@@ -3683,6 +3683,10 @@ function accountButton(){
 
 /* ---------- game: eco clean-up ---------- */
 const BINS = [{k:'plastic',l:'Пластик',c:'#E0AE36'},{k:'paper',l:'Бумага',c:'#3E78B2'},{k:'glass',l:'Стекло',c:'#3B8F55'},{k:'metal',l:'Металл',c:'#858D95'},{k:'battery',l:'Батарейки',c:'#C0533D'}];
+// things that belong to the park: picking them up costs points
+const NATURE = ['Шишка','Опавший лист','Жёлудь','Цветок','Веточка'];
+// a record above this is not possible in 60 seconds; the server refuses bigger numbers
+const GAME_MAX = 1000;
 const LITTER = [['plastic','Бутылка ПЭТ'],['plastic','Флакон от шампуня'],['paper','Газета'],['paper','Картонная коробка'],['glass','Стеклянная банка'],['glass','Бутылка из стекла'],['metal','Банка из-под газировки'],['metal','Консервная банка'],['battery','Батарейка']];
 /* ---------- air quality in any city (Open-Meteo: free, no key; data from Copernicus CAMS) ---------- */
 const AQI_LEVELS = [
@@ -3798,17 +3802,29 @@ function gameSection(){
   const ctx = cv.getContext('2d');
   const over = h('div',{class:'g-over'});
   const hud = h('div',{class:'stats',style:'margin-bottom:12px'});
+  const actBtn = h('button',{type:'button',class:'btn g-act',disabled:true,onclick:()=>{ if (G && !G.over){ G.act = true; cv.focus(); } }},'Взять');
   let G = null, raf = 0, last = 0, keys = {}, C = null;
   const bw = narrow ? 84 : 124, gap = (W - bw*5)/6;
   const bins = BINS.map((b,i)=>Object.assign({}, b, {x:gap+i*(bw+gap), y:12, w:bw, h:74}));
   function tok(){ const cs = getComputedStyle(document.documentElement); const g = (n,f)=>cs.getPropertyValue(n).trim()||f;
     return {sand:g('--sand-deep','#D9CBAE'), soft:g('--soft','#E3DAC5'), ink:g('--ink','#232A1E'), moss:g('--moss','#3A6234'), leaf:g('--leaf','#86A85C'), stone:g('--stone','#8D9187'), stoneHi:g('--stone-hi','#C9CCC2'), paper:g('--paper','#EDE6D6'), clay:g('--clay','#AD5E39'), sun:g('--sun','#C9932E')}; }
   function deco(){ const a=[]; for(let i=0;i<14;i++) a.push({x:Math.random()*W, y:120+Math.random()*(H-130), r:6+Math.random()*14, t:Math.random()<.45?'grass':'stone'}); return a; }
-  function spawn(){ if (G.items.length >= 8) return; const [k,n] = LITTER[Math.random()*LITTER.length|0];
-    G.items.push({k, n, x:40+Math.random()*(W-80), y:140+Math.random()*(H-180), r:(Math.random()-.5)*1.4}); }
+  function spawn(){ if (G.items.length >= 8) return;
+    const nat = Math.random() < .28, [k,n] = nat ? ['nature', NATURE[Math.random()*NATURE.length|0]] : LITTER[Math.random()*LITTER.length|0];
+    G.items.push({k, n, x:40+Math.random()*(W-80), y:140+Math.random()*(H-180), r:(Math.random()-.5)*1.4, life:nat ? 9 : Infinity}); }
+  // nothing is picked up by itself: Space / «Взять» next to an item, or a tap on the item
+  function take(it){
+    G.want = null;
+    if (it.k === 'nature'){
+      if (!it.warned){ it.warned = true; G.score = Math.max(0, G.score-5); G.wrong++; G.fx.push({x:it.x, y:it.y-30, txt:'−5', c:C.clay, life:1}); }
+      G.msg = '«'+it.n+'» — не мусор, пусть остаётся в парке'; G.msgT = 3; return;
+    }
+    G.items.splice(G.items.indexOf(it),1); G.p.carry = it; G.msg = null;
+  }
+  function putDown(){ const p = G.p, it = p.carry; p.carry = null; it.x = p.x; it.y = Math.max(140, Math.min(H-30, p.y+6)); G.items.push(it); }
   function start(){
     C = tok();
-    G = {t:60, score:0, ok:0, bad:0, items:[], fx:[], p:{x:W/2, y:H-50, carry:null, face:1, walk:0}, target:null, aim:null, spawnT:0, cool:0, msg:null, msgT:0, deco:deco()};
+    G = {t:60, score:0, ok:0, bad:0, items:[], fx:[], p:{x:W/2, y:H-50, carry:null, face:1, walk:0}, target:null, aim:null, want:null, near:null, act:false, wrong:0, spawnT:0, cool:0, msg:null, msgT:0, deco:deco()};
     for (let i=0;i<5;i++) spawn();
     over.hidden = true; cv.focus(); last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
   }
@@ -3833,9 +3849,17 @@ function gameSection(){
     const L = Math.hypot(vx,vy) || 1;
     if (vx||vy){ p.x += vx/L*sp*d; p.y += vy/L*sp*d; p.walk += d*10; if (vx) p.face = vx>0?1:-1; }
     p.x = Math.max(16, Math.min(W-16, p.x)); p.y = Math.max(118, Math.min(H-14, p.y));
-    if (!p.carry){
-      for (let i=0;i<G.items.length;i++){ const it = G.items[i]; if (Math.hypot(it.x-p.x, it.y-(p.y-10)) < 30){ p.carry = it; G.items.splice(i,1); break; } }
-    }
+    G.items.forEach(it=>{ it.life -= d; }); G.items = G.items.filter(it=>it.life > 0);
+    if (G.want && !G.items.includes(G.want)) G.want = null;
+    let near = null, nd = 34;
+    if (!p.carry) G.items.forEach(it=>{ const dd = Math.hypot(it.x-p.x, it.y-(p.y-10)); if (dd < nd){ nd = dd; near = it; } });
+    G.near = near;
+    if (!p.carry && near && (G.act || near === G.want)) take(near);
+    else if (p.carry && G.act) putDown();
+    G.act = false;
+    const lbl = p.carry ? 'Положить' : 'Взять';
+    if (actBtn.textContent !== lbl) actBtn.textContent = lbl;
+    if (actBtn.disabled !== (!p.carry && !G.near)) actBtn.disabled = !p.carry && !G.near;
     G.cool = Math.max(0, G.cool-d);
     if (p.carry && G.cool === 0){
       const b = bins.find(b=>p.x > b.x-6 && p.x < b.x+b.w+6 && p.y-44 < b.y+b.h);
@@ -3858,6 +3882,13 @@ function gameSection(){
     else if (it.k==='paper'){ ctx.fillStyle='#EFE6CF'; ctx.fillRect(-13,-10,26,20); ctx.strokeStyle='#8A7B5C'; ctx.lineWidth=1.5; for(let i=-5;i<=5;i+=5){ ctx.beginPath(); ctx.moveTo(-9,i); ctx.lineTo(9,i); ctx.stroke(); } if (it.n.includes('Картон')){ ctx.fillStyle='#C89B62'; ctx.fillRect(-13,-10,26,20); ctx.strokeStyle='#8E6A3D'; ctx.strokeRect(-13,-10,26,20); ctx.beginPath(); ctx.moveTo(-13,-3); ctx.lineTo(13,-3); ctx.stroke(); } }
     else if (it.k==='glass'){ ctx.fillStyle='rgba(98,166,120,.85)'; rr(-9,-12,18,24,6); ctx.fill(); ctx.fillStyle='#4C5A50'; ctx.fillRect(-7,-16,14,5); ctx.fillStyle='rgba(255,255,255,.5)'; ctx.fillRect(-5,-7,3,12); }
     else if (it.k==='metal'){ ctx.fillStyle='#B9C0C6'; rr(-8,-12,16,24,3); ctx.fill(); ctx.fillStyle= it.n.includes('газир') ? '#D2483A' : '#6E7A84'; ctx.fillRect(-8,-5,16,10); ctx.fillStyle='#8D959C'; ctx.fillRect(-8,-13,16,3); }
+    else if (it.k==='nature'){
+      if (it.n==='Шишка'){ ctx.fillStyle='#8A5A2B'; ctx.beginPath(); ctx.ellipse(0,0,8,13,0,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#5E3B1A'; ctx.lineWidth=1.5; for(let i=-8;i<=8;i+=4){ ctx.beginPath(); ctx.moveTo(-7,i); ctx.lineTo(0,i+3); ctx.lineTo(7,i); ctx.stroke(); } }
+      else if (it.n==='Опавший лист'){ ctx.fillStyle='#D9822B'; ctx.beginPath(); ctx.moveTo(0,-14); ctx.quadraticCurveTo(13,-2,0,12); ctx.quadraticCurveTo(-13,-2,0,-14); ctx.fill(); ctx.strokeStyle='#8E4E16'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(0,16); ctx.stroke(); }
+      else if (it.n==='Жёлудь'){ ctx.fillStyle='#B07A3B'; ctx.beginPath(); ctx.ellipse(0,3,7,10,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#6B4A26'; ctx.beginPath(); ctx.ellipse(0,-5,8,5,0,0,Math.PI*2); ctx.fill(); ctx.fillRect(-1,-13,2,5); }
+      else if (it.n==='Цветок'){ ctx.strokeStyle='#4F8A3A'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,14); ctx.stroke(); ctx.fillStyle='#F4F1FA'; for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; ctx.beginPath(); ctx.arc(Math.cos(a)*6,Math.sin(a)*6-4,5,0,Math.PI*2); ctx.fill(); } ctx.fillStyle='#E9B931'; ctx.beginPath(); ctx.arc(0,-4,4,0,Math.PI*2); ctx.fill(); }
+      else { ctx.strokeStyle='#7A5530'; ctx.lineCap='round'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(-14,6); ctx.lineTo(14,-6); ctx.stroke(); ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(2,0); ctx.lineTo(8,8); ctx.moveTo(-6,3); ctx.lineTo(-9,-6); ctx.stroke(); ctx.fillStyle='#6E9E45'; ctx.beginPath(); ctx.ellipse(10,10,4,2.5,.6,0,Math.PI*2); ctx.fill(); }
+    }
     else { ctx.fillStyle='#2B2B2B'; ctx.fillRect(-6,-12,12,24); ctx.fillStyle='#D9A933'; ctx.fillRect(-6,-12,12,8); ctx.fillStyle='#bbb'; ctx.fillRect(-2,-15,4,3); }
     ctx.restore();
   }
@@ -3877,7 +3908,8 @@ function gameSection(){
       ctx.fillStyle = '#fff'; ctx.font = (narrow ? '800 13px' : '800 15px')+' Nunito, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.l, b.x+b.w/2, b.y+b.h/2+6);
     });
     if (!G) return;
-    G.items.forEach(it=>{ ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(it.x,it.y+12,12,4,0,0,Math.PI*2); ctx.fill(); drawItem(it,it.x,it.y,it.r); });
+    G.items.forEach(it=>{ ctx.globalAlpha = Math.min(1, it.life); ctx.fillStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(it.x,it.y+12,12,4,0,0,Math.PI*2); ctx.fill(); drawItem(it,it.x,it.y,it.r); ctx.globalAlpha = 1;
+      if (it===G.near || it===G.want){ ctx.strokeStyle=C.ink; ctx.lineWidth=2; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.arc(it.x,it.y,22,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); } });
     // player
     const sw = Math.sin(p.walk)*5;
     ctx.fillStyle='rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(p.x,p.y+2,15,5,0,0,Math.PI*2); ctx.fill();
@@ -3893,7 +3925,8 @@ function gameSection(){
     if (p.carry) drawItem(p.carry, p.x, p.y-76, 0);
     G.fx.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life); ctx.fillStyle=f.c; ctx.font='800 22px Nunito, system-ui, sans-serif'; ctx.textAlign='center'; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; });
     if (G.msg){ ctx.font=(narrow ? '700 14px' : '700 16px')+' Nunito, system-ui, sans-serif'; const tw = ctx.measureText(G.msg).width+28; ctx.fillStyle=C.paper; rr(W/2-tw/2,H-46,tw,32,16); ctx.fill(); ctx.fillStyle=C.clay; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(G.msg,W/2,H-30); }
-    else if (p.carry){ ctx.font='700 14px Nunito, system-ui, sans-serif'; ctx.fillStyle=C.ink; ctx.globalAlpha=.75; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('Несёте: '+p.carry.n, W/2, H-24); ctx.globalAlpha=1; }
+    else if (p.carry || G.near){ ctx.font='700 14px Nunito, system-ui, sans-serif'; ctx.fillStyle=C.ink; ctx.globalAlpha=.75; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(p.carry ? 'Несёте: '+p.carry.n : 'Рядом: '+G.near.n+'. Взять? Пробел или кнопка «Взять»', W/2, H-24); ctx.globalAlpha=1; }
   }
   let hudKey = '';
   function paintHud(){
@@ -3909,21 +3942,25 @@ function gameSection(){
     over.hidden = false;
     if (!G || !G.over){
       over.replaceChildren(h('div',null, h('h3',{style:'font-size:30px'},'Эко-уборка'),
-        h('p',null,'Соберите мусор в парке и отнесите каждый предмет в правильный контейнер. Верно: +10 очков, ошибка: −5. На всё 60 секунд.'),
-        h('p',{class:'hint'},'Компьютер: стрелки или ', h('span',{class:'kbd'},'W'),h('span',{class:'kbd'},'A'),h('span',{class:'kbd'},'S'),h('span',{class:'kbd'},'D'),'. Телефон: нажмите на место, куда идти.'),
+        h('p',null,'Соберите мусор в парке и отнесите каждый предмет в правильный контейнер. Верно: +10 очков, ошибка: −5. Не всё на земле — мусор: шишки, листья и цветы оставьте в парке, за них тоже −5. На всё 60 секунд.'),
+        h('p',{class:'hint'},'Компьютер: стрелки или ', h('span',{class:'kbd'},'W'),h('span',{class:'kbd'},'A'),h('span',{class:'kbd'},'S'),h('span',{class:'kbd'},'D'),', взять или положить: ',h('span',{class:'kbd'},'Пробел'),'. Телефон: нажмите на место, куда идти, или на предмет, чтобы его взять.'),
         h('button',{type:'button',class:'btn',onclick:start},'Начать игру')));
     } else {
       over.replaceChildren(h('div',null, h('div',{class:'eyebrow'}, rec ? 'Новый рекорд!' : 'Время вышло'), h('div',{class:'big'},G.score),
-        h('p',null,'Верно рассортировано: ',G.ok,'. Ошибок: ',G.bad,'.'),
-        h('p',{class:'hint'}, G.ok >= 15 ? 'Вы настоящий эко-герой!' : G.bad > G.ok ? 'Подсказка: загляните в схему «Начать путь в экологии — легко».' : 'Неплохо! Попробуйте побить рекорд.'),
+        h('p',null,'Верно рассортировано: ',G.ok,'. Ошибок с контейнерами: ',G.bad,'. Зря подобрано: ',G.wrong,'.'),
+        h('p',{class:'hint'}, G.ok >= 15 ? 'Вы настоящий эко-герой!' : G.wrong > 2 ? 'Шишки, листья и цветы — часть парка, их не убирают.' : G.bad > G.ok ? 'Подсказка: загляните в схему «Начать путь в экологии — легко».' : 'Неплохо! Попробуйте побить рекорд.'),
         h('button',{type:'button',class:'btn',onclick:start},'Ещё раз')));
     }
   }
   const toCanvas = e => { const r = cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*W/r.width, y:(e.clientY-r.top)*H/r.height}; };
-  cv.addEventListener('pointerdown', e=>{ if (!G || G.over) return; G.target = G.aim = toCanvas(e); try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
+  cv.addEventListener('pointerdown', e=>{ if (!G || G.over) return;
+    const pt = toCanvas(e); let hit = null, hd = 30;
+    if (!G.p.carry) G.items.forEach(it=>{ const dd = Math.hypot(it.x-pt.x, it.y-pt.y); if (dd < hd){ hd = dd; hit = it; } });
+    G.want = hit; G.target = G.aim = hit ? {x:hit.x, y:hit.y+10} : pt; try{ cv.setPointerCapture(e.pointerId); }catch(_){} });
   cv.addEventListener('pointermove', e=>{ if (G && !G.over && e.buttons) G.target = G.aim = toCanvas(e); });
   const KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS'];
   const kd = e=>{ if (!cv.isConnected){ window.removeEventListener('keydown',kd); window.removeEventListener('keyup',ku); return; }
+    if (G && !G.over && (e.code==='Space' || e.code==='KeyE')){ const tg = e.target; if (tg && /INPUT|TEXTAREA|SELECT|BUTTON/.test(tg.tagName)) return; e.preventDefault(); if (!e.repeat) G.act = true; return; }
     if (G && !G.over && KEYS.includes(e.code)){ const tg = e.target; if (tg && /INPUT|TEXTAREA|SELECT/.test(tg.tagName)) return; keys[e.code] = true; e.preventDefault(); } };
   const ku = e=>{ keys[e.code] = false; };
   window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
@@ -3934,12 +3971,33 @@ function gameSection(){
   return h('section',{class:'band alt',id:'game'}, h('div',{class:'wrap'},
     sectionHead('Игра','Эко-уборка','Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер. Чем быстрее и точнее, тем больше очков.'),
     h('div',{class:'game'},
-      h('div',{style:'min-width:0'}, hud, h('div',{class:'g-stage'}, cv, over)),
+      h('div',{style:'min-width:0'}, hud, h('div',{class:'g-stage'}, cv, over), h('div',{class:'g-actions'}, actBtn, h('span',{class:'hint'},'или ',h('span',{class:'kbd'},'Пробел')))),
       h('div',{class:'card'}, h('h3',{style:'font-size:20px'},'Какой контейнер для чего'),
-        h('div',{class:'legend'}, BINS.map(b=>h('div',null, h('i',{style:'background:'+b.c}), h('span',null, h('b',null,b.l),': ', LITTER.filter(x=>x[0]===b.k).map(x=>x[1].toLowerCase()).join(', '))))),
+        h('div',{class:'legend'}, BINS.map(b=>h('div',null, h('i',{style:'background:'+b.c}), h('span',null, h('b',null,b.l),': ', LITTER.filter(x=>x[0]===b.k).map(x=>x[1].toLowerCase()).join(', ')))),
+          h('div',null, h('i',{style:'background:var(--leaf)'}), h('span',null, h('b',null,'Не мусор'),': ', NATURE.map(x=>x.toLowerCase()).join(', '),'. Это часть парка, не берите'))),
         h('p',{class:'hint'},'В реальной жизни цвета контейнеров зависят от города. Смотрите на надписи на баках.'))
-    )
+    ),
+    gameBoard()
   ));
+}
+
+/* rating: best results of members (name and character only), and where I am */
+function gameBoard(){
+  const box = h('div',{class:'card g-board'});
+  live(()=>{
+    const best = id => id===COM.uid ? Math.max(COM.members[id].gameBest||0, STATS.gameBest||0) : COM.members[id].gameBest||0;
+    const ids = Object.keys(COM.members).filter(id=>best(id) > 0).sort((a,b)=>best(b)-best(a) || COM.members[a].joined-COM.members[b].joined);
+    const place = id => 1 + ids.filter(x=>best(x) > best(id)).length;
+    const row = id => h('li',{class:id===COM.uid ? 'me' : null}, h('span',{class:'g-pl'},place(id)), h('span',{'aria-hidden':'true'},emojiOf(id)),
+      h('span',{class:'g-nm'}, nameOf(id), id===COM.uid ? ' (вы)' : ''), h('b',null,best(id)));
+    const top = ids.slice(0,10), mine = COM.uid && ids.includes(COM.uid) && !top.includes(COM.uid);
+    box.replaceChildren(h('h3',{style:'font-size:20px'},'🏆 Рейтинг игроков'),
+      ids.length ? h('ol',{class:'g-rank'}, top.map(row)) : h('p',{class:'muted'},'Пока никто не сыграл. Будьте первым!'),
+      mine ? h('ol',{class:'g-rank g-rank-me'}, row(COM.uid)) : null,
+      accState()==='member' ? h('p',{class:'hint'}, ids.includes(COM.uid) ? 'Ваше место: '+place(COM.uid)+' из '+ids.length+'. Рекорд обновляется после каждой игры.' : 'Сыграйте, и ваш рекорд появится в рейтинге.')
+        : joinHint('попасть в рейтинг'));
+  });
+  return box;
 }
 
 /* ---------- eco exam ---------- */
@@ -4174,7 +4232,7 @@ function maybeTour(){
   render();
   maybeTour();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,verified'}, l=>{
+  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified'}, l=>{
     const m = {}; l.forEach(r=>{ if (r.role!=='writer' || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){
