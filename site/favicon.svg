@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs><clipPath id="c"><circle cx="32" cy="36" r="26"/></clipPath>
+<radialGradient id="s" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#8FC3D6"/><stop offset="1" stop-color="#3E78B2"/></radialGradient>
+<radialGradient id="h" cx="35%" cy="30%" r="80%"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></radialGradient></defs>
+<circle cx="32" cy="36" r="26" fill="url(#s)"/>
+<g clip-path="url(#c)" fill="#5E8F4A">
+<path d="M8 24c6-5 15-4 19 2s2 11-4 13-6 8-13 7-8-6-9-10 2-8 7-12Z"/>
+<path d="M33 16c8-3 17 0 20 6s-3 9-9 10-6 7-11 5-5-9-3-13 0-5 3-8Z"/>
+<path d="M22 44c7-3 14 1 15 7s-4 12-10 13-10-3-11-8 0-10 6-12Z"/>
+<path d="M47 40c6-2 11 2 12 7s-3 9-8 10-8-3-8-8 0-7 4-9Z"/>
+</g>
+<circle cx="32" cy="36" r="26" fill="url(#h)"/>
+<path d="M32 11V5" stroke="#3A6234" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M32.5 6c3-4.5 8.5-5.2 12-4.2-1.2 4.5-6.8 7.2-12 4.2Z" fill="#86A85C"/>
+<path d="M31.5 8c-2.8-4-7.8-4.6-11-3.4 1.2 4 5.8 6.2 11 3.4Z" fill="#3A6234"/>
+</svg>
