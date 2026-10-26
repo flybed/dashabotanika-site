@@ -47,3 +47,6 @@ routerAdd("POST", "/api/darom/expire", (e) => {
   if (!e.auth || e.auth.getString("role") !== "admin") return e.json(403, { message: "Только для администратора" })
   return e.json(200, require(`${__hooks}/darom.js`).expire(e.app))
 }, $apis.requireAuth("users"))
+
+// ссылка «Поддержать проект» для блока «Друг проекта» (сама ссылка — в настройках, ключ SUPPORT_URL)
+routerAdd("GET", "/api/darom/support", (e) => e.json(200, { url: require(`${__hooks}/darom.js`).support(e.app) }))
