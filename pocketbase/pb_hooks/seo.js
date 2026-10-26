@@ -68,7 +68,7 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES", "RECYCLE_PAGES"].forEach((name) => {
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES", "RECYCLE_PAGES", "MYTHS"].forEach((name) => {
     // DISHES — массив, который дальше превращается в объекты через .map
     const m = src.match(new RegExp(name === "DISHES" ? `const DISHES = (\\[[\\s\\S]*?\\n\\])\\.map` : `const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
@@ -147,6 +147,13 @@ const SECTION_PAGES = {
     description: "Бесплатная онлайн-игра про сортировку отходов: собирайте мусор в парке и относите в нужный контейнер. Подходит детям и взрослым.",
     name: "Игра «Эко-уборка»",
     body: () => sec("game", "Игра", "Эко-уборка", "Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер. Чем быстрее и точнее, тем больше очков.", `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true),
+  },
+  "/mify": {
+    title: "Мифы о переработке и экологии: что правда, а что нет — DashaBotanika",
+    description: "Правда ли, что раздельный мусор всё равно смешивают, бумажный пакет экологичнее пластикового, а пластик перерабатывается бесконечно? Разбираем 9 мифов с фактами.",
+    name: "Мифы о переработке",
+    body: (d, k) => sec("myths", "Разрушаем мифы", "Мифы о переработке и экологии", "Что из того, что «все знают», правда, а что нет. Коротко, с фактами и тем, что с этим делать.",
+      k.MYTHS.map(([m, t, x]) => `<article><h3>Миф: «${esc(m)}»</h3><p>На самом деле. ${esc(t)}</p><p>Что делать. ${esc(x)}</p></article>`).join("\n") + `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true),
   },
   "/mir": {
     title: "Счастливый мир участников DashaBotanika",
@@ -371,7 +378,7 @@ function sitemap(app) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl)
   const urls = [["/", "weekly", "1.0"], ["/zhurnal", "daily", "0.9"], ["/eda", "monthly", "0.8"], ["/sortirovka", "monthly", "0.8"], ["/servisy", "weekly", "0.8"], ["/moda", "monthly", "0.7"],
-    ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
+    ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/mify", "monthly", "0.7"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
   constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
