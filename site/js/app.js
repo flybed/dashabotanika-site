@@ -2424,31 +2424,111 @@ function refPicker(id){
   }},'Записать приглашение');
   return h('div',{class:'ref-pick'}, sel, btn);
 }
-function paintPeople(el){
-  if (el.querySelector('select:focus')) return; // do not reset a choice in progress
+/* what each member has done: loaded from the server (owner only) and filtered right here */
+const PEOPLE = {by:{}, at:0, loading:false, err:''};
+const PF = {q:'', reg:'', act:'', did:'', sub:'', sort:'new'};
+const DID = [
+  ['game','🎮 Играл(а) в игру', a=>a.game_best>0],
+  ['exam','📝 Проходил(а) тест', a=>a.exam_best>0],
+  ['exam_ok','🎓 Сдал(а) тест', a=>a.done.exam_passed>0],
+  ['habits','🌱 Отмечал(а) привычки', a=>a.leaves>0],
+  ['challenge','🏁 Прошёл(ла) челлендж', a=>a.done.challenge_done>0],
+  ['read','📖 Читал(а) статьи', a=>a.done.article_read>0],
+  ['like','❤️ Ставил(а) лайки', a=>a.done.like>0],
+  ['comment','💬 Комментировал(а)', a=>a.done.comment>0],
+  ['feedback','💡 Писал(а) в обратную связь', a=>a.done.feedback>0],
+  ['listing','🧺 Выставлял(а) вещи', a=>a.done.listing_approved>0],
+  ['profile','👤 Заполнил(а) профиль', a=>a.done.profile_complete>0],
+  ['invite','🤝 Пригласил(а) друзей', a=>a.done.invite_friend>0],
+  ['ai','🤖 Спрашивал(а) ИИ-помощника', a=>a.ai.food+a.ai.pack>0],
+  ['nothing','😴 Пока ничего не делал(а)', a=>!DID.some(([k,,f])=>k!=='nothing' && k!=='exam_ok' && f(a))]];
+const TOPIC_RU = {messages:'сообщения', articles:'статьи', weekly:'письмо недели', challenge:'челлендж', nudge:'напоминания'};
+const DAY = 86400000;
+function loadPeople(el){
+  if (PEOPLE.loading || !COM.owner) return;
+  PEOPLE.loading = true; PEOPLE.err = '';
+  pb.send('/api/admin/people',{requestKey:null}).then(r=>{ PEOPLE.by = {}; (r.items||[]).forEach(a=>{ PEOPLE.by[a.id] = a; }); PEOPLE.at = Date.now(); },
+    e=>{ PEOPLE.err = e && e.status===403 ? 'Активность видна только администратору.' : 'Не получилось загрузить активность. Попробуйте обновить.'; PEOPLE.at = Date.now(); })
+    .then(()=>{ PEOPLE.loading = false; if (el.isConnected) paintPeople(el, true); });
+}
+function peopleFilters(el){
+  const sel = (k, label, opts) => h('label',null,label, h('select',{onchange:e=>{ PF[k] = e.target.value; paintPeople(el, true); }},
+    opts.map(([v,t])=>h('option',{value:v,selected:PF[k]===v},t))));
+  const q = h('input',{type:'search',value:PF.q,placeholder:'Имя или почта',oninput:e=>{ PF.q = e.target.value; clearTimeout(q._t); q._t = setTimeout(()=>paintPeople(el, true), 250); }});
+  return h('div',{class:'people-filters'},
+    h('label',null,'Поиск',q),
+    sel('reg','Зарегистрировались',[['','когда угодно'],['1','за сутки'],['7','за неделю'],['30','за месяц']]),
+    sel('act','Активность',[['','все'],['7','были на сайте за неделю'],['idle','не заходили 7+ дней']]),
+    sel('did','Что сделали',[['','что угодно']].concat(DID.map(([k,t])=>[k,t]))),
+    sel('sub','Подписки',[['','все'],['email','на письма'],['tg','в Telegram'],['any','хоть одна'],['none','без подписок']]),
+    sel('sort','Порядок',[['new','сначала новые'],['last','недавно заходили'],['xp','больше очков']]),
+    h('button',{type:'button',class:'btn ghost small',onclick:()=>{ PEOPLE.at = 0; loadPeople(el); }},'Обновить'));
+}
+function personActivity(a){
+  const chips = DID.filter(([k,,f])=>k!=='nothing' && f(a)).map(([k,t])=>{
+    const n = {game:'рекорд '+a.game_best, exam:'лучший '+a.exam_best+'/10', habits:a.leaves+' отм.', challenge:a.done.challenge_done, read:a.done.article_read, like:a.done.like, comment:a.done.comment,
+      feedback:a.done.feedback, listing:a.done.listing_approved, invite:a.done.invite_friend, ai:a.ai.food+a.ai.pack}[k];
+    return h('span',{class:'pchip'}, t.replace(/\(л?а\)/g,''), n!=null && n!=='' ? h('b',null,' '+n) : null);
+  });
+  const subs = [a.email_topics.length ? '✉️ письма: '+a.email_topics.map(t=>TOPIC_RU[t]||t).join(', ') : null,
+    a.tg && a.tg.on ? '✈️ Telegram: '+(a.tg.topics.length ? a.tg.topics.map(t=>TOPIC_RU[t]||t).join(', ') : 'подключён') : null].filter(Boolean);
+  const pr = a.profile, prof = pr ? [pr.age ? pr.age+' лет' : '', pr.gender && pr.gender!=='Не хочу указывать' ? pr.gender.toLowerCase() : '', [pr.city, pr.country].filter(Boolean).join(', '), pr.goals.length ? 'цели: '+pr.goals.join(', ') : ''].filter(Boolean).join(' · ') : '';
+  return [
+    h('div',{class:'hint'}, '⭐ ', h('b',null,a.xp), ' '+plural(a.xp,'очко','очка','очков')+' роста', a.last_seen ? ' · последняя активность: '+dt(Date.parse(a.last_seen)) : '', a.email ? ' · '+a.email : ''),
+    chips.length ? h('div',{class:'pchips'}, chips) : h('div',{class:'hint'},'😴 Пока ничего не делал(а) — только зарегистрировался(лась).'),
+    h('div',{class:'hint'}, subs.length ? subs.join(' · ') : '🔕 Без подписок на письма и Telegram'),
+    prof ? h('div',{class:'hint'}, '👤 ', prof) : null,
+    a.log.length ? h('details',{class:'plog'}, h('summary',null,'История действий ('+a.log.length+')'),
+      h('ul',null, a.log.map(x=>h('li',null, h('span',{class:'hint'}, dt(Date.parse(x.at))), ' ', x.initial ? 'до появления истории: ' : '', x.title, x.count>1 ? ' ×'+x.count : '', x.points ? h('b',null,' '+(x.points>0?'+':'')+x.points) : null)))) : null];
+}
+function paintPeople(el, force){
+  if (!force && el.querySelector('select:focus, input:focus')) return; // do not reset a choice in progress
+  if (COM.owner && !PEOPLE.at) loadPeople(el);
   const now = Date.now();
   const seen = id => COM.presence[id] || 0;
-  const ids = Object.keys(COM.members).sort((a,b)=>(seen(b)-seen(a)) || ((COM.members[b].joined||0)-(COM.members[a].joined||0)));
-  const online = ids.filter(id=>now-seen(id) < ONLINE_MS).length, active = ids.filter(id=>now-seen(id) < ACTIVE_MS).length;
+  const all = Object.keys(COM.members);
+  const act = id => PEOPLE.by[id];
+  const lastOf = id => Math.max(seen(id), act(id) && act(id).last_seen ? Date.parse(act(id).last_seen) : 0);
+  const did = DID.find(d=>d[0]===PF.did), q = PF.q.trim().toLowerCase();
+  const ids = all.filter(id=>{
+    const m = COM.members[id], a = act(id);
+    if (q && !((m.nick||'')+' '+(a ? a.name+' '+a.email : '')).toLowerCase().includes(q)) return false;
+    if (PF.reg && now-(m.joined||0) > +PF.reg*DAY) return false;
+    if (PF.act==='7' && now-lastOf(id) > 7*DAY) return false;
+    if (PF.act==='idle' && now-lastOf(id) <= 7*DAY) return false;
+    if (!a) return !(did || PF.sub);
+    if (did && !did[2](a)) return false;
+    const em = a.email_topics.length > 0, tg = !!(a.tg && a.tg.on);
+    if ((PF.sub==='email' && !em) || (PF.sub==='tg' && !tg) || (PF.sub==='any' && !em && !tg) || (PF.sub==='none' && (em || tg))) return false;
+    return true;
+  }).sort((a,b)=> PF.sort==='xp' ? ((act(b)||{}).xp||0)-((act(a)||{}).xp||0) : PF.sort==='last' ? lastOf(b)-lastOf(a) : (COM.members[b].joined||0)-(COM.members[a].joined||0));
+  const online = all.filter(id=>now-seen(id) < ONLINE_MS).length, active = all.filter(id=>now-seen(id) < ACTIVE_MS).length;
+  const fresh = all.filter(id=>now-(COM.members[id].joined||0) < 7*DAY).length;
   el.replaceChildren(
     h('div',{class:'kv people-sum'},
-      h('div',null,h('b',null,ids.length),h('span',null,plural(ids.length,'участник','участника','участников')+' всего')),
+      h('div',null,h('b',null,all.length),h('span',null,plural(all.length,'участник','участника','участников')+' всего')),
+      h('div',null,h('b',null,fresh),h('span',null,'новых за неделю')),
       h('div',null,h('b',null,online),h('span',null,'онлайн сейчас')),
       h('div',null,h('b',null,active),h('span',null,'активных за месяц'))),
+    COM.owner ? peopleFilters(el) : null,
+    PEOPLE.loading && !PEOPLE.at ? h('p',{class:'hint'},'Загружаю активность…') : PEOPLE.err ? h('p',{class:'hint'},PEOPLE.err) : null,
+    all.length ? h('p',{class:'hint'}, ids.length===all.length ? 'Показаны все.' : 'Подходят: '+ids.length+' из '+all.length+'.') : null,
     ...(ids.length ? ids.map(id=>{
-      const m = COM.members[id], isMod = m.role==='moderator', on = now-seen(id) < ONLINE_MS;
+      const m = COM.members[id], isMod = m.role==='moderator', on = now-seen(id) < ONLINE_MS, a = act(id);
       return h('div',{class:'li'},
         h('div',{class:'meta'}, h('span',{class:'online-dot'+(on?' on':''),'aria-hidden':'true'}), h('span',{'aria-hidden':'true'},emojiOf(id)), h('b',null,m.nick), id===COM.uid ? h('span',{class:'status'},'Это вы') : null,
           m.role==='admin' ? h('span',{class:'status accepted'},'Администратор') : isMod ? h('span',{class:'status accepted'},'Модератор') : null,
+          a && a.hidden ? h('span',{class:'status'},'Скрыт') : null,
           h('span',null,levelName(m.level))),
         h('div',{class:'hint'}, seenLabel(seen(id)), ' · с нами с ', dt(m.joined), m.verified ? ' · ✓ почта' : ' · почта не подтверждена',
           (()=>{ const r = COM.refs.find(x=>x.invited===id); return r ? ' · пришёл(ла) по приглашению: '+nameOf(r.inviter) : ''; })(),
           (()=>{ const n = COM.refs.filter(x=>x.inviter===id).length; return n ? ' · пригласил(а): '+n : ''; })()),
-        !COM.refs.some(x=>x.invited===id) && Object.keys(COM.members).length > 1 ? refPicker(id) : null,
+        ...(a ? personActivity(a) : []),
+        !COM.refs.some(x=>x.invited===id) && all.length > 1 ? refPicker(id) : null,
         id!==COM.uid && m.role!=='admin' ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
           pb.collection('users').update(id,{role: isMod ? 'member' : 'moderator'}).then(()=>toast(isMod ? 'Модератор снят' : 'Назначен модератором')).catch(writeErr);
         }}, isMod ? 'Снять модератора' : 'Сделать модератором')) : null);
-    }) : [h('p',{class:'hint'},'Пока никто не зарегистрировался.')]));
+    }) : [h('p',{class:'hint'}, all.length ? 'Под эти условия никто не подходит.' : 'Пока никто не зарегистрировался.')]));
 }
 
 /* ---------- personal stats ---------- */
