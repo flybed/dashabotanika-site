@@ -293,6 +293,19 @@ body.editing .ex{display:none}
 .cafe-ph-add{grid-column:1/-1;justify-self:start}
 .cafe-cuisine{font-size:14px}
 .ai-out{scroll-margin-top:90px}
+/* the magic wand: bottom left, always at hand */
+.wand{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:44;display:flex;align-items:center;gap:8px;border:0;cursor:pointer;
+  padding:10px 16px 10px 12px;border-radius:999px;background:var(--moss);color:var(--on-moss);font:inherit;font-weight:800;font-size:14px;
+  box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 0 color-mix(in srgb,var(--sun) 60%,transparent);animation:wand-glow 3s ease-in-out infinite}
+.wand:hover{filter:brightness(1.08)}
+.wand-ic{font-size:20px;line-height:1}
+@keyframes wand-glow{0%,100%{box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 0 color-mix(in srgb,var(--sun) 55%,transparent)}50%{box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 8px color-mix(in srgb,var(--sun) 0%,transparent)}}
+@media (prefers-reduced-motion:reduce){.wand{animation:none}}
+@media (max-width:640px){.wand{padding:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}.wand-t{display:none}}
+body.editing .wand{display:none}
+body:has(.reader-bar) .wand{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+@media (max-width:640px){.ele{bottom:calc(76px + env(safe-area-inset-bottom,0px))}.ele.lift{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
+@media print{.wand,.ele{display:none!important}}
 /* the elephant with a tip */
 .ele{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45;display:flex;align-items:flex-end;gap:8px;max-width:min(380px,calc(100vw - 32px));animation:ele-in .5s ease}
 .ele.lift{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
