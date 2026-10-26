@@ -25,6 +25,9 @@ onRecordAfterUpdateSuccess((e) => {
 // письмо недели — по воскресеньям в 11:00 по Москве
 cronAdd("notify-articles", "* * * * *", () => { require(`${__hooks}/notify.js`).flushArticles($app) })
 cronAdd("notify-weekly", "0 8 * * 0", () => { require(`${__hooks}/notify.js`).weekly($app, false) })
+// напоминания о челлендже на почту — раз в час, у кого сейчас выбранное время
+cronAdd("notify-remind", "9 * * * *", () => { require(`${__hooks}/notify.js`).remindAll($app, false) })
+routerAdd("POST", "/api/notify/remind", (e) => e.json(200, { sent: require(`${__hooks}/notify.js`).remindAll(e.app, true) }), $apis.requireSuperuserAuth())
 routerAdd("POST", "/api/notify/weekly", (e) => e.json(200, { sent: require(`${__hooks}/notify.js`).weekly(e.app, true) }), $apis.requireSuperuserAuth())
 
 // «Отписаться» из письма: одна ссылка, без входа на сайт (почтовые программы отписывают одним POST)

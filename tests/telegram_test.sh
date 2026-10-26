@@ -85,5 +85,27 @@ msg = [c for c in calls()[n0:] if c[0]=='sendMessage']
 check('new private message comes to Telegram', len(msg)==1 and 'Привет из мира!' in msg[0][1]['text'] and 'Боря' in msg[0][1]['text'])
 queue({'update_id': 11, 'message': {'chat': {'id': 555}, 'text': '/stop'}}); req('POST','/tg/poll',{},tok['Аня'])
 check('/stop turns everything off', req('GET','/collections/tg_subs/records',None,tok['Аня'])[1]['totalItems']==0)
+st, r = req('GET','/tg/status',None,tok['Аня'])
+check('the cabinet can see that Telegram answers', st == 200 and r.get('token') is True and r.get('ok') is True)
 raise SystemExit(1 if fails else 0)
+PY
+# посредник из админки (settings → TG_API), без переменной окружения TG_API
+kill "$(cat "$T/pid")"; sleep 1
+TG_TOKEN=test-token "$PB" serve --dir="$T/pb_data" --migrationsDir="$ROOT/pocketbase/pb_migrations" --hooksDir="$ROOT/pocketbase/pb_hooks" --http=127.0.0.1:8092 > "$T/log.txt" 2>&1 &
+echo $! > "$T/pid"; sleep 5
+python3 - <<'PY'
+import json, urllib.request as u, urllib.error
+B = 'http://127.0.0.1:8092/api'
+def req(m, p, b=None, t=None):
+    r = u.Request(B+p, method=m, data=json.dumps(b).encode() if b is not None else None, headers={'Content-Type':'application/json', **({'Authorization':t} if t else {})})
+    try: return 200, json.load(u.urlopen(r))
+    except urllib.error.HTTPError as e: return e.code, {}
+su = req('POST','/collections/_superusers/auth-with-password',{'identity':'su@test.local','password':'Passw0rd123'})[1]['token']
+row = [x for x in req('GET','/collections/settings/records',None,su)[1]['items'] if x['key']=='TG_API'][0]
+req('PATCH','/collections/settings/records/'+row['id'],{'value':'http://127.0.0.1:8093/'},su)
+t = req('POST','/collections/users/auth-with-password',{'identity':'Боряx@t.local','password':'secret12'})[1]['token']
+st, r = req('POST','/tg/link',{},t)
+ok = st == 200 and r.get('url','').startswith('https://t.me/testbot?start=')
+print(('PASS' if ok else 'FAIL') + ' a relay for Telegram can be set in the admin panel (settings → TG_API)')
+raise SystemExit(0 if ok else 1)
 PY

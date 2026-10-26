@@ -4,7 +4,9 @@
 
 const SITE = "https://dashabotanika.ru"
 const token = () => String($os.getenv("TG_TOKEN") || "").trim()
-const apiBase = () => String($os.getenv("TG_API") || "https://api.telegram.org").replace(/\/+$/, "")
+// посредник для Telegram можно вписать в админке (settings → TG_API), если сервер не достаёт до api.telegram.org напрямую
+function relay() { try { return String($app.findFirstRecordByData("settings", "key", "TG_API").getString("value") || "").trim() } catch (e) { return "" } }
+const apiBase = () => String($os.getenv("TG_API") || relay() || "https://api.telegram.org").replace(/\/+$/, "")
 // секрет для заголовка вебхука — из токена, чтобы не хранить ещё один
 const hookSecret = () => $security.sha256("dashabotanika-hook:" + token()).slice(0, 48)
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -200,4 +202,7 @@ function flushArticles(app) {
   }
 }
 
-module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles }
+// для кабинета: есть ли токен и отвечает ли Telegram (getMe), чтобы честно показать, почему бот не подключается
+function status() { return { token: !!token(), ok: token() ? !!username() : false, error: errorText() } }
+
+module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles, openToday, status }

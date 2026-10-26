@@ -14,6 +14,9 @@ routerAdd("POST", "/api/tg/link", (e) => {
   return e.json(200, { url })
 }, $apis.requireAuth("users"))
 
+// кабинет спрашивает, работает ли связь с Telegram, чтобы не молчать, если бот не может подключиться
+routerAdd("GET", "/api/tg/status", (e) => e.json(200, require(`${__hooks}/tg.js`).status()), $apis.requireAuth("users"))
+
 // пока человек подключает бота, кабинет каждые несколько секунд просит забрать новые сообщения боту
 routerAdd("POST", "/api/tg/poll", (e) => e.json(200, { got: require(`${__hooks}/tg.js`).poll(e.app) }), $apis.requireAuth("users"))
 
