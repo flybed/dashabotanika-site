@@ -293,6 +293,18 @@ body.editing .ex{display:none}
 .cafe-ph-add{grid-column:1/-1;justify-self:start}
 .cafe-cuisine{font-size:14px}
 .ai-out{scroll-margin-top:90px}
+/* the elephant with a tip */
+.ele{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45;display:flex;align-items:flex-end;gap:8px;max-width:min(380px,calc(100vw - 32px));animation:ele-in .5s ease}
+.ele.lift{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+.ele-pet{font-size:48px;line-height:1;filter:drop-shadow(0 6px 10px rgba(0,0,0,.2));animation:bob 4s ease-in-out infinite}
+.ele-bubble{position:relative;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:18px 18px 4px 18px;padding:14px 16px 12px;box-shadow:0 18px 40px -18px rgba(0,0,0,.45);display:grid;gap:6px;order:-1}
+.ele-t{font-size:16px;padding-right:22px}
+.ele-bubble p{margin:0;font-size:14px;color:var(--muted)}
+.ele-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.ele-x{position:absolute;top:6px;right:8px;border:0;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:2px 6px}
+@keyframes ele-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ele,.ele-pet{animation:none}}
+@media (max-width:560px){.ele-pet{font-size:38px}.ele-t{font-size:15px}}
 .sugg-ph{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .sugg-ph img{width:120px;height:90px;object-fit:cover;border-radius:10px;display:block}
 .cafe-l{font-size:14px;display:grid;gap:2px}
