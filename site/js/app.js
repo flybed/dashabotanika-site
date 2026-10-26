@@ -1799,6 +1799,7 @@ const MYTHS = [
    'Сплющивайте банки и сдавайте вместе с металлом. Одна банка в неделю — это 52 банки в год от одного человека.', ['/sortirovka#calc','Посчитать пользу']]
 ];
 function mythsSection(){
+  try{ localStorage.setItem('db-myths-seen','1'); }catch(e){}
   return h('section',{class:'band',id:'myths'}, h('div',{class:'wrap'},
     sectionHead('Разрушаем мифы','Мифы о переработке и экологии','Что из того, что «все знают», правда, а что нет. Коротко, с фактами и тем, что с этим делать.'),
     h('div',{class:'grid g2 myths'}, MYTHS.map(([m, t, d, link],i)=>h('article',{class:'card myth'},
@@ -1868,7 +1869,7 @@ document.addEventListener('click', e=>{
 const OLD_PATHS = {'/baraholka':'/darom'};
 // cabinet links of any kind (/kabinet#challenges, /kabinet?tab=things, old ?tab=settings from letters and Telegram)
 // open the right tab scrolled to the tabs; sign-in and sign-up stay at the top
-const CAB_TABS = ['path','challenges','chats','things','mine','profile','articles','moder','fb','people','levels','suggest'];
+const CAB_TABS = ['path','challenges','chats','things','mine','profile','articles','moder','fb','people','levels','suggest','promo'];
 const CAB_ALIAS = {settings:'profile', tg:'profile', notify:'profile'};
 function cabinetUrl(u){
   if (u.pathname.replace(/\/+$/,'') !== '/kabinet') return u;
@@ -3042,7 +3043,7 @@ function helperSection(only){
     try{
       const image = await shrinkPhoto(file);
       const r = await pb.send('/api/ai/photo',{method:'POST', body:{kind, image}, requestKey:null});
-      st = r; paintLeft();
+      st = r; paintLeft(); if (r.ok){ try{ localStorage.setItem('db-ai-used','1'); }catch(e){} }
       out.replaceChildren(r.ok
         ? h('div',{class:'card ai-res'}, h('div',{class:'ai-res-head'}, h('img',{src:image,alt:'Ваше фото',class:'ai-photo'}), h('div',null, h('div',{class:'eyebrow'}, kind==='food' ? '🥗 Совет по тарелке' : '♻️ Куда сдать упаковку'), h('p',{class:'hint'},'Совет от ИИ — проверяйте важное, особенно про здоровье.'))), aiAnswer(r.text))
         : h('div',{class:'card tg-err'}, r.message, r.detail ? h('span',{class:'hint',style:'display:block;font-weight:400;word-break:break-word'},'Для админов: '+r.detail) : null));
@@ -3370,7 +3371,7 @@ function cabinetTabs(tab, tid){
     const me = COM.me;
     // my things — for every member; site management — a separate row, only for Dasha and moderators
     const mineTabs = [['path','🌱 Мой эко путь'],['challenges','🏁 Челленджи'],['chats','💬 Сообщения'],['things','🧺 Вещи даром'],['mine','✍️ Публикации'],['profile','⚙️ Профиль и настройки']];
-    const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Проверка'],['fb','💡 Обратная связь']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
+    const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Проверка'],['fb','💡 Обратная связь'],['promo','🐘 Подсказки слона']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
     if (!mineTabs.concat(adminTabs).some(([k])=>k===cur)) cur = 'path';
     tabBtns = {};
     const row = list => h('div',{class:'tabs',role:'tablist'}, list.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }));
@@ -3436,6 +3437,7 @@ function cabinetTabs(tab, tid){
         h('h3',{style:'font-size:18px'},'Мои предложения'), lists.mySugg, h('h3',{style:'font-size:18px'},'Мои комментарии'), lists.mine);
     }
     if (cur==='levels') out.push(...levelsAdminPanel());
+    if (cur==='promo') out.push(...promoAdminPanel());
     if (cur==='fb'){ lists.fb = h('div',{class:'list'}); out.push(h('p',{class:'muted'},'Замечания и предложения участников. Видите только вы и модераторы; ваш ответ автор увидит в разделе «Обратная связь».'), lists.fb); }
     if (cur==='articles'){
       lists.drafts = h('div',{class:'list'}); lists.inbox = h('div',{class:'list'});
@@ -4334,6 +4336,96 @@ async function saveSite(){
 
 render();
 
+/* ---------- the elephant: once a day one tip in the corner — what is new, or what this visitor has not tried yet ----------
+   Order: tips Dasha writes in the cabinet (🐘 Подсказки слона), a fresh article, then for guests — join,
+   for members — what they have not tried. A shown tip is not shown again; one a day, never during the tour or editing. */
+const ELE_KEY = 'db-ele';
+const ELE_WHO = {all:'Всем', guest:'Гостям', member:'Участникам'};
+function eleState(){ try{ const v = JSON.parse(localStorage.getItem(ELE_KEY)); return v && Array.isArray(v.seen) ? v : {day:'', seen:[]}; }catch(e){ return {day:'', seen:[]}; } }
+function eleSave(v){ try{ localStorage.setItem(ELE_KEY, JSON.stringify({day:v.day, seen:v.seen.slice(-200)})); }catch(e){} }
+const eleFlag = k => { try{ return localStorage.getItem(k)==='1'; }catch(e){ return false; } };
+const safeHref = u => /^\/(?!\/)/.test(u||'') || /^https:\/\//.test(u||'') ? u : '';
+function eleTips(){
+  const member = accState()==='member', today = iso(new Date()), tips = [];
+  (STATE.promos||[]).filter(p=>p && p.title && safeHref(p.href) && (!p.until || p.until >= today) && (!p.who || p.who==='all' || (p.who==='member')===member))
+    .forEach(p=>tips.push({id:'p:'+p.id, title:p.title, text:p.text, cta:p.cta||'Посмотреть', href:p.href}));
+  const art = (STATE.articles||[]).find(a=>a && a.date && Date.now() - Date.parse(a.date) < 4*86400000);
+  if (art && !(member && COM.reads[art.id])) tips.push({id:'a:'+art.id, title:'Свежая статья в журнале', text:'«'+art.title+'»', cta:'Читать', href:articleUrl(art)});
+  const week = Math.floor(Date.now()/(7*86400000));
+  if (!member) tips.push({id:'join:'+week, title:'Поселитесь в «Счастливом мире»', text:'Регистрация — минута: выберите животное или растение, и оно будет расти вместе с вашими эко-привычками.', cta:'Присоединиться', href:'/kabinet?tab=register'});
+  if (!eleFlag('db-myths-seen')) tips.push({id:'myths', title:'10 мифов о переработке', text:'«Всё равно всё смешивают», «я один ничего не изменю»… Коротко и с фактами — за пару минут.', cta:'Развеять мифы', href:'/mify'});
+  if (member && !eleFlag('db-ai-used')) tips.push({id:'ai', title:'Новое: ИИ по фото', text:'Сфотографируйте тарелку или упаковку — помощник подскажет, как сделать блюдо полезнее и куда сдать упаковку.', cta:'Попробовать', href:'/eda#helper'});
+  if (member && !challenges().length) tips.push({id:'challenge', title:'Эко-челлендж на 7 дней', text:'Выберите 3–5 простых привычек и отмечайте их каждый день — персонаж будет расти.', cta:'Начать', href:'/kabinet?tab=challenges#cabinet-tabs'});
+  if (!(STATS.gameBest > 0)) tips.push({id:'game', title:'Игра «Эко-уборка»', text:'Минута, чтобы проверить, знаете ли вы, что куда выбрасывать. А ещё есть рейтинг игроков!', cta:'Играть', href:'/igra'});
+  if (!STATS.examPassed) tips.push({id:'exam', title:'Эко-тест с сертификатом', text:'10 вопросов о переработке и быте. Ответьте на 8 — и получите именной сертификат.', cta:'Пройти тест', href:'/eko-test'});
+  if (member && !myItems().length) tips.push({id:'darom', title:'Есть ненужная вещь?', text:'Отдайте её даром тому, кому она пригодится, — в разделе «Вещи даром».', cta:'Отдать вещь', href:'/darom'});
+  if (member && !COM.refs.some(r=>r.inviter===COM.uid)) tips.push({id:'invite', title:'Позовите друга', text:'За друга по вашей ссылке — очки роста вам обоим.', cta:'Пригласить', href:'/kabinet?tab=path#invite'});
+  return tips;
+}
+let ELE_EL = null;
+function closeElephant(){ if (ELE_EL){ ELE_EL.remove(); ELE_EL = null; } }
+function showElephant(tip){
+  closeElephant();
+  const close = h('button',{type:'button',class:'ele-x','aria-label':'Закрыть'},'×');
+  const go_ = h('a',{class:'btn small',href:tip.href,target:/^https:/.test(tip.href) ? '_blank' : null,rel:/^https:/.test(tip.href) ? 'noopener' : null},tip.cta);
+  const el = h('aside',{class:'ele',role:'status','aria-label':'Подсказка'},
+    h('div',{class:'ele-pet','aria-hidden':'true'},'🐘'),
+    h('div',{class:'ele-bubble'}, close, h('b',{class:'ele-t'},tip.title), tip.text ? h('p',null,tip.text) : null,
+      h('div',{class:'ele-btns'}, go_, h('button',{type:'button',class:'btn ghost small',onclick:closeElephant},'Не сейчас'))));
+  close.addEventListener('click', closeElephant);
+  go_.addEventListener('click', ()=>setTimeout(closeElephant, 50));
+  if (document.querySelector('.reader-bar')) el.classList.add('lift');
+  document.body.append(el); ELE_EL = el;
+}
+function maybeElephant(){
+  if (TOUR_EL || EDIT.on || MODAL || !tourDone() || ELE_EL) return;
+  const st = eleState(), today = iso(new Date());
+  if (st.day === today) return;
+  const tip = eleTips().find(t=>!st.seen.includes(t.id));
+  if (!tip) return;
+  st.day = today; st.seen.push(tip.id); eleSave(st);
+  showElephant(tip);
+}
+// cabinet → «🐘 Подсказки слона»: Dasha adds what the elephant tells people (a new feature, a section, an event)
+function promoAdminPanel(){
+  const list = h('div',{class:'list'});
+  const paintList = ()=>list.replaceChildren(...((STATE.promos||[]).length ? STATE.promos.map(p=>h('div',{class:'li'},
+    h('div',{class:'meta'}, h('span',null,ELE_WHO[p.who||'all']), p.until ? h('span',null,'до ',p.until) : null),
+    h('b',null,p.title), p.text ? h('div',{style:'font-size:15px'},p.text) : null, h('div',{class:'hint'},p.cta||'Посмотреть',' → ',p.href),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
+      h('button',{type:'button',class:'btn ghost small',onclick:()=>showElephant({title:p.title, text:p.text, cta:p.cta||'Посмотреть', href:p.href})},'Показать мне'),
+      h('button',{type:'button',class:'btn danger small',onclick:()=>savePromos((STATE.promos||[]).filter(x=>x.id!==p.id)).then(paintList)},'Удалить'))))
+    : [h('p',{class:'hint'},'Своих подсказок пока нет — слон рассказывает о новых статьях и о том, что человек ещё не пробовал.')]));
+  paintList();
+  const f = {title:h('input',{id:'pr-title',maxlength:'80',placeholder:'Новое: ИИ по фото'}), text:h('textarea',{id:'pr-text',maxlength:'240',placeholder:'Сфотографируйте тарелку — помощник подскажет…'}),
+    cta:h('input',{id:'pr-cta',maxlength:'30',placeholder:'Попробовать'}), href:h('input',{id:'pr-href',maxlength:'300',placeholder:'/eda#helper'}),
+    who:h('select',{id:'pr-who'}, Object.entries(ELE_WHO).map(([k,v])=>h('option',{value:k},v))), until:h('input',{id:'pr-until',type:'date'})};
+  const form = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+    h('div',{class:'fields'}, h('label',{for:'pr-title',style:'grid-column:1/-1'},'Заголовок',f.title), h('label',{for:'pr-text',style:'grid-column:1/-1'},'Текст (коротко)',f.text),
+      h('label',{for:'pr-cta'},'Надпись на кнопке',f.cta), h('label',{for:'pr-href'},'Куда ведёт (адрес на сайте, например /mify)',f.href),
+      h('label',{for:'pr-who'},'Кому показывать',f.who), h('label',{for:'pr-until'},'Показывать до (необязательно)',f.until)),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'submit',class:'btn'},'Добавить'),
+      h('button',{type:'button',class:'btn ghost',onclick:()=>showElephant({title:f.title.value||'Заголовок', text:f.text.value, cta:f.cta.value||'Посмотреть', href:safeHref(f.href.value.trim())||'/'})},'Предпросмотр')));
+  form.addEventListener('submit', e=>{ e.preventDefault();
+    const t = f.title.value.trim(), href = safeHref(f.href.value.trim());
+    if (!t){ f.title.focus(); return; } if (!href){ toast('Адрес — с «/» (страница сайта) или https://'); f.href.focus(); return; }
+    const p = {id:uid(), title:t, text:f.text.value.trim(), cta:f.cta.value.trim(), href, who:f.who.value, until:f.until.value};
+    savePromos([p].concat(STATE.promos||[])).then(ok=>{ if (ok){ form.reset(); paintList(); } });
+  });
+  return [h('p',{class:'muted'},'Раз в день в углу сайта появляется слон с одной подсказкой. Сначала он рассказывает о том, что вы добавили здесь (самое новое — первым), потом о свежей статье и о том, что человек ещё не пробовал. Одну и ту же подсказку человек видит один раз.'),
+    form, h('h3',{style:'font-size:18px'},'Ваши подсказки'), list];
+}
+// only the tips change: take the saved site data, put the new list in and save, so unsaved edits elsewhere are not sent half-done
+async function savePromos(list){
+  if (!EDIT.can || !CONTENT.id){ toast('Менять подсказки может только редактор сайта'); return false; }
+  try{
+    const cur = await pb.collection('content').getOne(CONTENT.id,{requestKey:null});
+    const data = Object.assign({}, cur.data, {promos:list});
+    const r = await pb.collection('content').update(CONTENT.id, {data});
+    CONTENT.data = JSON.parse(JSON.stringify(r.data)); STATE.promos = list; toast('Сохранено'); return true;
+  }catch(e){ writeErr(e); return false; }
+}
+
 /* ---------- guided tour: the screen dims, a light shows where to tap, five short steps, once ---------- */
 const TOUR_KEY = 'db-tour-done';
 const TOUR = [
@@ -4437,6 +4529,7 @@ function maybeTour(){
   COM.ready = true;
   render();
   maybeTour();
+  setTimeout(maybeElephant, 7000);
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
   watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden'}, l=>{
     const m = {}; l.forEach(r=>{ if ((r.role!=='writer' && !r.hidden) || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper (and anyone hidden by the admin) is not a dweller
