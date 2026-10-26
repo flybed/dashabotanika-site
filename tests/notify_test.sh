@@ -94,6 +94,22 @@ n2 = req('GET','/collections/notify/records',None,U['anna'][1])[1]['items'][0]
 check('«Отписаться» in the letter works in one click without signing in', st == 200 and 'Вы отписались' in page and n2['email_topics'] == ['messages','articles'])
 st, page = req('GET', link.replace('t=','t=x'), None, None, True)
 check('a wrong link does not unsubscribe anyone', st == 400)
+# challenge reminder by e-mail: boris has a challenge going with nothing ticked today
+today = time.strftime('%Y-%m-%d', time.gmtime(time.time() + 3*3600))
+req('POST','/collections/habits/records',{'owner':U['boris'][0],'data':{'challenges':[{'id':'c1','start':today,'days':7,'habits':[{'id':'h1','name':'Своя кружка'},{'id':'h2','name':'Без пакетов'}],'log':{}}]}},U['boris'][1])
+st, nb = req('POST','/collections/notify/records',{'user':U['boris'][0],'email_topics':['challenge','nudge'],'hour':20,'tz':180},U['boris'][1])
+check('challenge reminders can be chosen for e-mail, with the time', st == 200 and nb.get('email_topics') == ['challenge','nudge'] and nb.get('hour') == 20)
+before = len(mails())
+st, r = req('POST','/notify/remind',None,su); time.sleep(2)
+cm = [x for x in mails()[before:] if 'boris@t.local' in x['to']]
+check('the challenge reminder comes by e-mail with what is not ticked yet', r.get('sent') == 1 and len(cm) == 1 and 'Своя кружка' in cm[0]['html'] and 'Без пакетов' in cm[0]['html'] and 'tab=challenges' in cm[0]['html'] and 'notify/unsub' in cm[0]['unsub'])
+st, r = req('POST','/notify/remind',None,su)
+check('the same day the reminder is not sent twice', r.get('sent') == 0)
+# «hidden»: a member cannot hide himself, the admin can (the article helper is hidden like this)
+st, _ = req('PATCH','/collections/users/records/'+U['boris'][0],{'hidden':True},U['boris'][1])
+check('a member cannot set «hidden» on himself', st != 200 and req('GET','/collections/users/records/'+U['boris'][0])[1].get('hidden') is False)
+st, _ = req('PATCH','/collections/users/records/'+U['boris'][0],{'name':'Борис'},U['boris'][1])
+check('a member still can change his name', st == 200)
 open(T + '/fails','w').write('\n'.join(fails))
 PY
 [ -s "$T/fails" ] && { echo "FAILED:"; cat "$T/fails"; tail -20 "$T/log.txt"; exit 1; }

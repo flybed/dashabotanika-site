@@ -2,7 +2,7 @@
 // Отправляются через почтовые настройки PocketBase (Unisender Go). В каждом письме — «Отписаться» в один клик.
 const SITE = "https://dashabotanika.ru"
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели" }
+const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж" }
 
 function site(app) { const u = String(app.settings().meta.appURL || "").replace(/\/+$/, ""); return /^https?:\/\//.test(u) && !/localhost|127\.0\.0\.1/.test(u) ? u : SITE }
 
@@ -119,6 +119,37 @@ function weekly(app, force) {
   return sent
 }
 
+// ---------- напоминание о челлендже: раз в час смотрим, у кого сейчас выбранное время ----------
+// каждый день — если в идущем челлендже сегодня что-то не отмечено; по воскресеньям — позвать в новый, если челленджа нет
+function remindAll(app, force) {
+  const openToday = require(`${__hooks}/tg.js`).openToday
+  let sent = 0
+  for (const rec of app.findRecordsByFilter("notify", "id != ''", "", 0, 0)) {
+    const want = rec.getStringSlice("email_topics")
+    if (want.indexOf("challenge") < 0 && want.indexOf("nudge") < 0) continue
+    try {
+      const local = new Date(Date.now() + (rec.getInt("tz") || 180) * 60000)
+      const today = local.toISOString().slice(0, 10), sunday = local.getUTCDay() === 0
+      if (rec.getString("last_challenge") === today) continue // не чаще раза в день, даже при ручном запуске
+      if (!force && local.getUTCHours() !== (rec.getInt("hour") || 20)) continue
+      const userId = rec.getString("user"), name = esc(nameOf(app, userId)), t = openToday(app, userId, today)
+      let ok = false
+      if (want.indexOf("challenge") >= 0 && t.open.length) {
+        ok = send(app, rec, "challenge", "Сегодня в челлендже ещё не отмечено — DashaBotanika", `${name}, как прошёл день?`,
+          p("В вашем эко-челлендже сегодня ещё не отмечено:") +
+          `<ul style="margin:0 0 12px;padding-left:20px;font-size:16px;line-height:1.6">${t.open.slice(0, 8).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
+          p("Отметьте, что получилось, — персонаж подрастёт 🌱"), "Отметить привычки", `${site(app)}/kabinet?tab=challenges#cabinet-tabs`)
+      } else if (want.indexOf("nudge") >= 0 && sunday && !t.active.length) {
+        ok = send(app, rec, "nudge", "Новая неделя — новый эко-челлендж 🌱", `${name}, начнём новый челлендж?`,
+          p("Новая неделя — хороший повод для нового эко-челленджа. Выберите цель и 3–5 простых привычек на 7–30 дней: отмечайте их каждый день, и ваш персонаж будет расти."),
+          "Начать челлендж", `${site(app)}/kabinet?tab=challenges#cabinet-tabs`)
+      } else continue
+      if (ok) { rec.set("last_challenge", today); app.save(rec); sent++ }
+    } catch (e) {}
+  }
+  return sent
+}
+
 function unsubscribe(app, id, token, topic) {
   let rec
   try { rec = app.findRecordById("notify", id) } catch (e) { return null }
@@ -139,4 +170,4 @@ function unsubRoute(e) {
     : e.html(400, unsubPage("Ссылка устарела", "Не получилось найти подписку. Настроить письма можно в личном кабинете."))
 }
 
-module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, unsubscribe, unsubRoute, site }
+module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, remindAll, unsubscribe, unsubRoute, site }

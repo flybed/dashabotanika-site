@@ -3578,8 +3578,8 @@ function profilePanel(){
 /* ---------- Telegram: the member chooses what the bot sends and when ---------- */
 // what can be sent and where: e-mail only for what is not daily (a daily e-mail would be too much)
 const NOTIFY_ROWS = [
-  ['challenge','🌱 Напоминание о челлендже','каждый день в выбранное время, если что-то ещё не отмечено',{tg:true}],
-  ['nudge','🏁 Начать новый челлендж','по воскресеньям, если сейчас челленджа нет',{tg:true}],
+  ['challenge','🌱 Напоминание о челлендже','каждый день в выбранное время, если что-то ещё не отмечено',{tg:true, mail:true}],
+  ['nudge','🏁 Начать новый челлендж','по воскресеньям, если сейчас челленджа нет',{tg:true, mail:true}],
   ['messages','💬 Личные сообщения','когда вам пишут; на почту — не чаще раза в 3 часа',{tg:true, mail:true}],
   ['articles','📖 Новые статьи','когда Даша публикует статью',{tg:true, mail:true}],
   ['weekly','📬 Письмо недели','по воскресеньям: новые статьи, жизнь «Счастливого мира» и ваш прогресс',{tg:true, mail:true}]
@@ -3622,13 +3622,14 @@ function notifyCard(){
       const g = h('input',{type:'checkbox','data-k':k,'data-c':'tg',checked:tgw.has(k)?'':null,disabled:sub?null:'','aria-label':t+' — в Telegram'});
       return h('tr',null, h('th',{scope:'row'}, h('b',null,t), h('span',{class:'hint'},d)), h('td',null,m), h('td',null,g));
     });
-    const hour = h('select',{'aria-label':'Время напоминания'}, Array.from({length:17},(_,i)=>i+7).map(x=>h('option',{value:x,selected:sub && x===sub.hour?'':null}, String(x).padStart(2,'0')+':00')));
+    const curHour = (sub && sub.hour) || (NREC && NREC.hour) || 20;
+    const hour = h('select',{'aria-label':'Время напоминания'}, Array.from({length:17},(_,i)=>i+7).map(x=>h('option',{value:x,selected:x===curHour?'':null}, String(x).padStart(2,'0')+':00')));
     const pick = c => [...box.querySelectorAll('input[data-c="'+c+'"]')].filter(x=>x.checked).map(x=>x.dataset.k);
     const save = h('button',{type:'button',class:'btn small notify-save',onclick:async ()=>{
       save.disabled = true;
       try{
-        const email_topics = pick('mail');
-        NREC = NREC ? await pb.collection('notify').update(NREC.id,{email_topics}) : await pb.collection('notify').create({user:COM.uid, email_topics});
+        const nb = {email_topics:pick('mail'), hour:+hour.value, tz:-new Date().getTimezoneOffset()};
+        NREC = NREC ? await pb.collection('notify').update(NREC.id,nb) : await pb.collection('notify').create(Object.assign({user:COM.uid}, nb));
         if (sub){ const topics = pick('tg'); sub = await pb.collection('tg_subs').update(sub.id,{topics, hour:+hour.value, tz:-new Date().getTimezoneOffset(), enabled:topics.length > 0}); }
         toast('Уведомления сохранены'); paint(sub);
       }catch(err){ writeErr(err); save.disabled = false; }
@@ -3638,16 +3639,31 @@ function notifyCard(){
       h('p',{class:'hint'},'Отметьте, что и куда присылать. Письма приходят на ', h('b',null,COM.email||'вашу почту'), COM.verified ? '' : ' (почта не подтверждена — письма могут не дойти)', '. В каждом письме есть «Отписаться».'),
       h('div',{class:'notify-wrap'}, h('table',{class:'notify-t'},
         h('thead',null, h('tr',null, h('th',null,''), h('th',{scope:'col'},'✉️ Почта'), h('th',{scope:'col'},'✈️ Telegram'))), h('tbody',null, rows))),
-      sub ? h('label',{class:'tg-hour'},'Напоминать о челлендже в ', hour, h('span',{class:'hint'},' (ваше местное время)'))
+      h('label',{class:'tg-hour'},'Напоминать о челлендже в ', hour, h('span',{class:'hint'},' (ваше местное время; и на почту, и в Telegram)')),
+      sub ? null
         : h('div',{class:'notify-tg'}, h('p',{class:'hint'},'Чтобы получать уведомления в Telegram, подключите бота — откроется Telegram, нажмите там «Start».'),
+            TG_STATUS && TG_STATUS.token && !TG_STATUS.ok ? h('p',{class:'tg-err'},'⚠️ Сейчас сервер сайта не может связаться с Telegram, поэтому бот не видит нажатие «Start» и подключить его не получится. Мы это чиним. Пока можно получать всё на почту — отметьте галочки слева.') : null,
             h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'button',class:'btn ghost small',onclick:e=>connect(e.currentTarget)},'Подключить Telegram'),
-              h('button',{type:'button',class:'btn ghost small',onclick:load},'Я подключил(а) — обновить')),
+              h('button',{type:'button',class:'btn ghost small',onclick:e=>recheck(e.currentTarget)},'Я подключил(а) — обновить')),
             h('p',{class:'tg-note',hidden:true,role:'status'})),
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, save,
         sub ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отключить Telegram-бота?')) pb.collection('tg_subs').delete(sub.id).then(()=>{ toast('Telegram отключён'); paint(null); }).catch(writeErr); }},'Отключить Telegram') : null));
   }
-  function load(){ Promise.all([pb.collection('tg_subs').getFullList({requestKey:null}).catch(()=>[]), pb.collection('notify').getFullList({requestKey:null}).catch(()=>[])])
-    .then(([t,n])=>paint(t[0]||null, n[0]||null)); }
+  let TG_STATUS = null;
+  function load(){ return Promise.all([pb.collection('tg_subs').getFullList({requestKey:null}).catch(()=>[]), pb.collection('notify').getFullList({requestKey:null}).catch(()=>[]),
+      pb.send('/api/tg/status',{requestKey:null}).catch(()=>null)])
+    .then(([t,n,st])=>{ TG_STATUS = st; paint(t[0]||null, n[0]||null); return t[0]||null; }); }
+  // «Я подключил(а)»: забрать сообщения боту и сказать прямо, видно подключение или нет и почему
+  async function recheck(btn){
+    btn.disabled = true; btn.textContent = 'Проверяем…';
+    await pb.send('/api/tg/poll',{method:'POST', requestKey:null}).catch(()=>{});
+    const sub = await load();
+    if (sub){ toast('Telegram подключён!'); return; }
+    const note = box.querySelector('.tg-note');
+    const msg = TG_STATUS && TG_STATUS.token && !TG_STATUS.ok ? 'Подключения не видно: сервер сайта сейчас не может связаться с Telegram. Как только связь появится, нажмите «Подключить Telegram» ещё раз.'
+      : 'Подключения пока не видно. Нажмите «Подключить Telegram», в открывшемся Telegram — «Start», и подождите полминуты.';
+    if (note){ note.hidden = false; note.className = 'tg-note tg-err'; note.textContent = msg; } else toast(msg);
+  }
   load();
   return h('div',{id:'notify'}, box);
 }
@@ -4364,8 +4380,8 @@ function maybeTour(){
   render();
   maybeTour();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified'}, l=>{
-    const m = {}; l.forEach(r=>{ if (r.role!=='writer' || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper is not a dweller
+  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden'}, l=>{
+    const m = {}; l.forEach(r=>{ if ((r.role!=='writer' && !r.hidden) || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper (and anyone hidden by the admin) is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){
       COM.me = m[COM.uid];
