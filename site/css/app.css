@@ -1327,3 +1327,11 @@ html,body{overflow-x:clip}
 .trust:empty{display:none}
 .thanks-grid{margin-bottom:28px}
 .thanks-card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block}
+.claims{display:grid;gap:8px;margin:6px 0;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line)}
+.claim{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:8px 0;border-top:1px dashed var(--line)}
+.claim:first-of-type{border-top:0}
+.claim.on{background:color-mix(in srgb,var(--leaf) 14%,transparent);border-radius:10px;padding:8px}
+.darom-sub{display:grid;gap:12px;margin-top:40px}
+.darom-sub input:not([type=checkbox]){min-height:44px;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background-color:var(--paper);font-size:16px;color:var(--ink);max-width:360px}
+.darom-sub .chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
+.darom-sub .chip.on{background:var(--moss);border-color:var(--moss);color:var(--on-moss)}
