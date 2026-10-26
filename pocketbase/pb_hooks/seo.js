@@ -49,6 +49,7 @@ function mdHtml(src) {
     if (!l) { if (para.length || quote) flush(); continue }
     if ((m = l.match(/^(#{1,3})\s+(.+)$/))) { flush(); const t = m[1].length === 3 ? "h3" : "h2"; out.push(`<${t}>${mdInline(m[2])}</${t}>`); continue }
     if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(l)) { flush(); out.push("<hr>"); continue }
+    if (/^\[\[darom\]\]$/i.test(l)) { flush(); out.push('<aside><p><b>Вещи даром на DashaBotanika.</b> Отдайте ненужное бесплатно тем, кому оно пригодится, и заберите нужное рядом с домом: <a href="/darom">смотреть вещи даром</a>.</p></aside>'); continue }
     if ((m = l.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && okUrl(m[2])) { flush(); out.push(`<figure><img src="${m[2]}" alt="${esc(m[1].replace(/\s*Фото:.*$/s, "").trim() || m[1])}" loading="lazy">${m[1] ? `<figcaption>${esc(m[1])}</figcaption>` : ""}</figure>`); continue }
     if ((m = l.match(/^>\s?(.*)$/))) { if (para.length || list) { const q = quote; quote = null; flush(); quote = q } (quote = quote || []).push(m[1]); continue }
     const li = l.match(/^\d+[.)]\s+(.+)$/) ? ["ol", l.replace(/^\d+[.)]\s+/, "")] : l.match(/^[-—–•*]\s+(.+)$/) ? ["ul", l.replace(/^[-—–•*]\s+/, "")] : null
@@ -59,7 +60,7 @@ function mdHtml(src) {
   flush()
   return out.join("\n")
 }
-const mdPlain = (s) => String(s || "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
+const mdPlain = (s) => String(s || "").replace(/^\s*\[\[darom\]\]\s*$/gim, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
   .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm, "").replace(/^\s*(-{3,}|❦+)\s*$/gm, "").trim()
 
 // «## Частые вопросы» → «### вопрос» + ответ: то же, что articleFaq в site/js/app.js — для FAQ-разметки
