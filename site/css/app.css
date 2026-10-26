@@ -229,6 +229,11 @@ body.editing .ex{display:none}
 .modal{position:fixed;inset:0;z-index:60;background:color-mix(in srgb,var(--ink) 45%,transparent);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .sheet{background:var(--paper) var(--grain);color:var(--ink);border-radius:22px;width:min(640px,100%);max-height:min(86vh,820px);overflow:auto;padding:24px;display:grid;gap:16px;position:relative;box-shadow:0 30px 80px -20px rgba(0,0,0,.45)}
 .sheet .close{position:absolute;top:12px;right:12px}
+/* one column that may shrink: a wide control (a file picker, a long address) must not push the sheet past the screen */
+.sheet{grid-template-columns:minmax(0,1fr)}
+.sheet input[type=file]{width:100%;min-width:0}
+.sheet .hint b{overflow-wrap:anywhere}
+.wand-sheet .eyebrow{padding-right:110px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
 .tabs button{border:0;background:transparent;font-weight:800;padding:6px 12px;border-radius:999px;cursor:pointer;color:var(--muted)}
 .tabs button[aria-selected="true"]{background:var(--moss);color:var(--on-moss)}
@@ -442,7 +447,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .cab-head{display:flex;gap:18px;align-items:center}
 .cab-ava{width:96px;height:96px;font-size:54px;flex:none}
 .cab-name{font-size:clamp(30px,5vw,44px)}
-.cab-auth{display:grid;gap:14px;max-width:640px}
+.cab-auth{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:640px}
+.cab-auth>*,.form,.form>*{min-width:0}
 .people-sum{grid-template-columns:repeat(3,minmax(0,1fr))}
 .online-dot{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
 .online-dot.on{background:#3FA34D;box-shadow:0 0 0 3px color-mix(in srgb,#3FA34D 25%,transparent)}
@@ -505,6 +511,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .soc:hover{background:var(--soft)}
 .soc svg{width:22px;height:22px}
 @media (max-width:420px){.social{gap:4px}.soc{width:36px;height:36px}.soc svg{width:20px;height:20px}}
+/* the narrowest phones (320 px): the header keeps the logo, the cabinet and the menu; Instagram and Telegram stay in the menu and the footer */
+@media (max-width:359px){header .social{display:none}}
 @media (max-width:640px){.g-over{padding:16px}.g-over h3{font-size:26px!important}.g-over p{font-size:15px}}
 .grow-step small.grow-xp{font-weight:700;color:var(--muted);font-size:10px}
 
@@ -1271,3 +1279,8 @@ details.fold[open] > summary{margin-bottom:12px}
 @media (max-width:520px){ .reader-bar{border-radius:18px} .rb-t{font-size:14px} }
 @media (prefers-reduced-motion: reduce){ .reader-bar{animation:none} }
 .art-body .art-cta a.btn{color:var(--on-moss);text-decoration:none}
+
+/* safety net: a stray decoration a couple of pixels wider than a narrow phone must not give the page a sideways scroll (clip, unlike hidden, keeps the sticky header working) */
+html,body{overflow-x:clip}
+.draft-cover{display:grid;gap:8px}
+.draft-cover img{width:100%;max-width:420px;aspect-ratio:1200/630;object-fit:cover;border-radius:12px;display:block}
