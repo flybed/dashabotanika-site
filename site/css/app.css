@@ -1342,3 +1342,27 @@ html,body{overflow-x:clip}
 .bm-star.on{background:var(--sun,#D49A2A);color:#fff;border-color:var(--sun,#D49A2A)}
 .loc-form{display:grid;gap:12px}
 .near{color:var(--moss)}
+/* «Вещи даром» in the spotlight: a header button, a home band, the first menu item */
+.darom-btn{display:inline-flex;align-items:center;gap:6px;flex:none;height:40px;padding:0 14px;border-radius:999px;background:var(--sun,#D49A2A);color:#2A1C05;font-weight:800;font-size:15px;text-decoration:none;box-shadow:0 6px 16px -8px rgba(160,100,10,.7)}
+.darom-btn:hover{filter:brightness(1.05)}
+.darom-btn[aria-current=page]{outline:2px solid var(--moss);outline-offset:2px}
+@media (max-width:640px){.darom-btn{padding:0 11px;height:36px}.darom-btn-t{display:none}}
+.darom-spot{background:linear-gradient(180deg,color-mix(in srgb,var(--sun,#D49A2A) 16%,var(--paper)),var(--paper))}
+.ds-head{display:flex;gap:20px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.ds-head>div:first-child{max-width:640px}
+.ds-cta{display:flex;gap:10px;flex-wrap:wrap}
+.ds-nums{display:flex;gap:10px 28px;flex-wrap:wrap;margin:22px 0 18px}
+.ds-nums>div{display:grid}
+.ds-nums b{font-family:var(--font-display,Georgia,serif);font-size:28px;color:var(--moss);line-height:1.1}
+.ds-nums span{font-size:14px;color:var(--muted)}
+.ds-items{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.ds-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ds-item{display:grid;gap:6px;align-content:start;padding:10px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);color:var(--ink);text-decoration:none;min-width:0}
+.ds-item:hover{border-color:var(--moss)}
+.ds-item img,.ds-ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block;background:var(--soft)}
+.ds-ph{display:grid;place-items:center;font-size:44px}
+.ds-item b{font-size:16px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-hot{display:flex!important;gap:12px;align-items:center;padding:12px 14px!important;margin-bottom:10px;border-radius:14px;background:color-mix(in srgb,var(--sun,#D49A2A) 22%,var(--surface));text-decoration:none}
+.menu-hot>span:first-child{font-size:26px}
+.menu-hot>span:last-child{display:grid}
+.menu-hot small{font-size:13px;color:var(--muted);font-weight:600}
