@@ -178,4 +178,4 @@ function backfillHistory(app) {
   } catch (e) {}
 }
 
-module.exports = { recompute, recomputeAll, recomputeInviter, backfillHistory }
+module.exports = { recompute, recomputeAll, recomputeInviter, backfillHistory, actionsOf, habitsOf }
