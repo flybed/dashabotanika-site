@@ -79,8 +79,9 @@ function check(app, userId, extra) {
     try {
       const res = $http.send({ url: apiUrl(), method: "POST", timeout: 40,
         headers: { "content-type": "application/json", "authorization": "Api-Key " + env("YC_API_KEY"), "x-folder-id": env("YC_FOLDER") },
-        body: JSON.stringify({ model: uri, max_tokens: 20, messages: [{ role: "user", content }] }) })
-      const said = String(((((res.json || {}).choices || [])[0] || {}).message || {}).content || "").slice(0, 120)
+        body: JSON.stringify({ model: uri, max_tokens: 600, messages: [{ role: "user", content }] }) })
+      const msg = ((((res.json || {}).choices || [])[0] || {}).message || {}), used = ((res.json || {}).usage || {}).total_tokens
+      const said = String(msg.content || "").slice(0, 120) + (msg.reasoning_content ? " (размышлял)" : "") + (used ? " · токенов: " + used : "")
       return res.statusCode + (res.statusCode === 200 ? " ✓ «" + said + "»" : ": " + toString(res.body).slice(0, 300))
     } catch (e) { return "нет связи: " + String(e).slice(0, 200) }
   }
