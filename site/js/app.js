@@ -628,7 +628,7 @@ function photoImg(id, alt, fallbackHTML, opts){
   img.addEventListener('error',()=>{ const f=h('div',{html:fallbackHTML||'',style:'width:100%;height:100%'}); img.replaceWith(f); });
   return img;
 }
-function pickAndUpload(onDone){
+function pickAndUpload(onDone, quiet){
   if (!EDIT.can){ toast('Загрузка фото доступна только редакторам сайта'); return; }
   const inp = h('input',{type:'file',accept:'image/jpeg,image/png,image/webp'});
   inp.addEventListener('change', async ()=>{
@@ -638,7 +638,10 @@ function pickAndUpload(onDone){
     try{
       const fd = new FormData(); fd.append('file', await fitPhoto(f)); fd.append('uploaded_by', COM.uid);
       const r = await pb.collection('photos').create(fd);
-      onDone('/api/files/photos/'+r.id+'/'+encodeURIComponent(r.file)); markDirty(); render(); toast('Фото добавлено. Не забудьте сохранить');
+      onDone('/api/files/photos/'+r.id+'/'+encodeURIComponent(r.file));
+      // quiet: the photo belongs to something saved separately (a draft), not to the site content
+      if (quiet){ toast('Фото загружено'); return; }
+      markDirty(); render(); toast('Фото добавлено. Не забудьте сохранить');
     }catch(e){
       toast(e && e.status===400 ? 'Подходят JPG, PNG или WebP до 15 МБ' : 'Не получилось загрузить фото, попробуйте ещё раз');
     }
@@ -1257,6 +1260,9 @@ const TRANSLIT = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z
 const slugify = s => String(s||'').toLowerCase().split('').map(c=>TRANSLIT[c]!==undefined ? TRANSLIT[c] : c).join('').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80);
 const articleSlug = a => a.slug || slugify(a.title) || String(a.id);
 const articleUrl = a => '/zhurnal/'+articleSlug(a);
+// alt for a cover: the editor's description, else the title; for a photo in the text: its caption without the «Фото: author, licence» credit
+const coverAlt = a => (a.image_alt||'').trim() || a.title || '';
+const figAlt = cap => cap.replace(/\s*Фото:.*$/s,'').trim() || cap;
 const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
 /* ---------- article text: simple marks Dasha types become a nicely laid out article ----------
    ## Заголовок · ### Подзаголовок · **жирный** · _курсив_ · [ссылка](https://…) · > совет · --- разделитель
@@ -1296,7 +1302,7 @@ function mdBlocks(src){
       if (lvl==='h2') heads.push([id, m[2]]); out.push(h(lvl,{id}, mdInline(m[2]))); continue; }
     if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(line)){ flush(); out.push(h('div',{class:'art-divider',role:'separator','aria-hidden':'true'},'❦')); continue; }
     if ((m = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && MD_LINK.test(m[2])){ flush();
-      out.push(h('figure',{class:'art-fig'}, photoImg(m[2], m[1], '', {sizes:'(max-width: 760px) 100vw, 720px'}), m[1] ? h('figcaption',null,m[1]) : null)); continue; }
+      out.push(h('figure',{class:'art-fig'}, photoImg(m[2], figAlt(m[1]), '', {sizes:'(max-width: 760px) 100vw, 720px'}), m[1] ? h('figcaption',null,m[1]) : null)); continue; }
     if ((m = line.match(/^>\s?(.*)$/))){ flushPara(); flushList(); (quote = quote || []).push(m[1]); continue; }
     if ((m = line.match(/^(\d+)[.)]\s+(.+)$/))){ flushPara(); flushQuote();
       if (!list || !list.ordered){ flushList(); list = {ordered:true, el:h('ol',{start:m[1]!=='1' ? m[1] : null, style:m[1]!=='1' ? '--start:'+(m[1]-1) : null})}; }
@@ -1499,7 +1505,7 @@ function articlePage(path){
       h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null,
         h('span',{class:'date'},'⏱ ',readMinutes(it.body),' мин чтения')),
       h('h1',null,it.title),
-      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, it.title, '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
+      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, coverAlt(it), '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
       ...articleBody(it.body, midCta(it)),
@@ -1552,6 +1558,7 @@ function articleEditor(it){
     h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
       uploadBtn(it.image ? 'Заменить картинку' : 'Загрузить картинку', nid=>{ it.image = nid; }),
       it.image ? h('button',{type:'button',class:'btn ghost small edit-only',onclick:()=>{ delete it.image; markDirty(); render(); }},'Убрать картинку') : null),
+    it.image ? field('image_alt','Что на картинке (alt)',{max:150, ph:it.title, hint:'Коротко опишите, что видно на фото: его прочитают поисковики и незрячие читатели. Если пусто, возьмём заголовок.'}) : null,
     h('p',{class:'hint'},'После правок нажмите «Сохранить изменения» внизу экрана.'));
 }
 
@@ -1583,7 +1590,7 @@ function articlesFor(topics, n){
 }
 function articleCard(it, why){
   return h('article',{class:'card'},
-    it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, '')) : null,
+    it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, coverAlt(it))) : null,
     why && why.length ? h('div',{class:'picked-why'}, why.slice(0,2).map(w=>h('span',null,'🎯 '+w.toLowerCase()))) : null,
     h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
     h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
@@ -1630,7 +1637,7 @@ function journalSection(preview){
       const more = h('a',{class:'linkish',href:articleUrl(it)},'Читать полностью');
       return h('article',{class:'card'},
         delBtn('articles',it.id),
-        it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, '')) : null,
+        it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, coverAlt(it))) : null,
         h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
         h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
         h('p',{class:'muted',style:'font-size:15px'},it.lead),
@@ -2396,7 +2403,7 @@ function paintModeration(el){
     const reason = h('input',{maxlength:'200',placeholder:'Причина отказа (увидит автор)','aria-label':'Причина отказа'});
     const set = data => write('listings/'+it.id, ()=>pb.collection('listings').update(it.id, data));
     return h('div',{class:'li'},
-      it.photo ? h('img',{src:it.photo,alt:'',loading:'lazy',decoding:'async',style:'width:120px;aspect-ratio:4/3;object-fit:cover;border-radius:8px'}) : null,
+      it.photo ? h('img',{src:it.photo,alt:it.title||'Фото вещи',loading:'lazy',decoding:'async',style:'width:120px;aspect-ratio:4/3;object-fit:cover;border-radius:8px'}) : null,
       h('div',{class:'meta'}, h('span',{class:'status'},it.kind), h('b',null,nameOf(it.seller)), h('span',null,dt(it.ts)), h('span',null,priceLabel(it))),
       h('b',null,it.title),
       h('div',{style:'font-size:14px;white-space:pre-line'}, [it.condition && 'Состояние: '+it.condition, it.city && 'Где: '+it.city, it.note].filter(Boolean).join('\n')),
@@ -3530,9 +3537,20 @@ function paintDrafts(el){
     const f = {title:h('input',{maxlength:'160',value:d.title}), lead:h('textarea',{maxlength:'400',style:'min-height:70px'}), body:h('textarea',{style:'min-height:340px'}),
       cat:h('select',null, ['Статья','Новость'].map(o=>h('option',{selected:(d.cat||'Статья')===o},o)))};
     f.lead.value = d.lead||''; f.body.value = d.body||'';
-    const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value});
+    // the cover comes with the draft; it can be replaced or removed before publishing
+    let image = d.image||'';
+    const alt = h('input',{maxlength:'150',value:d.image_alt||'',placeholder:'Что на картинке'});
+    const cover = h('div',{class:'draft-cover'});
+    const paintCover = () => cover.replaceChildren(...[image ? photoImg(image, alt.value||d.title, '') : h('p',{class:'hint'},'Картинки пока нет.'),
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+        EDIT.can ? h('button',{type:'button',class:'btn ghost small',onclick:()=>pickAndUpload(nid=>{ image = nid; paintCover(); }, true)}, image ? 'Заменить картинку' : 'Загрузить картинку') : null,
+        image ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ image = ''; paintCover(); }},'Убрать') : null)].filter(Boolean));
+    paintCover();
+    const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value, image, image_alt:alt.value.trim()});
     box.append(head, h('div',{class:'form draft-ed'},
-      h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead), h('label',null,'Текст статьи',mdTools(f.body),f.body),
+      h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead),
+      h('div',null, h('div',{class:'ae-l'},'Картинка превью'), cover), h('label',null,'Что на картинке (alt)',alt),
+      h('label',null,'Текст статьи',mdTools(f.body),f.body),
       d.sources ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Источники для проверки: '), d.sources) : null,
       d.note ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Заметка помощника: '), d.note) : null,
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
@@ -3556,6 +3574,7 @@ async function publishDraft(d, v, btn){
     if (data.articles.some(a=>articleSlug(a)===slug)) slug += '-'+iso(new Date());
     const plainBody = mdPlain(v.body), lead = v.lead || (plainBody.length > 200 ? plainBody.slice(0,197).replace(/\s+\S*$/,'')+'…' : plainBody);
     const art = {id:'a'+uid(), cat:v.cat||'Статья', date:iso(new Date()), title:v.title, lead, body:v.body, slug};
+    if (v.image){ art.image = v.image; if (v.image_alt) art.image_alt = v.image_alt; }
     data.articles.unshift(art);
     const r = await pb.collection('content').update(CONTENT.id, {data});
     CONTENT.data = JSON.parse(JSON.stringify(r.data));

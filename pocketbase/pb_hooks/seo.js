@@ -49,7 +49,7 @@ function mdHtml(src) {
     if (!l) { if (para.length || quote) flush(); continue }
     if ((m = l.match(/^(#{1,3})\s+(.+)$/))) { flush(); const t = m[1].length === 3 ? "h3" : "h2"; out.push(`<${t}>${mdInline(m[2])}</${t}>`); continue }
     if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(l)) { flush(); out.push("<hr>"); continue }
-    if ((m = l.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && okUrl(m[2])) { flush(); out.push(`<figure><img src="${m[2]}" alt="${esc(m[1])}" loading="lazy">${m[1] ? `<figcaption>${esc(m[1])}</figcaption>` : ""}</figure>`); continue }
+    if ((m = l.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && okUrl(m[2])) { flush(); out.push(`<figure><img src="${m[2]}" alt="${esc(m[1].replace(/\s*Фото:.*$/s, "").trim() || m[1])}" loading="lazy">${m[1] ? `<figcaption>${esc(m[1])}</figcaption>` : ""}</figure>`); continue }
     if ((m = l.match(/^>\s?(.*)$/))) { if (para.length || list) { const q = quote; quote = null; flush(); quote = q } (quote = quote || []).push(m[1]); continue }
     const li = l.match(/^\d+[.)]\s+(.+)$/) ? ["ol", l.replace(/^\d+[.)]\s+/, "")] : l.match(/^[-—–•*]\s+(.+)$/) ? ["ul", l.replace(/^[-—–•*]\s+/, "")] : null
     if (li) { if (para.length || quote || (list && list.t !== li[0])) flush(); (list = list || { t: li[0], items: [] }).items.push(li[1]); continue }
@@ -311,7 +311,7 @@ function page(path, d, k, app) {
       crumbs: [["Журнал", "/zhurnal"], [a.title, url]],
       ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, datePublished: a.date || undefined, inLanguage: "ru", image: image || undefined,
         author: { "@type": "Person", name: (d.about || {}).name || "Даша" }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }],
-      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc(a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${mdHtml(a.body)}</div></article>`,
+      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc((a.image_alt || "").trim() || a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${mdHtml(a.body)}</div></article>`,
     })
   }
   return null
