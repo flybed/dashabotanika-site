@@ -87,7 +87,7 @@ function onMessage(app, msg) {
     try { link = app.findFirstRecordByFilter("tg_links", "code = {:c}", { c: m[1] }) } catch (e) {}
     const fresh = link && Date.now() - new Date(link.getString("created").replace(" ", "T")).getTime() < 24 * 3600 * 1000
     if (!link) { try { app.findFirstRecordByFilter("tg_subs", "chat_id = {:c}", { c: chatId }); return } catch (e) {} } // это повтор: уже подключено
-    if (!fresh) { send(chatId, "Ссылка устарела. Откройте кабинет на сайте и нажмите «Подключить Telegram» ещё раз.", ["Открыть кабинет", SITE + "/kabinet?tab=settings"]); return }
+    if (!fresh) { send(chatId, "Ссылка устарела. Откройте кабинет на сайте и нажмите «Подключить Telegram» ещё раз.", ["Открыть кабинет", SITE + "/kabinet?tab=profile#notify"]); return }
     const userId = link.getString("user")
     let sub
     try { sub = app.findFirstRecordByFilter("tg_subs", "user = {:u}", { u: userId }) } catch (e) {
@@ -100,15 +100,15 @@ function onMessage(app, msg) {
     sub.set("chat_id", chatId); sub.set("enabled", true)
     app.save(sub)
     app.delete(link)
-    send(chatId, `Готово, ${esc(nameOf(app, userId))}! 🌱 Telegram подключён.\n\nЧто присылать и во сколько, выберите в кабинете → «Настройки» → «Уведомления в Telegram». Отключить всё — команда /stop.`, ["Выбрать уведомления", SITE + "/kabinet?tab=settings#tg"])
+    send(chatId, `Готово, ${esc(nameOf(app, userId))}! 🌱 Telegram подключён.\n\nЧто присылать и во сколько, выберите в кабинете → «Профиль и настройки» → «Уведомления». Отключить всё — команда /stop.`, ["Выбрать уведомления", SITE + "/kabinet?tab=profile#notify"])
     return
   }
   if (/^\/stop/.test(text)) {
     try { app.delete(app.findFirstRecordByFilter("tg_subs", "chat_id = {:c}", { c: chatId })) } catch (e) {}
-    send(chatId, "Напоминания выключены. Чтобы включить снова — кабинет на сайте → «Настройки» → «Подключить Telegram».")
+    send(chatId, "Напоминания выключены. Чтобы включить снова — кабинет на сайте → «Профиль и настройки» → «Подключить Telegram».")
     return
   }
-  send(chatId, "Привет! Я бот сайта DashaBotanika 🌍 Напоминаю про эко-челленджи и рассказываю новости сообщества.\n\nЧтобы подключить напоминания, откройте личный кабинет → «Настройки» → «Подключить Telegram».", ["Открыть сайт", SITE + "/kabinet?tab=settings"])
+  send(chatId, "Привет! Я бот сайта DashaBotanika 🌍 Напоминаю про эко-челленджи и рассказываю новости сообщества.\n\nЧтобы подключить напоминания, откройте личный кабинет → «Профиль и настройки» → «Подключить Telegram».", ["Открыть сайт", SITE + "/kabinet?tab=profile#notify"])
 }
 
 // ---------- напоминания ----------
@@ -164,7 +164,7 @@ function remindAll(app, force) {
       else if (want.indexOf("nudge") >= 0 && !t.active.length && sunday) parts.push(`🌱 ${name}, новая неделя — хороший повод для нового эко-челленджа. Выберите цель и 3–5 простых привычек.`)
       if (want.indexOf("weekly") >= 0 && sunday) { const news = weekNews(app); if (news.length) parts.push(`<b>Что нового в «Счастливом мире» за неделю</b>\n${news.join("\n")}`) }
       if (!parts.length) continue
-      const r = send(sub.getString("chat_id"), parts.join("\n\n"), t.open.length || t.active.length || !sunday ? ["Отметить привычки", SITE + "/kabinet#challenges"] : ["Открыть сайт", SITE + "/"])
+      const r = send(sub.getString("chat_id"), parts.join("\n\n"), t.open.length || t.active.length || !sunday ? ["Отметить привычки", SITE + "/kabinet?tab=challenges#cabinet-tabs"] : ["Открыть сайт", SITE + "/"])
       if (r && r.ok === false && r.error_code === 403) { sub.set("enabled", false) } // человек заблокировал бота
       sub.set("last_sent", today)
       app.save(sub)

@@ -35,7 +35,7 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 // menu in three groups; the server reads this list too (pb_hooks/seo.js) to give search engines the links
 const NAV_GROUPS = [
   ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/darom','Вещи даром'],['/o-proekte','О проекте и обратная связь']]],
-  ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»'],['/sortirovka','Сортировка и переработка'],['/mify','Мифы о переработке']]],
+  ['Учиться и играть', [['/kabinet?tab=challenges#cabinet-tabs','Эко-челленджи'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»'],['/sortirovka','Сортировка и переработка'],['/mify','Мифы о переработке']]],
   ['Жить экологично', [['/servisy','Полезные сервисы'],['/tovary','Товары'],['/eda','Еда и рецепты'],['/eda#menu','Конструктор меню'],['/eda#cafes','Кафе'],['/moda','Мода'],['/vozduh','Чистота воздуха']]]
 ];
 // the home page is a crossroads: six interests, each leads to its own pages; 1 marks the hottest link of the card
@@ -44,7 +44,7 @@ const INTERESTS = [
   ['♻️','Сортировка','/sortirovka','Что куда сдавать, как готовить вторсырьё и сколько пользы это даёт',[['Мифы','/mify',1],['Калькулятор','/sortirovka#calc'],['Куда сдать в городе','/servisy']]],
   ['👗','Мода и вещи','/moda','Капсульный гардероб, ткани, уход, вторая жизнь вещей',[['Вещи даром','/darom',1],['Эко-товары','/tovary']]],
   ['🌤️','Мой город','/vozduh','Чистота воздуха сейчас и пункты приёма вторсырья рядом',[['Сервисы','/servisy',1],['Воздух','/vozduh']]],
-  ['🎮','Учиться и играть','/eko-test','Эко-тест с сертификатом, игра и челленджи с привычками',[['Челленджи','/kabinet#challenges',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
+  ['🎮','Учиться и играть','/eko-test','Эко-тест с сертификатом, игра и челленджи с привычками',[['Челленджи','/kabinet?tab=challenges#cabinet-tabs',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
   ['🌍','Сообщество','/mir','«Счастливый мир» участников, журнал и обратная связь',[['Мир','/mir',1],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
 ];
 // sections used to live on the home page: old links like /#food now open their own pages
@@ -544,7 +544,7 @@ function firstStepsList(){
       ['🌱','Зарегистрироваться и выбрать персонажа','signup', member, '/kabinet?tab=register','Присоединиться'],
       ['📝','Заполнить профиль','profile_complete', member && profileDone(PROFILE.rec), '/kabinet?tab=profile#cabinet-tabs','Заполнить'],
       ['🎓','Пройти эко-тест','exam_passed', (STATS.examBest||0) > 0, '/eko-test','Пройти'],
-      ['🏁','Начать свой эко-челлендж','challenge_done', member && challenges().length > 0, '/kabinet#challenges','Начать'],
+      ['🏁','Начать свой эко-челлендж','challenge_done', member && challenges().length > 0, '/kabinet?tab=challenges#cabinet-tabs','Начать'],
       ['🎮','Сыграть в «Эко-уборку»','game', (STATS.gameBest||0) > 0, '/igra','Играть'],
       ['🌍','Написать соседу в «Счастливом мире»','', member && Object.keys(COM.threads).length > 0, '/mir','В мир'],
       ['💌','Пригласить друга','invite_friend', member && COM.refs.some(r=>r.inviter===COM.uid), member ? '/kabinet?tab=path#invite' : '/kabinet?tab=register','Пригласить']
@@ -805,7 +805,7 @@ function calcSection(){
         h('div',{style:'font-size:40px','aria-hidden':'true'},'🌱'),
         h('div',{class:'big',style:'font-size:28px'},'Пока ноль — и это нормально'),
         h('p',null,'Начните с одного шага: например, сдавайте только батарейки или пластиковые бутылки. Даже 3 бутылки в неделю — это около 6 кг пластика в год, который не окажется на свалке.'),
-        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/sortirovka'},'С чего начать'), h('a',{class:'btn ghost small',href:'/kabinet#challenges'},'Взять челлендж'))));
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/sortirovka'},'С чего начать'), h('a',{class:'btn ghost small',href:'/kabinet?tab=challenges#cabinet-tabs'},'Взять челлендж'))));
       return;
     }
     res.replaceChildren(
@@ -872,7 +872,7 @@ function challengesSection(){
     box.replaceChildren(...[
       wizard ? wizardView() : h('div',{class:'ch-new'},
         h('button',{type:'button',class:'btn',onclick:()=>{ wizard = {step:1, goal:null, days:14, startToday:true, habits:[], custom:''}; paint(); }},'+ Создать челлендж'),
-        h('p',{class:'hint'},'Выберите цель, срок и привычки. Отмечайте каждый день — и за пройденный челлендж получите +', chPoints(),' очков роста. ', h('a',{href:'/kabinet?tab=settings#tg'},'🔔 Напоминания в Telegram'))),
+        h('p',{class:'hint'},'Выберите цель, срок и привычки. Отмечайте каждый день — и за пройденный челлендж получите +', chPoints(),' очков роста. ', h('a',{href:'/kabinet?tab=profile#notify'},'🔔 Напоминания в Telegram'))),
       ...(active.length ? active.map(card) : (wizard ? [] : [h('div',{class:'empty'},'У вас пока нет челленджей. Создайте первый — например, 14 дней без пластиковых пакетов.')])),
       list.length ? calendarView() : null,
       past.length ? h('div',null, h('h3',{style:'font-size:20px;margin:10px 0'},'Завершённые'), h('div',{class:'list'}, past.map(pastItem))) : null].filter(Boolean));
@@ -1740,7 +1740,7 @@ function privacyPage(){
 const MYTHS = [
   ['Я один ничего не изменю: природу загрязняют заводы и большие компании',
    'Заводы и компании работают не сами по себе: они выпускают то, что покупают люди. По исследованию 2016 года в журнале Journal of Industrial Ecology, на потребление домохозяйств — еду, жильё, транспорт и вещи — приходится больше 60% мировых выбросов парниковых газов. Привычки миллионов людей складываются в спрос, а спрос меняет то, что производят компании.',
-   'Начните с того, что даёт больше всего: меньше выбрасывать еды, реже покупать новое, беречь тепло и электричество, чаще ходить пешком и ездить на общественном транспорте. И рассказывайте друзьям — так привычки и распространяются.', ['/kabinet#challenges','Начать эко-челлендж']],
+   'Начните с того, что даёт больше всего: меньше выбрасывать еды, реже покупать новое, беречь тепло и электричество, чаще ходить пешком и ездить на общественном транспорте. И рассказывайте друзьям — так привычки и распространяются.', ['/kabinet?tab=challenges#cabinet-tabs','Начать эко-челлендж']],
   ['Раздельно собирать бессмысленно: всё равно всё увезут в одной машине и смешают',
    'Так бывает не везде, и даже тогда разделённое вторсырьё ценнее. Из смешанного мусора удаётся выбрать лишь малую часть полезного — специалисты называют до 8%, а поток, который рассортировали жители, в разы продуктивнее. В Российском экологическом операторе «всё смешивают» прямо называют мифом.',
    'Спросите у регионального оператора или управляющей компании, кто и как вывозит контейнеры для вторсырья у вашего дома. Сомневаетесь — несите в пункты приёма и экоцентры: оттуда всё точно уходит в переработку.', ['/servisy','Куда сдать в вашем городе']],
@@ -1819,6 +1819,7 @@ function go(url){
   let u = new URL(url, location.origin);
   if ((u.pathname==='/' || u.pathname==='') && OLD_ANCHORS[u.hash]) u = new URL(OLD_ANCHORS[u.hash], location.origin);
   if (OLD_PATHS[u.pathname.replace(/\/+$/,'')]) u = new URL(OLD_PATHS[u.pathname.replace(/\/+$/,'')]+u.search+u.hash, location.origin);
+  u = cabinetUrl(u);
   const changed = (u.pathname.replace(/\/+$/,'') || '/') !== currentPath() || u.search !== location.search;
   closeModal();
   history.pushState(null,'',u.pathname+u.search+u.hash); INNER_STEPS++;
@@ -1836,10 +1837,26 @@ document.addEventListener('click', e=>{
 });
 // renamed pages: the old address opens the new one (the server answers 301 too, see pb_hooks/seo.pb.js)
 const OLD_PATHS = {'/baraholka':'/darom'};
+// cabinet links of any kind (/kabinet#challenges, /kabinet?tab=things, old ?tab=settings from letters and Telegram)
+// open the right tab scrolled to the tabs; sign-in and sign-up stay at the top
+const CAB_TABS = ['path','challenges','chats','things','mine','profile','articles','moder','fb','people','levels','suggest'];
+const CAB_ALIAS = {settings:'profile', tg:'profile', notify:'profile'};
+function cabinetUrl(u){
+  if (u.pathname.replace(/\/+$/,'') !== '/kabinet') return u;
+  const q = new URLSearchParams(u.search), h = u.hash.slice(1);
+  let tab = q.get('tab'), hash = u.hash;
+  if (CAB_ALIAS[tab]){ tab = CAB_ALIAS[tab]; if (!hash || hash==='#tg') hash = '#notify'; }
+  if (!tab && (CAB_TABS.includes(h) || CAB_ALIAS[h])){ tab = CAB_ALIAS[h] || h; hash = ''; }
+  if (!tab || tab==='register' || tab==='login') return u;
+  q.set('tab', tab);
+  return new URL('/kabinet?'+q+(hash || '#cabinet-tabs'), location.origin);
+}
 function fixOldAnchor(){
   const p = location.pathname.replace(/\/+$/,'');
   if (OLD_PATHS[p]) history.replaceState(null,'',OLD_PATHS[p]+location.search+location.hash);
   else if (location.pathname==='/' && OLD_ANCHORS[location.hash]) history.replaceState(null,'',OLD_ANCHORS[location.hash]);
+  const c = cabinetUrl(new URL(location.href));
+  if (c.href !== location.href) history.replaceState(null,'',c.pathname+c.search+c.hash);
 }
 fixOldAnchor();
 window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max(0, INNER_STEPS-1); closeModal(); render(); scrollToHash(location.hash); });
@@ -2452,10 +2469,10 @@ function growthBlock(){
 /* "Растить персонажа": every way to grow with a link straight to it */
 let GROW_OPEN = false;
 const GROW_WAYS = {
-  challenge_done:['🏁','/kabinet#challenges','Создать челлендж'], leaf:['🍃','/kabinet#challenges','Отметить привычки'],
+  challenge_done:['🏁','/kabinet?tab=challenges#cabinet-tabs','Создать челлендж'], leaf:['🍃','/kabinet?tab=challenges#cabinet-tabs','Отметить привычки'],
   exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/igra','Играть'], article_read:['📖','/zhurnal','Читать журнал'],
   like:['♥','/zhurnal','К статьям'], comment:['💬','/zhurnal','Обсудить'], feedback:['💡','/o-proekte#feedback','Написать Даше'],
-  listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/darom','В «Вещи даром»'], signup:['✅',null,null],
+  listing_approved:['📦','/kabinet?tab=things#cabinet-tabs','Выставить вещь'], deal_done:['🤝','/darom','В «Вещи даром»'], signup:['✅',null,null],
   profile_complete:['📝','/kabinet?tab=profile#cabinet-tabs','Заполнить'], invited:['🎁',null,null], invite_friend:['💌','/kabinet?tab=path#invite','Пригласить']
 };
 function growWays(){
@@ -3654,7 +3671,10 @@ function notifyCard(){
   let TG_STATUS = null;
   function load(){ return Promise.all([pb.collection('tg_subs').getFullList({requestKey:null}).catch(()=>[]), pb.collection('notify').getFullList({requestKey:null}).catch(()=>[]),
       pb.send('/api/tg/status',{requestKey:null}).catch(()=>null)])
-    .then(([t,n,st])=>{ TG_STATUS = st; paint(t[0]||null, n[0]||null); return t[0]||null; }); }
+    .then(([t,n,st])=>{ TG_STATUS = st; paint(t[0]||null, n[0]||null);
+      // a link «…#notify» (from Telegram or a letter): the card has just grown, scroll to it now
+      if (location.hash==='#notify' && !box.dataset.shown){ box.dataset.shown = '1'; setTimeout(()=>box.scrollIntoView({block:'start'}), 50); }
+      return t[0]||null; }); }
   // «Я подключил(а)»: забрать сообщения боту и сказать прямо, видно подключение или нет и почему
   async function recheck(btn){
     btn.disabled = true; btn.textContent = 'Проверяем…';
