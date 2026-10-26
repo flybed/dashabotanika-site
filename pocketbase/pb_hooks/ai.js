@@ -30,6 +30,12 @@ function usedToday(app, userId) {
 }
 function status(app, userId) { return { enabled: enabled(), limit: daily(), left: Math.max(0, daily() - usedToday(app, userId)) } }
 
+// причину отказа модели видят только админы и модераторы — чтобы чинить без доступа к логам сервера (ключа в ней нет)
+function staffDetail(app, userId, why) {
+  try { const r = app.findRecordById("users", userId).getString("role"); if (r === "admin" || r === "moderator") return { detail: why } } catch (e) {}
+  return {}
+}
+
 function analyze(app, userId, kind, image) {
   const st = status(app, userId)
   if (!st.enabled) return Object.assign(st, { ok: false, message: "Помощник скоро заработает — мы подключаем распознавание фото." })
@@ -46,10 +52,17 @@ function analyze(app, userId, kind, image) {
         { role: "user", content: [{ type: "text", text: kind === "food" ? "Что скажешь про эту тарелку?" : "Куда сдать эту упаковку?" }, { type: "image_url", image_url: { url: image } }] },
       ] }),
     })
-  } catch (e) { return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." }) }
+  } catch (e) {
+    app.logger().error("ai request failed", "error", String(e))
+    return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." }, staffDetail(app, userId, "нет связи с Yandex AI Studio: " + String(e).slice(0, 200)))
+  }
   const j = res.json || {}
   const text = String((((j.choices || [])[0] || {}).message || {}).content || "").trim()
-  if (res.statusCode !== 200 || !text) return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." })
+  if (res.statusCode !== 200 || !text) {
+    const why = "Yandex AI Studio ответил " + res.statusCode + ": " + toString(res.body).slice(0, 400)
+    app.logger().error("ai answer failed", "status", res.statusCode, "body", toString(res.body).slice(0, 400))
+    return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." }, staffDetail(app, userId, why))
+  }
   const rec = new Record(app.findCollectionByNameOrId("ai_uses"))
   rec.set("user", userId); rec.set("kind", kind); rec.set("tokens", ((j.usage || {}).total_tokens) | 0)
   app.save(rec)

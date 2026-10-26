@@ -3013,8 +3013,8 @@ function helperSection(only){
       st = r; paintLeft();
       out.replaceChildren(r.ok
         ? h('div',{class:'card ai-res'}, h('div',{class:'ai-res-head'}, h('img',{src:image,alt:'Ваше фото',class:'ai-photo'}), h('div',null, h('div',{class:'eyebrow'}, kind==='food' ? '🥗 Совет по тарелке' : '♻️ Куда сдать упаковку'), h('p',{class:'hint'},'Совет от ИИ — проверяйте важное, особенно про здоровье.'))), aiAnswer(r.text))
-        : h('div',{class:'card tg-err'}, r.message));
-    }catch(e){ out.replaceChildren(h('div',{class:'card tg-err'},'Не получилось отправить фото. Попробуйте другое фото или чуть позже.')); }
+        : h('div',{class:'card tg-err'}, r.message, r.detail ? h('span',{class:'hint',style:'display:block;font-weight:400;word-break:break-word'},'Для админов: '+r.detail) : null));
+    }catch(e){ out.replaceChildren(h('div',{class:'card tg-err'},'Не получилось отправить фото. Попробуйте другое фото или чуть позже.', h('span',{class:'hint',style:'display:block;font-weight:400'}, 'Код ошибки: '+((e && e.status) || 'нет связи')))); }
     btn.disabled = false; btn.textContent = label;
   }
   const photoBtn = (kind, label) => {
@@ -4299,10 +4299,11 @@ async function saveSite(){
 
 render();
 
-/* ---------- guided tour: the screen dims, a light shows where to tap, four short steps, once ---------- */
+/* ---------- guided tour: the screen dims, a light shows where to tap, five short steps, once ---------- */
 const TOUR_KEY = 'db-tour-done';
 const TOUR = [
   ['.burger','Все разделы — в меню','Еда, сортировка, мода, игры, журнал и всё остальное — здесь, в любой момент.'],
+  ['#myths-teaser','Сначала развеем мифы','«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами — за пару минут. Если сомнений нет, просто идите дальше.'],
   ['#interests .int-grid','Выберите, что вам интересно','Каждая плитка ведёт на свою страницу, а маленькие кнопки — сразу к нужному месту.'],
   ['.acc-btn', ()=>accState()==='member' ? 'Ваш кабинет' : 'Присоединяйтесь', ()=>accState()==='member' ? 'Здесь ваш путь, челленджи, сообщения и настройки.' : 'Зарегистрируйтесь — копите очки роста, проходите челленджи и растите своего персонажа.'],
   ['#world-teaser','Счастливый мир','Здесь живут все участники — животные и растения. Поселитесь и знакомьтесь с соседями.']
