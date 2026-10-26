@@ -2040,7 +2040,7 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, gameBest:r.game_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||''}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), friendUntil:r.friend_until||'', character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, gameBest:r.game_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||''}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
 function emojiOf(memberId){ const m = COM.members[memberId]; if (m && m.customEmoji) return m.customEmoji; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
@@ -2213,8 +2213,12 @@ function userListingCard(it){
   // the 600 px thumb for ordinary screens, the original (up to 1200 px) for Retina
   const img = it.photo ? h('img',{src:it.photo,srcset:it.photoFull ? it.photo+' 600w, '+it.photoFull+' 1200w' : null,sizes:'(max-width: 560px) 100vw, 380px',alt:it.title,loading:'lazy',decoding:'async',style:'width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block'}) : null;
   if (img) img.addEventListener('error',()=>img.remove());
-  return h('article',{class:'card'},
-    img,
+  const bm = (COM.bookmarks||[]).find(b=>b.listing===it.id);
+  const star = isFriend(COM.uid) && !mine ? h('button',{type:'button',class:'bm-star'+(bm?' on':''),'aria-label':bm ? 'Убрать из закладок' : 'В закладки',title:bm ? 'Убрать из закладок' : 'В закладки',
+    onclick:()=>(bm ? pb.collection('bookmarks').delete(bm.id).then(()=>{ COM.bookmarks = COM.bookmarks.filter(x=>x.id!==bm.id); })
+      : pb.collection('bookmarks').create({user:COM.uid, listing:it.id}).then(r=>{ COM.bookmarks = (COM.bookmarks||[]).concat([{id:r.id, listing:it.id}]); })).then(refresh).catch(writeErr)}, bm ? '★' : '☆') : null;
+  return h('article',{class:'card',style:'position:relative'},
+    star, img,
     h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), h('span',{class:'tag'}, catIcon(it.category),' ',it.category||'Другое'),
       it.kind==='Одолжу' ? h('span',{class:'tag',style:'background:var(--sky,#8FC3D6);color:#123'},'🔁 На время'+(it.lend_days ? ' · '+it.lend_days+' дн.' : '')) : null,
       it.status==='lent' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'На руках'+(it.return_by ? ' до '+fmtDate(String(it.return_by).slice(0,10)) : '')) : null, it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
@@ -2230,6 +2234,8 @@ function userListingCard(it){
   );
 }
 
+// «Друг проекта»: supported the project — a badge, bookmarks, new things without waiting
+const isFriend = id => { const m = COM.members[id]; return !!(m && m.friendUntil && Date.parse(String(m.friendUntil).replace(' ','T')) > Date.now()); };
 // what is known about a person who gives: given away, received, thanks, profile — people trust those they know a bit about
 function trustLine(uid){
   const box = h('p',{class:'trust'});
@@ -2239,7 +2245,7 @@ function trustLine(uid){
     box.replaceChildren(...[t.given ? h('span',null,'🎁 отдал(а) ',h('b',null,t.given)) : h('span',null,'🌱 новичок в «Вещах даром»'),
       t.got ? h('span',null,'🤲 получил(а) ',h('b',null,t.got)) : null,
       t.thanks ? h('span',null,'💚 спасибо: ',h('b',null,t.thanks)) : null,
-      t.profile ? h('span',null,'✓ профиль заполнен') : null].filter(Boolean)); });
+      t.profile ? h('span',null,'✓ профиль заполнен') : null, isFriend(uid) ? h('span',{class:'friend-badge'},'💚 Друг проекта') : null].filter(Boolean)); });
   return box;
 }
 /* «Хочу забрать»: a couple of words why you need it — the giver chooses, not «whoever was first» */
@@ -2394,11 +2400,11 @@ function marketSection(){
     loadDaromStats([...new Set(all.map(l=>l.seller))]);
     if (!all.length){ filters.replaceChildren(); userGrid.replaceChildren(h('div',{class:'empty'}, st==='loading' ? 'Загружаем…' : 'Пока никто ничего не выставил. Будьте первым!')); cache.clear(); return; }
     const F = DAROM.filter, q = F.q.trim().toLowerCase();
-    const pub = all.filter(l=>(!F.cat || (l.category||'Другое')===F.cat) && (!F.city || (l.city||'').trim()===F.city) && (!q || (l.title+' '+l.note+' '+l.city+' '+l.pickup).toLowerCase().includes(q)));
+    const pub = all.filter(l=>(F.cat!=='★' || (COM.bookmarks||[]).some(b=>b.listing===l.id)) && (!F.cat || F.cat==='★' || (l.category||'Другое')===F.cat) && (!F.city || (l.city||'').trim()===F.city) && (!q || (l.title+' '+l.note+' '+l.city+' '+l.pickup).toLowerCase().includes(q)));
     if (!filters.contains(document.activeElement)) filters.replaceChildren(daromFilters(all));
     if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'},'Под этот фильтр пока ничего нет. Попробуйте другую категорию — или загляните позже.')); return; }
     const els = pub.map(it=>{
-      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,it.category,it.pickup,it.claims,it.return_by,st,COM.uid,(COM.claims||[]).some(c=>c.listing===it.id)].join('|');
+      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,it.category,it.pickup,it.claims,it.return_by,st,COM.uid,(COM.claims||[]).some(c=>c.listing===it.id),(COM.bookmarks||[]).some(b=>b.listing===it.id),isFriend(COM.uid)].join('|');
       let c = cache.get(it.id);
       if (!c || c.v !== v){ c = {v, el:userListingCard(it)}; cache.set(it.id,c); }
       return c.el;
@@ -2430,7 +2436,7 @@ function marketSection(){
     addForm('market','Новое объявление от Даши'),
     h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:40px 0 14px'}, h('h3',null,'От участников'), addBtn),
     filters, userGrid,
-    wantsBlock(), daromSubCard()
+    wantsBlock(), daromSubCard(), friendCard()
   ));
 }
 
@@ -2516,6 +2522,21 @@ function daromSubCard(){
     else paint(); });
   return box;
 }
+/* «Друг проекта»: everything stays free; those who support the project get small extras */
+function friendCard(){
+  const box = h('div',{class:'card friend-card'});
+  let url = null;
+  fetch('/api/darom/support').then(r=>r.json()).then(r=>{ url = r.url||''; refresh(); }).catch(()=>{ url = ''; refresh(); });
+  live(()=>{ const me = COM.members[COM.uid], on = isFriend(COM.uid);
+    box.replaceChildren(h('div',{class:'eyebrow'},'💚 Друг проекта'), h('h3',{style:'font-size:22px'},'Всё здесь бесплатно — и так и останется'),
+      h('p',{class:'muted',style:'margin:0'},'Сайт живёт на энтузиазме Даши. Если хотите помочь ему расти, станьте другом проекта. В благодарность:'),
+      h('ul',{class:'friend-list'}, h('li',null,'💚 значок «Друг проекта» в карточке — вам больше доверяют'), h('li',null,'⭐ закладки на вещи, чтобы не потерять'), h('li',null,'⚡ новые вещи по подписке — сразу, а не раз в полчаса')),
+      on ? h('p',{style:'font-weight:800;color:var(--moss);margin:0'},'Вы друг проекта до ', fmtDate(String(me.friendUntil).slice(0,10)), '. Спасибо!')
+        : h('div',{style:'display:grid;gap:8px'},
+          url ? h('a',{class:'btn',href:url,target:'_blank',rel:'noopener',style:'justify-self:start'},'Поддержать проект') : h('p',{class:'hint',style:'margin:0'},'Ссылка для поддержки скоро появится.'),
+          h('p',{class:'hint',style:'margin:0'},'После поддержки напишите Даше через ✨ «Улучшим сайт вместе» — она включит статус. Любая сумма — уже помощь.'))); });
+  return box;
+}
 /* filters: a category, a city, a word */
 function daromFilters(all){
   const F = DAROM.filter;
@@ -2524,7 +2545,7 @@ function daromFilters(all){
   const chip = (v, label) => h('button',{type:'button',class:'chip'+(F.cat===v?' on':''),'aria-pressed':F.cat===v?'true':'false',onclick:()=>{ F.cat = F.cat===v && v ? '' : v; refresh(); }}, label);
   const q = h('input',{type:'search',value:F.q,placeholder:'Поиск: велосипед, коляска, книги…','aria-label':'Поиск по вещам',oninput:e=>{ F.q = e.target.value; clearTimeout(q._t); q._t = setTimeout(refresh, 250); }});
   return h('div',{class:'darom-filters'},
-    h('div',{class:'chips'}, chip('','Все · '+all.length), ...DAROM_CATS.filter(([c])=>counts[c]).map(([c,ic])=>chip(c, ic+' '+c+' · '+counts[c]))),
+    h('div',{class:'chips'}, chip('','Все · '+all.length), isFriend(COM.uid) && (COM.bookmarks||[]).length ? chip('★','★ Закладки · '+COM.bookmarks.length) : null, ...DAROM_CATS.filter(([c])=>counts[c]).map(([c,ic])=>chip(c, ic+' '+c+' · '+counts[c]))),
     h('div',{class:'darom-fl-row'}, q,
       cities.length > 1 ? h('select',{'aria-label':'Город',onchange:e=>{ F.city = e.target.value; refresh(); }},
         [h('option',{value:''},'Все города')].concat(cities.map(c=>h('option',{value:c,selected:F.city===c},c)))) : null));
@@ -2730,7 +2751,7 @@ function peopleFilters(el){
     sel('reg','Зарегистрировались',[['','когда угодно'],['1','за сутки'],['7','за неделю'],['30','за месяц']]),
     sel('act','Активность',[['','все'],['7','были на сайте за неделю'],['idle','не заходили 7+ дней']]),
     didPicker(el),
-    sel('sub','Подписки',[['','все'],['email','на письма'],['tg','в Telegram'],['any','хоть одна'],['none','без подписок']]),
+    sel('sub','Подписки',[['','все'],['email','на письма'],['tg','в Telegram'],['any','хоть одна'],['none','без подписок'],['friend','💚 друзья проекта']]),
     sel('sort','Порядок',[['new','сначала новые'],['last','недавно заходили'],['xp','больше очков']]),
     h('button',{type:'button',class:'btn ghost',onclick:()=>{ PEOPLE.at = 0; loadPeople(el); }},'Обновить'));
 }
@@ -2779,6 +2800,7 @@ function paintPeople(el, force){
     if (PF.reg && now-(m.joined||0) > +PF.reg*DAY) return false;
     if (PF.act==='7' && now-lastOf(id) > 7*DAY) return false;
     if (PF.act==='idle' && now-lastOf(id) <= 7*DAY) return false;
+    if (PF.sub==='friend') return isFriend(id);
     if (!a) return !(did.length || PF.sub);
     if (did.some(d=>!d[2](a))) return false;
     const em = a.email_topics.length > 0, tg = !!(a.tg && a.tg.on);
@@ -2808,6 +2830,10 @@ function paintPeople(el, force){
           (()=>{ const n = COM.refs.filter(x=>x.inviter===id).length; return n ? ' · пригласил(а): '+n : ''; })()),
         ...(a ? personActivity(a) : []),
         !COM.refs.some(x=>x.invited===id) && all.length > 1 ? refPicker(id) : null,
+        COM.owner ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'},
+          isFriend(id) ? h('span',{class:'status accepted'},'💚 Друг проекта до '+fmtDate(String(m.friendUntil).slice(0,10))) : null,
+          ...[['на месяц',31],['на год',366]].map(([t,d])=>h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('users').update(id,{friend_until:new Date(Date.now()+d*86400000).toISOString().replace('T',' ')}).then(()=>toast(nameOf(id)+' — друг проекта '+t)).catch(writeErr)},'💚 Друг '+t)),
+          isFriend(id) ? h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('users').update(id,{friend_until:''}).then(()=>toast('Статус снят')).catch(writeErr)},'Снять') : null) : null,
         id!==COM.uid && m.role!=='admin' ? h('div',null, h('button',{type:'button',class:'btn ghost small',onclick:()=>{
           pb.collection('users').update(id,{role: isMod ? 'member' : 'moderator'}).then(()=>toast(isMod ? 'Модератор снят' : 'Назначен модератором')).catch(writeErr);
         }}, isMod ? 'Снять модератора' : 'Сделать модератором')) : null);
@@ -4961,7 +4987,7 @@ function maybeTour(){
   setTimeout(maybeElephant, 7000);
   magicWand();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden'}, l=>{
+  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden,friend_until'}, l=>{
     const m = {}; l.forEach(r=>{ if ((r.role!=='writer' && !r.hidden) || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper (and anyone hidden by the admin) is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){
@@ -4981,6 +5007,7 @@ function maybeTour(){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
     watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
     watch('claims',{sort:'created'}, l=>{ COM.claims = l.map(claimOf); });
+    watch('bookmarks',{}, l=>{ COM.bookmarks = l.map(r=>({id:r.id, listing:r.listing})); });
     pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); COM.readsLoaded = true; refresh(); }).catch(()=>{});
     if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
     startPresence();

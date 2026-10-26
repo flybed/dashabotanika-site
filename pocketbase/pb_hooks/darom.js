@@ -120,18 +120,25 @@ function onApproved(app, l) {
     let pend = []; try { pend = JSON.parse(toString(sub.get("pending"))) || [] } catch (e) {}
     if (pend.indexOf(l.id) < 0) pend.push(l.id)
     sub.set("pending", pend); app.saveNoValidate(sub)
+    if (isFriend(app, sub.getString("user"))) flushOne(app, sub)
   }
 }
+const isFriend = (app, id) => { try { const f = app.findRecordById("users", id).getString("friend_until"); return !!f && Date.parse(f.replace(" ", "T")) > Date.now() } catch (e) { return false } }
+function support(app) { try { return String(app.findFirstRecordByData("settings", "key", "SUPPORT_URL").getString("value") || "").trim() } catch (e) { return "" } }
 // подписчикам — одно письмо и одно сообщение в Telegram на несколько новых вещей (раз в 30 минут)
 function flushSubs(app) {
-  const N = require(`${__hooks}/notify.js`), T = require(`${__hooks}/tg.js`)
   let sent = 0
-  for (const sub of list(app, "darom_subs", "id != ''")) {
+  for (const sub of list(app, "darom_subs", "id != ''")) if (flushOne(app, sub)) sent++
+  return sent
+}
+function flushOne(app, sub) {
+  const N = require(`${__hooks}/notify.js`), T = require(`${__hooks}/tg.js`)
+  {
     let pend = []; try { pend = JSON.parse(toString(sub.get("pending"))) || [] } catch (e) {}
-    if (!pend.length) continue
+    if (!pend.length) return false
     sub.set("pending", []); app.saveNoValidate(sub)
     const items = pend.map((id) => { try { return app.findRecordById("listings", id) } catch (e) { return null } }).filter((l) => l && l.getString("moderation") === "approved" && ["gone", "archived"].indexOf(l.getString("status")) < 0)
-    if (!items.length) continue
+    if (!items.length) return false
     const u = sub.getString("user"), names = items.slice(0, 8).map((l) => "«" + l.getString("title") + "»" + (l.getString("city") ? " — " + l.getString("city") : ""))
     if (sub.getBool("email")) {
       let rec
@@ -142,9 +149,8 @@ function flushSubs(app) {
     if (sub.getBool("tg") && T.token()) {
       try { for (const s of list(app, "tg_subs", "user = {:u} && enabled = true", { u })) T.send(s.getString("chat_id"), "🎁 <b>Новые вещи даром</b>\n\n" + names.map((n) => "• " + safe(n)).join("\n"), ["Посмотреть", `${SITE}/darom`]) } catch (e) {}
     }
-    sent++
+    return true
   }
-  return sent
 }
 
 function expire(app) {
@@ -179,4 +185,4 @@ function expire(app) {
   return { reminded, archived, returns, closed }
 }
 
-module.exports = { stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs }
+module.exports = { stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend }
