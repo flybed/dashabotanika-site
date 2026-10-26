@@ -24,6 +24,9 @@ onRecordAfterDeleteSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).re
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("seller")) }, "listings")
 onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("seller")) }, "listings")
 onRecordAfterDeleteSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("seller")) }, "listings")
+// «спасибо» за отданную вещь — очки дарителю
+onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("giver")) }, "thanks")
+onRecordAfterDeleteSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recompute(e.app, e.record.getString("giver")) }, "thanks")
 
 onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recomputeAll(e.app) }, "levels", "growth_rules")
 onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/levels.js`).recomputeAll(e.app) }, "levels", "growth_rules")

@@ -85,6 +85,7 @@ function actionsOf(app, user, hb) {
     profile_complete: profileComplete(app, id),
     invited: count(app, "referrals", { invited: id }),
     invite_friend: friendsInvited(app, id),
+    thanks_received: count(app, "thanks", { giver: id }),
   }
 }
 
@@ -178,4 +179,4 @@ function backfillHistory(app) {
   } catch (e) {}
 }
 
-module.exports = { recompute, recomputeAll, recomputeInviter, backfillHistory, actionsOf, habitsOf }
+module.exports = { recompute, recomputeAll, recomputeInviter, backfillHistory, actionsOf, habitsOf, profileComplete }
