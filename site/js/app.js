@@ -2426,7 +2426,7 @@ function refPicker(id){
 }
 /* what each member has done: loaded from the server (owner only) and filtered right here */
 const PEOPLE = {by:{}, at:0, loading:false, err:''};
-const PF = {q:'', reg:'', act:'', did:'', sub:'', sort:'new'};
+const PF = {q:'', reg:'', act:'', did:[], didOpen:false, sub:'', sort:'new'};
 const DID = [
   ['game','🎮 Играл(а) в игру', a=>a.game_best>0],
   ['exam','📝 Проходил(а) тест', a=>a.exam_best>0],
@@ -2459,10 +2459,23 @@ function peopleFilters(el){
     h('label',null,'Поиск',q),
     sel('reg','Зарегистрировались',[['','когда угодно'],['1','за сутки'],['7','за неделю'],['30','за месяц']]),
     sel('act','Активность',[['','все'],['7','были на сайте за неделю'],['idle','не заходили 7+ дней']]),
-    sel('did','Что сделали',[['','что угодно']].concat(DID.map(([k,t])=>[k,t]))),
+    didPicker(el),
     sel('sub','Подписки',[['','все'],['email','на письма'],['tg','в Telegram'],['any','хоть одна'],['none','без подписок']]),
     sel('sort','Порядок',[['new','сначала новые'],['last','недавно заходили'],['xp','больше очков']]),
     h('button',{type:'button',class:'btn ghost',onclick:()=>{ PEOPLE.at = 0; loadPeople(el); }},'Обновить'));
+}
+// «Что сделали»: several actions at once, a member must have done all of them
+function didPicker(el){
+  const label = PF.did.length ? PF.did.map(k=>(DID.find(d=>d[0]===k)||[])[1]).filter(Boolean).map(t=>t.split(' ')[0]).join(' ')+' · '+PF.did.length : 'что угодно';
+  const box = h('details',{class:'pf-multi',open:PF.didOpen||null,ontoggle:e=>{ PF.didOpen = e.target.open; }},
+    h('summary',null,label),
+    h('div',{class:'pf-menu'},
+      DID.map(([k,t])=>h('label',{class:'consent'}, h('input',{type:'checkbox',checked:PF.did.includes(k),onchange:e=>{
+        PF.did = e.target.checked ? PF.did.concat(k) : PF.did.filter(x=>x!==k); paintPeople(el, true); }}), t)),
+      PF.did.length ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ PF.did = []; paintPeople(el, true); }},'Сбросить') : null));
+  if (!didPicker.bound){ didPicker.bound = true;
+    document.addEventListener('click', e=>{ if (PF.didOpen && !e.target.closest('.pf-multi')){ PF.didOpen = false; const d = document.querySelector('.pf-multi'); if (d) d.open = false; } }); }
+  return h('div',{class:'pf-field'}, h('span',null,'Что сделали'), box);
 }
 function personActivity(a){
   const chips = DID.filter(([k,,f])=>k!=='nothing' && f(a)).map(([k,t])=>{
@@ -2489,15 +2502,15 @@ function paintPeople(el, force){
   const all = Object.keys(COM.members);
   const act = id => PEOPLE.by[id];
   const lastOf = id => Math.max(seen(id), act(id) && act(id).last_seen ? Date.parse(act(id).last_seen) : 0);
-  const did = DID.find(d=>d[0]===PF.did), q = PF.q.trim().toLowerCase();
+  const did = DID.filter(d=>PF.did.includes(d[0])), q = PF.q.trim().toLowerCase();
   const ids = all.filter(id=>{
     const m = COM.members[id], a = act(id);
     if (q && !((m.nick||'')+' '+(a ? a.name+' '+a.email : '')).toLowerCase().includes(q)) return false;
     if (PF.reg && now-(m.joined||0) > +PF.reg*DAY) return false;
     if (PF.act==='7' && now-lastOf(id) > 7*DAY) return false;
     if (PF.act==='idle' && now-lastOf(id) <= 7*DAY) return false;
-    if (!a) return !(did || PF.sub);
-    if (did && !did[2](a)) return false;
+    if (!a) return !(did.length || PF.sub);
+    if (did.some(d=>!d[2](a))) return false;
     const em = a.email_topics.length > 0, tg = !!(a.tg && a.tg.on);
     if ((PF.sub==='email' && !em) || (PF.sub==='tg' && !tg) || (PF.sub==='any' && !em && !tg) || (PF.sub==='none' && (em || tg))) return false;
     return true;
