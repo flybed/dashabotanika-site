@@ -73,13 +73,15 @@ function analyze(app, userId, kind, image) {
 function check(app, userId, extra) {
   if (!staffDetail(app, userId, "x").detail) return { ok: false, message: "Только для админов" }
   if (!enabled()) return { ok: false, message: "Нет YC_FOLDER или YC_API_KEY" }
-  const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  // красный круг на белом: модель, которая правда видит картинки, назовёт цвет
+  const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAAB6ElEQVR4nO3cS07DQBAA0QRxjyy4/5FY5CRmMRsrQGo+PT+rao2UnkfbgSjy/TiOm/3fx+wBVk8gSCBIIEggSCBIIEggSCBIIEgg6HP2ALfvx+P9D3w9n2Mm+bP7+H9WUeR9g73GATW6/G6M1AigcJpzvZn6AnWlOdePqRfQMJpzPZi6vM1P0en0uvFAs3Q6vXrkJTaX5qWoyy1sg5bSucXNEwO0mk4qZKoAoDV1Uu2ztQKtrJNqnLAJaH2dVMucftwB1QPtsj6p6mkrgfbSSdXNXAO0o06qYnLvQVAx0L7rkyqd3w2CyoB2X59U0SncIKgA6Brrk8o/ixsECQTlAl3p+kplnsgNggSCBIIEgrKArneHTuWcyw2CBIIEggSCBIIEggSCBIIEggSCsoDmfte9XznncoMggSCBIIGgXKDr3aczT+QGQQJBBUBXusryz+IGQWVA11iiolO4QVAx0O5LVDq/GwTVAO27RBWTV27QjkZ1M9dfYnsZVU/rPQhqAtpliVrmbN2g9Y0aJwy4xFY2ap8t5h60plHIVGE36dWMouaJf3bH9K+jxf6q4t/m565S+Kt3+TtollGP1/X5QZBPoIJ8hhnkU/CgCUAv+RzFvfPjDkggSCBIIEggSCBIIEggSCBIIOgHQA6ri620rXQAAAAASUVORK5CYII="
   const tryModel = (uri, content) => {
     try {
       const res = $http.send({ url: apiUrl(), method: "POST", timeout: 40,
         headers: { "content-type": "application/json", "authorization": "Api-Key " + env("YC_API_KEY"), "x-folder-id": env("YC_FOLDER") },
         body: JSON.stringify({ model: uri, max_tokens: 20, messages: [{ role: "user", content }] }) })
-      return res.statusCode + (res.statusCode === 200 ? " ✓" : ": " + toString(res.body).slice(0, 300))
+      const said = String(((((res.json || {}).choices || [])[0] || {}).message || {}).content || "").slice(0, 120)
+      return res.statusCode + (res.statusCode === 200 ? " ✓ «" + said + "»" : ": " + toString(res.body).slice(0, 300))
     } catch (e) { return "нет связи: " + String(e).slice(0, 200) }
   }
   const folder = env("YC_FOLDER")
@@ -87,10 +89,10 @@ function check(app, userId, extra) {
     ok: true, folder: folder.slice(0, 4) + "…" + folder.slice(-4), model: model(),
     yandexgpt_lite_text: tryModel(`gpt://${folder}/yandexgpt-lite/latest`, "Скажи «привет»"),
     our_model_text: tryModel(model(), "Скажи «привет»"),
-    our_model_image: tryModel(model(), [{ type: "text", text: "Что на картинке?" }, { type: "image_url", image_url: { url: pixel } }]),
+    our_model_image: tryModel(model(), [{ type: "text", text: "Какого цвета круг на картинке? Ответь одним словом." }, { type: "image_url", image_url: { url: pixel } }]),
     // ?models=a,b — другие модели с картинкой, чтобы найти доступную (не больше 8)
     others: String(extra || "").split(",").map((x) => x.trim()).filter((x) => /^[\w.\-\/]{2,60}$/.test(x)).slice(0, 8).map((m) =>
-      [m, tryModel(`gpt://${folder}/${m}${m.indexOf("/") < 0 ? "/latest" : ""}`, [{ type: "text", text: "Что на картинке?" }, { type: "image_url", image_url: { url: pixel } }])]),
+      [m, tryModel(`gpt://${folder}/${m}${m.indexOf("/") < 0 ? "/latest" : ""}`, [{ type: "text", text: "Какого цвета круг на картинке? Ответь одним словом." }, { type: "image_url", image_url: { url: pixel } }])]),
   }
 }
 
