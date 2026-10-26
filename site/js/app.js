@@ -2185,7 +2185,7 @@ const MK_KIND = 'Отдам даром';
 // categories for search and filters (the same list is in the 1792479000_darom_more migration)
 const DAROM_CATS = [['Одежда и обувь','👕'],['Детское','🧸'],['Книги','📚'],['Кухня и посуда','🍳'],['Техника','🔌'],['Мебель и дом','🛋️'],['Растения','🪴'],['Для животных','🐾'],['Хобби и спорт','🚲'],['Другое','📦']];
 const catIcon = c => ((DAROM_CATS.find(x=>x[0]===c)||[])[1]) || '📦';
-const DAROM = {stats:null, people:{}, mine:null, filter:{cat:'', city:'', q:''}};
+const DAROM = {stats:null, people:{}, mine:null, filter:{cat:'', city:'', q:'', near:''}};
 const plusDays = n => new Date(Date.now()+n*86400000).toISOString().replace('T',' ');
 // the counter «saved from the landfill» and what is known about people who give: one request, cached for the page
 function loadDaromStats(ids){
@@ -2206,7 +2206,7 @@ function dealBtn(ref, title, seller, kind){
 }
 function myItems(){ return COM.listings.filter(l=>l.seller===COM.uid); }
 function setMyItemStatus(id, status){ return write('listings/'+id, ()=>pb.collection('listings').update(id,{status})).catch(writeErr); }
-function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', chosen:r.chosen||'', claims:r.claims||0, lend_days:r.lend_days||0, return_by:r.return_by||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
+function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', district:r.district||'', lat:r.lat||0, lon:r.lon||0, chosen:r.chosen||'', claims:r.claims||0, lend_days:r.lend_days||0, return_by:r.return_by||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
 function userListingCard(it){
   const mine = it.seller === COM.uid;
@@ -2225,7 +2225,7 @@ function userListingCard(it){
     h('h3',{style:'font-size:20px'},it.title),
     h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
     it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
-    it.city ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',it.city, it.pickup ? ' · '+it.pickup : '') : it.pickup ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',it.pickup) : null,
+    it.city || it.district || it.pickup ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',[it.city, it.district].filter(Boolean).join(', '), it.pickup ? ' · '+it.pickup : '', nearLabel(it) ? h('b',{class:'near'},' · '+nearLabel(it)) : null) : null,
     it.note ? h('p',{style:'font-size:15px;flex:1;white-space:pre-line'},it.note) : null,
     h('p',{class:'hint'},'Отдаёт: ', nameSpan(it.seller)), trustLine(it.seller),
     it.claims && !mine ? h('p',{class:'hint'},'🙋 Желающих: ',h('b',null,it.claims),' · даритель выберет сам, кто написал первым — не важно') : null,
@@ -2236,6 +2236,19 @@ function userListingCard(it){
 
 // «Друг проекта»: supported the project — a badge, bookmarks, new things without waiting
 const isFriend = id => { const m = COM.members[id]; return !!(m && m.friendUntil && Date.parse(String(m.friendUntil).replace(' ','T')) > Date.now()); };
+// distance from me (both places are rough, ~1 km)
+function kmTo(l){
+  const p = PROFILE.rec; if (!p || !p.lat || !p.lon || !l.lat || !l.lon) return null;
+  const R = 6371, dLa = (l.lat-p.lat)*Math.PI/180, dLo = (l.lon-p.lon)*Math.PI/180;
+  const a = Math.sin(dLa/2)**2 + Math.cos(p.lat*Math.PI/180)*Math.cos(l.lat*Math.PI/180)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+const sameDistrict = l => { const p = PROFILE.rec; return !!(p && p.district && l.district && p.district.trim().toLowerCase()===l.district.trim().toLowerCase() && (!l.city || !p.city || l.city.trim().toLowerCase()===p.city.trim().toLowerCase())); };
+function nearLabel(l){
+  if (sameDistrict(l)) return 'в вашем районе';
+  const km = kmTo(l); if (km===null) return '';
+  return km < 1 ? 'меньше 1 км от вас' : '≈ '+(km < 10 ? km.toFixed(1).replace('.',',') : Math.round(km))+' км от вас';
+}
 // what is known about a person who gives: given away, received, thanks, profile — people trust those they know a bit about
 function trustLine(uid){
   const box = h('p',{class:'trust'});
@@ -2400,11 +2413,14 @@ function marketSection(){
     loadDaromStats([...new Set(all.map(l=>l.seller))]);
     if (!all.length){ filters.replaceChildren(); userGrid.replaceChildren(h('div',{class:'empty'}, st==='loading' ? 'Загружаем…' : 'Пока никто ничего не выставил. Будьте первым!')); cache.clear(); return; }
     const F = DAROM.filter, q = F.q.trim().toLowerCase();
-    const pub = all.filter(l=>(F.cat!=='★' || (COM.bookmarks||[]).some(b=>b.listing===l.id)) && (!F.cat || F.cat==='★' || (l.category||'Другое')===F.cat) && (!F.city || (l.city||'').trim()===F.city) && (!q || (l.title+' '+l.note+' '+l.city+' '+l.pickup).toLowerCase().includes(q)));
+    const near = l => { if (!F.near) return true; if (F.near==='district') return sameDistrict(l); if (F.near==='city') { const p = PROFILE.rec; return !!(p && p.city && (l.city||'').trim().toLowerCase()===p.city.trim().toLowerCase()); } const km = kmTo(l); return km!==null && km <= +F.near; };
+    const pub = all.filter(l=>near(l) && (F.cat!=='★' || (COM.bookmarks||[]).some(b=>b.listing===l.id)) && (!F.cat || F.cat==='★' || (l.category||'Другое')===F.cat) && (!F.city || (l.city||'').trim()===F.city) && (!q || (l.title+' '+l.note+' '+l.city+' '+l.pickup).toLowerCase().includes(q)));
     if (!filters.contains(document.activeElement)) filters.replaceChildren(daromFilters(all));
-    if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'},'Под этот фильтр пока ничего нет. Попробуйте другую категорию — или загляните позже.')); return; }
+    // nearest first when we know where you are
+    if (PROFILE.rec && (PROFILE.rec.lat || PROFILE.rec.district)) pub.sort((a,b)=>(sameDistrict(b)-sameDistrict(a)) || ((kmTo(a)??1e9)-(kmTo(b)??1e9)) || (b.ts-a.ts));
+    if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'},'Под этот фильтр пока ничего нет. Попробуйте другую категорию или расширьте «Рядом» — или загляните позже.')); return; }
     const els = pub.map(it=>{
-      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,it.category,it.pickup,it.claims,it.return_by,st,COM.uid,(COM.claims||[]).some(c=>c.listing===it.id),(COM.bookmarks||[]).some(b=>b.listing===it.id),isFriend(COM.uid)].join('|');
+      const v = [it.title,it.kind,it.price,it.condition,it.city,it.district,nearLabel(it),it.note,it.photo,it.status,it.category,it.pickup,it.claims,it.return_by,st,COM.uid,(COM.claims||[]).some(c=>c.listing===it.id),(COM.bookmarks||[]).some(b=>b.listing===it.id),isFriend(COM.uid)].join('|');
       let c = cache.get(it.id);
       if (!c || c.v !== v){ c = {v, el:userListingCard(it)}; cache.set(it.id,c); }
       return c.el;
@@ -2547,6 +2563,9 @@ function daromFilters(all){
   return h('div',{class:'darom-filters'},
     h('div',{class:'chips'}, chip('','Все · '+all.length), isFriend(COM.uid) && (COM.bookmarks||[]).length ? chip('★','★ Закладки · '+COM.bookmarks.length) : null, ...DAROM_CATS.filter(([c])=>counts[c]).map(([c,ic])=>chip(c, ic+' '+c+' · '+counts[c]))),
     h('div',{class:'darom-fl-row'}, q,
+      PROFILE.rec && (PROFILE.rec.lat || PROFILE.rec.district) ? h('select',{'aria-label':'Рядом',onchange:e=>{ F.near = e.target.value; refresh(); }},
+        [['','Рядом: везде'],['district','В моём районе'],['3','До 3 км'],['10','До 10 км'],['city','В моём городе']].filter(([v])=>v!=='district' || PROFILE.rec.district).filter(([v])=>!/^\d/.test(v) || PROFILE.rec.lat).map(([v,t])=>h('option',{value:v,selected:(F.near||'')===v},t)))
+        : accState()==='member' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>askPlace(false)},'📍 Показывать сначала вещи рядом') : null,
       cities.length > 1 ? h('select',{'aria-label':'Город',onchange:e=>{ F.city = e.target.value; refresh(); }},
         [h('option',{value:''},'Все города')].concat(cities.map(c=>h('option',{value:c,selected:F.city===c},c)))) : null));
 }
@@ -2598,7 +2617,10 @@ function openThanks(t){
 function thingsPanel(lists){
   const title = h('input',{id:'mk-title',maxlength:'100',placeholder:'Например, детский велосипед'});
   const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Как новое'});
-  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город'});
+  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город',value:(PROFILE.rec && PROFILE.rec.city)||''});
+  const mkDistrict = h('input',{id:'mk-district',maxlength:'80',placeholder:'Район',value:(PROFILE.rec && PROFILE.rec.district)||''});
+  // the profile may still be loading: fill in the place when it comes
+  if (!PROFILE.loaded && COM.uid) loadProfile().then(p=>{ if (p){ if (!city.value) city.value = p.city||''; if (!mkDistrict.value) mkDistrict.value = p.district||''; } });
   const cat = h('select',{id:'mk-cat',required:''}, [h('option',{value:''},'Выберите…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
   const pickup = h('input',{id:'mk-pickup',maxlength:'120',placeholder:'Например: м. Чкаловская, будни после 19:00'});
   const how = h('select',{id:'mk-how'}, [h('option',{value:MK_KIND},'🎁 Отдать насовсем'), h('option',{value:'Одолжу'},'🔁 Одолжить на время')]);
@@ -2621,7 +2643,7 @@ function thingsPanel(lists){
       h('label',{for:'mk-title',style:'grid-column:1/-1'},'Что за вещь',title),
       h('label',{for:'mk-how'},'Как отдаёте',how), lendBox,
       h('label',{for:'mk-cat'},'Категория',cat), h('label',{for:'mk-cond'},'Состояние',cond),
-      h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-pickup'},'Где и когда забрать (без точного адреса)',pickup),
+      h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-district'},'Район',mkDistrict), h('label',{for:'mk-pickup'},'Где и когда забрать (без точного адреса)',pickup),
       h('label',{for:'mk-days'},'Объявление актуально',days)),
     h('label',{for:'mk-note'},'Описание: размер, бренд, особенности',note),
     h('label',{for:'mk-photo'},'Фото (необязательно)',file), photoBox,
@@ -2635,7 +2657,7 @@ function thingsPanel(lists){
     btn.disabled = true; btn.textContent = 'Отправляю…';
     try{
       const fd = new FormData();
-      Object.entries({seller:COM.uid, title:t, kind:how.value, price:'', lend_days:how.value==='Одолжу' ? Math.max(1,Math.min(90,+lendDays.value||14)) : 0, category:cat.value, condition:cond.value.trim(), city:city.value.trim(), pickup:pickup.value.trim(), until:plusDays(+days.value), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
+      Object.entries({seller:COM.uid, title:t, kind:how.value, price:'', lend_days:how.value==='Одолжу' ? Math.max(1,Math.min(90,+lendDays.value||14)) : 0, category:cat.value, condition:cond.value.trim(), city:city.value.trim(), district:mkDistrict.value.trim(), pickup:pickup.value.trim(), until:plusDays(+days.value), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
       if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
       await pb.collection('listings').create(fd);
       f.reset(); framed = null; showFramed(); toast('Отправлено! Объявление появится после проверки');
@@ -3677,7 +3699,9 @@ function authForms(mode){
         }
         try{ localStorage.removeItem(REF_KEY); }catch(e){}
         pb.collection('users').requestVerification(email.value.trim()).catch(()=>{});
+        try{ sessionStorage.setItem('db-ask-place','1'); }catch(e){}
         done('Добро пожаловать, '+v+'! Мы прислали письмо для подтверждения почты — если не найдёте, проверьте «Спам»');
+
       }catch(err){
         btn.disabled = false;
         const d = err && err.response && err.response.data || {};
@@ -3985,6 +4009,86 @@ function loadProfile(){
   return pb.collection('profiles').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null})
     .then(r=>{ PROFILE.rec = r; }, ()=>{ PROFILE.rec = null; }).then(()=>{ PROFILE.loaded = true; refresh(); return PROFILE.rec; });
 }
+/* ---------- where you live: city and district — by hand or «определить автоматически» ----------
+   Coordinates are kept rough (~1 km): enough for «≈ 2 км от вас», never an address. Geocoding: OpenStreetMap (Nominatim). */
+const NOMI = 'https://nominatim.openstreetmap.org';
+const r2 = x => Math.round(x*100)/100;
+function placeFromOsm(a){
+  const city = a.city || a.town || a.village || a.municipality || a.county || a.state || '';
+  const district = a.city_district || a.suburb || a.district || a.borough || a.quarter || a.neighbourhood || '';
+  return {country:a.country||'', city, district:district.replace(/^(район|микрорайон)\s+/i,'')};
+}
+async function detectPlace(){
+  if (!navigator.geolocation) throw new Error('nogeo');
+  const pos = await new Promise((ok, no)=>navigator.geolocation.getCurrentPosition(ok, no, {enableHighAccuracy:false, timeout:12000, maximumAge:600000}));
+  const lat = pos.coords.latitude, lon = pos.coords.longitude;
+  const r = await fetch(NOMI+'/reverse?format=jsonv2&zoom=14&accept-language=ru&lat='+lat+'&lon='+lon).then(x=>x.json());
+  return Object.assign(placeFromOsm(r.address||{}), {lat:r2(lat), lon:r2(lon)});
+}
+async function geocodePlace(city, district){
+  const q = [district, city].filter(Boolean).join(', ');
+  if (!q) return null;
+  try{ const r = await fetch(NOMI+'/search?format=jsonv2&limit=1&accept-language=ru&q='+encodeURIComponent(q)).then(x=>x.json());
+    return r && r[0] ? {lat:r2(+r[0].lat), lon:r2(+r[0].lon)} : null; }catch(e){ return null; }
+}
+// the picker: one button for automatic, two fields for by hand; save() writes the profile
+function placePicker(onSaved, opts){
+  const o = opts||{}, p = PROFILE.rec || {};
+  let coords = p.lat && p.lon ? {lat:p.lat, lon:p.lon} : null;
+  const country = h('input',{id:'loc-country',maxlength:'60',value:p.country||'Россия',list:'loc-countries',autocomplete:'country-name',placeholder:'Начните вводить'});
+  const countries = h('datalist',{id:'loc-countries'}, COUNTRIES.map(c=>h('option',{value:c})));
+  const city = h('input',{id:'loc-city',maxlength:'80',value:p.city||'',placeholder:'Например, Новосибирск',autocomplete:'address-level2'});
+  const district = h('input',{id:'loc-district',maxlength:'80',value:p.district||'',placeholder:'Район, микрорайон или метро'});
+  const note = h('p',{class:'hint',style:'margin:0'});
+  [country, city, district].forEach(x=>x.addEventListener('input', ()=>{ coords = null; }));
+  const auto = h('button',{type:'button',class:'btn ghost small'},'📍 Определить автоматически');
+  auto.addEventListener('click', async ()=>{ auto.disabled = true; auto.textContent = 'Определяем…';
+    try{ const r = await detectPlace(); city.value = r.city; district.value = r.district; if (r.country) country.value = r.country; coords = {lat:r.lat, lon:r.lon};
+      note.textContent = 'Определили: '+[r.country, r.city, r.district].filter(Boolean).join(', ')+'. Если не так — поправьте вручную.'; }
+    catch(e){ note.textContent = e && e.code===1 ? 'Браузер не дал доступ к местоположению — впишите город и район вручную.' : 'Не получилось определить — впишите вручную.'; }
+    auto.disabled = false; auto.textContent = '📍 Определить автоматически'; });
+  const btn = h('button',{type:'submit',class:'btn'}, o.btn || 'Сохранить');
+  const f = h('form',{class:'form loc-form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+    h('div',null, auto), note,
+    h('div',{class:'fields'}, h('label',{for:'loc-country'},'Страна',country, countries), h('label',{for:'loc-city'},'Город',city)),
+    h('label',{for:'loc-district'},'Район (необязательно)',district),
+    h('p',{class:'hint',style:'margin:0'},'Точный адрес не нужен и не хранится: только город, район и примерное место (с точностью около километра) — чтобы показывать вещи рядом.'),
+    h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'}, btn, o.skip ? h('button',{type:'button',class:'btn ghost',onclick:o.skip},'Позже') : null));
+  f.addEventListener('submit', async e=>{ e.preventDefault();
+    const c = city.value.trim(), d = district.value.trim();
+    const k = country.value.trim();
+    if (!k){ country.focus(); toast('Впишите страну'); return; }
+    if (!c){ city.focus(); toast('Впишите город'); return; }
+    btn.disabled = true;
+    if (!coords) coords = await geocodePlace(c+', '+k, d) || await geocodePlace(c+', '+k, '');
+    const data = {city:c, district:d, country:k};
+    if (coords){ data.lat = coords.lat; data.lon = coords.lon; }
+    try{
+      PROFILE.rec = PROFILE.rec ? await pb.collection('profiles').update(PROFILE.rec.id, data) : await pb.collection('profiles').create(Object.assign({owner:COM.uid}, data));
+      toast('Место сохранено: '+[k, c, d].filter(Boolean).join(', ')); refresh(); if (onSaved) onSaved();
+    }catch(err){ writeErr(err); btn.disabled = false; }
+  });
+  return f;
+}
+// right after sign-up (the page reloads, so the wish is kept in sessionStorage): ask once the account has loaded
+function placeAfterSignup(){
+  let want = false; try{ want = sessionStorage.getItem('db-ask-place')==='1'; sessionStorage.removeItem('db-ask-place'); }catch(e){}
+  if (!want) return;
+  let tries = 0;
+  const step = ()=>{ if (accState()!=='member'){ if (++tries < 40) setTimeout(step, 500); return; }
+    loadProfile().then(()=>{ if (!(PROFILE.rec && PROFILE.rec.city)) setTimeout(()=>askPlace(true), 600); }); };
+  step();
+}
+function askPlace(afterSignup){
+  if (accState()!=='member') return;
+  openModal(sheet=>{
+    sheet.append(h('div',{class:'eyebrow'},'📍 Где вы живёте?'), h('h2',{style:'font-size:26px'},'Покажем вещи и людей рядом'),
+      h('p',{class:'muted'}, afterSignup ? 'Последний шаг: страна, город и район. Так в «Вещах даром» сначала будут вещи поблизости, а соседи смогут найти ваши.' : 'Укажите город и район — в «Вещах даром» сначала будут вещи поблизости.'),
+      placePicker(closeModal, {btn:'Сохранить', skip:closeModal}));
+  });
+}
+const COUNTRIES = ['Россия','Беларусь','Казахстан','Узбекистан','Кыргызстан','Таджикистан','Армения','Азербайджан','Грузия','Молдова','Украина','Латвия','Литва','Эстония','Сербия','Черногория','Турция','Израиль','ОАЭ','Таиланд','Вьетнам','Индонезия','Кипр','Германия','Польша','Чехия','Испания','Португалия','Италия','Франция','Нидерланды','Финляндия','Великобритания','США','Канада'];
+const placeLabel = p => [p && p.country, p && p.city, p && p.district].filter(Boolean).join(', ');
 function profilePanel(){
   const box = h('div',{class:'card profile-card'});
   let editing = false;
@@ -3996,6 +4100,7 @@ function profilePanel(){
         h('div',{class:'pf-head'}, h('h3',null,'Мой профиль'), h('button',{type:'button',class:'btn ghost small pf-edit',onclick:()=>{ editing = true; paint(); }},'Изменить')),
         h('div',{class:'pf-sum'}, h('span',null, p.age+' '+plural(p.age,'год','года','лет')), p.gender && p.gender!=='Не хочу указывать' ? h('span',null,p.gender) : null, h('span',null,'📍 '+[p.city,p.country].filter(Boolean).join(', '))),
         h('div',{class:'chips'}, (p.goals||[]).map(g=>h('span',{class:'chip on'},g))),
+        h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',null,'📍 ', h('b',null, placeLabel(p) || 'место не указано')), h('button',{type:'button',class:'btn ghost small',onclick:()=>askPlace(false)},'Изменить место')),
         h('p',{class:'hint'},'По этим целям сайт подбирает статьи и вещи из «Вещей даром». Профиль видите только вы и Даша.'));
       return;
     }
@@ -4016,6 +4121,7 @@ function profilePanel(){
     const f = h('form',{class:'pf-form'},
       h('div',{class:'fields'}, h('label',{for:'pf-age'},'Возраст',age), h('label',{for:'pf-gender'},'Пол',gender)),
       h('div',{class:'fields'}, h('label',{for:'pf-country'},'Страна',country), h('label',{for:'pf-city'},'Город',city)),
+      h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'hint'},'📍 Район: ', h('b',null, p.district || 'не указан')), h('button',{type:'button',class:'btn ghost small',onclick:()=>askPlace(false)},'📍 Указать район или определить автоматически')),
       h('div',null, h('div',{class:'pf-l'},'Моя цель в экологии ', h('span',{class:'hint'},'(можно несколько)')), h('div',{class:'chips pf-goals'}, goalBtns)),
       left,
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, btn, h('span',{class:'hint'},'Профиль видите только вы и Даша.')));
@@ -4956,6 +5062,7 @@ function maybeTour(){
 /* ---------- connect to the backend ---------- */
 (async ()=>{
   try{ const w = sessionStorage.getItem('db-welcome'); if (w){ sessionStorage.removeItem('db-welcome'); setTimeout(()=>toast(w), 400); } }catch(e){}
+  placeAfterSignup();
   window.addEventListener('hashchange', routeHash);
   if (!pb){ COM.ready = true; refresh(); return; }
   try{
