@@ -1,5 +1,5 @@
 // Сквозная проверка сайта в браузере: страницы, регистрация, кабинет с трекером, редактирование,
-// обратная связь с фото, барахолка с модерацией, переписка, присутствие, уровни и сертификат.
+// обратная связь с фото, «Вещи даром» с модерацией, переписка, присутствие, уровни и сертификат.
 // Нужен сайт + PocketBase с ЧИСТОЙ базой и суперпользователем (см. README, раздел «Проверки»).
 //   BASE=http://localhost:8088 SU_EMAIL=... SU_PASS=... node tests/e2e.js ./shots
 const path = require('path');
@@ -162,9 +162,9 @@ const T = '#cabinet-tabs ';
   check('goods preview says the goods will be on sale soon', (await p.textContent('#goods')).includes('Скоро эти товары можно будет купить'));
   check('Instagram and Telegram links in the top bar', !!(await p.$('header a.soc[href="https://instagram.com/dashabotanika"]')) && !!(await p.$('header a.soc[href="https://t.me/dashabotanikarecipes"]')));
   check('top bar has no long menu, burger is closed', !(await p.$('header .nav')) && await p.isHidden('#site-menu'));
-  await p.click('.burger'); check('burger opens the list of sections in groups', await p.isVisible('#site-menu a:has-text("Барахолка")') && (await p.$$('#site-menu .menu-gt')).length===3);
+  await p.click('.burger'); check('burger opens the list of sections in groups', await p.isVisible('#site-menu a:has-text("Вещи даром")') && (await p.$$('#site-menu .menu-gt')).length===3);
   check('menu leads to pages, not to pieces of the home page', !(await p.$('#site-menu a[href^="/#"]')) && !!(await p.$('#site-menu a[href="/igra"]')) && !!(await p.$('#site-menu a[href="/eda"]')));
-  await p.click('#site-menu a:has-text("Барахолка")'); await p.waitForURL('**/baraholka');
+  await p.click('#site-menu a:has-text("Вещи даром")'); await p.waitForURL('**/darom');
   check('menu closes after choosing a page', await p.isHidden('#site-menu'));
   await p.goto(B+'/moda', {waitUntil:'networkidle'});
   await p.click('#goods a:has-text("Смотреть больше")'); await p.waitForURL('**/tovary');
@@ -190,7 +190,7 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/mir', {waitUntil:'networkidle'}); await p.waitForTimeout(500);
   check('world says Dasha settled first once she is admin with the elephant', (await p.textContent('#world')).includes('Первой поселилась Даша'));
   await p.goto(B+'/kabinet', {waitUntil:'networkidle'});
-  check('cabinet page: name, level and «now» cards first (challenges, messages, market, a friend)', !!(await p.$('h1.cab-name:has-text("Даша")')) && !!(await p.$('.grow-steps')) && (await p.$$('.cab-now .now-card')).length===4 && !!(await p.$('.cab-now a[href="/kabinet?tab=things"]:has-text("Барахолка")')));
+  check('cabinet page: name, level and «now» cards first (challenges, messages, market, a friend)', !!(await p.$('h1.cab-name:has-text("Даша")')) && !!(await p.$('.grow-steps')) && (await p.$$('.cab-now .now-card')).length===4 && !!(await p.$('.cab-now a[href="/kabinet?tab=things#cabinet-tabs"]:has-text("Вещи даром")')));
   await p.click('.cab-now a:has-text("Челленджи")'); await p.waitForSelector('#challenges button:has-text("Создать челлендж")');
   check('challenges live in their own tab, opened from the «now» card', (await p.getAttribute('.tabs button[aria-selected="true"]','data-l')).includes('Челленджи'));
   await p.goto(B+'/kabinet#challenges', {waitUntil:'networkidle'});
@@ -358,7 +358,7 @@ const T = '#cabinet-tabs ';
   await q.setInputFiles('#fb-photos', PHOTO);
   await q.click('button:has-text("Отправить Даше")'); await q.waitForSelector('#feedback .li:has-text("тёмную тему")');
   await q.goto(B+'/kabinet?tab=things');
-  await q.fill('#mk-title','Многоразовый шопер'); await q.selectOption('#mk-kind','Отдам даром'); await q.fill('#mk-note','Почти новый');
+  await q.fill('#mk-title','Многоразовый шопер'); await q.fill('#mk-note','Почти новый');
   // a vertical photo opens the frame editor: move it, keep it whole, the finished 4:3 frame is what gets uploaded
   const tall = Buffer.from(await q.evaluate(()=>{ const c = document.createElement('canvas'); c.width = 600; c.height = 1200; const g = c.getContext('2d');
     for (let y=0;y<1200;y+=60){ g.fillStyle = 'hsl('+(y/4)+',70%,55%)'; g.fillRect(0,y,600,60); } return c.toDataURL('image/jpeg',.9).split(',')[1]; }), 'base64');
@@ -375,9 +375,9 @@ const T = '#cabinet-tabs ';
   { const lst = (await api('GET','/collections/listings/records?filter='+encodeURIComponent('title="Многоразовый шопер"'),null,t)).items[0];
     const dims = lst && lst.photo ? await q.evaluate(async u=>{ const b = await (await fetch(u)).blob(); const im = await createImageBitmap(b); return [im.width, im.height]; }, '/api/files/'+lst.collectionId+'/'+lst.id+'/'+lst.photo) : null;
     check('the listing photo is the edited 4:3 frame (1200×900), not the tall original', !!dims && dims[0]===1200 && dims[1]===900); }
-  await q.goto(B+'/baraholka');
-  await q.click('#market button:has-text("Хочу купить")'); await q.waitForURL('**/kabinet?tab=chats**');
-  await q.waitForSelector('#chat-input'); await q.fill('#chat-input','Здравствуйте! Платье ещё в продаже?'); await q.click(T+'button:has-text("Отправить")'); await q.waitForTimeout(800);
+  await q.goto(B+'/darom');
+  await q.click('#market button:has-text("Хочу забрать")'); await q.waitForURL('**/kabinet?tab=chats**');
+  await q.waitForSelector('#chat-input'); await q.fill('#chat-input','Здравствуйте! Банки ещё можно забрать?'); await q.click(T+'button:has-text("Отправить")'); await q.waitForTimeout(800);
   await q.screenshot({path:S+'/05-liza-chat.png'});
   await q.goto(B+'/#world'); await q.waitForTimeout(800); await q.screenshot({path:S+'/06-liza-world-mobile.png'});
   await q.click('.dweller:has-text("Даша")'); await q.click('.dweller:has-text("Даша") .pop button:has-text("Написать")');
@@ -388,7 +388,7 @@ const T = '#cabinet-tabs ';
   await p.goto(B+'/kabinet?tab=moder', {waitUntil:'networkidle'});
   await p.click(T+'button:has-text("Опубликовать")'); await p.waitForSelector('.toast:has-text("Опубликовано")');
   await p.click('.tabs button:has-text("Сообщения")'); await p.waitForTimeout(500); await p.click(T+'.list .li'); await p.waitForSelector('#chat-input');
-  await p.fill('#chat-input','Да, в продаже!'); await p.click(T+'button:has-text("Отправить")'); await p.waitForTimeout(600);
+  await p.fill('#chat-input','Да, забирайте!'); await p.click(T+'button:has-text("Отправить")'); await p.waitForTimeout(600);
   await p.screenshot({path:S+'/08-dasha-chat.png'});
   await p.click('.tabs button:has-text("Обратная связь")'); await p.waitForSelector(T+'.fb-photos img');
   await p.fill(T+'.li textarea','Спасибо! Уже делаю'); await p.click(T+'button:has-text("Сохранить ответ")'); await p.waitForTimeout(500);
@@ -541,17 +541,17 @@ const T = '#cabinet-tabs ';
   const late = await fetch(B+'/api/collections/referrals/records',{method:'POST',headers:{'Content-Type':'application/json',Authorization:(await api('POST','/collections/users/auth-with-password',{identity:'friend@test.local',password:'secret1234'})).token},body:JSON.stringify({inviter:dasha.id, invited:fr.id})});
   check('a second invitation for the same person is refused', late.status >= 400);
   // picked for you: without a profile — a hint; with the goal «less waste» — Liza's reusable bag
-  await r3.goto(B+'/baraholka', {waitUntil:'networkidle'}); await r3.waitForTimeout(500);
+  await r3.goto(B+'/darom', {waitUntil:'networkidle'}); await r3.waitForTimeout(500);
   check('market asks to fill the profile to pick items', (await r3.textContent('.picked')).includes('Подберём вещи для вас'));
   const ft = (await api('POST','/collections/users/auth-with-password',{identity:'friend@test.local',password:'secret1234'})).token;
   await api('POST','/collections/profiles/records',{owner:fr.id, age:30, gender:'Мужской', country:'Россия', city:'Москва', goals:['Меньше мусора и пластика']},ft);
-  await r3.goto(B+'/baraholka', {waitUntil:'networkidle'});
+  await r3.goto(B+'/darom', {waitUntil:'networkidle'});
   // the profile and the listings load separately: wait for the picked card instead of a fixed pause
   await r3.waitForSelector('.picked .picked-card', {timeout:6000}).catch(()=>{});
   const picked = await r3.textContent('.picked');
   if (!picked.includes('Многоразовый шопер')) console.log('PICKED:', picked.slice(0,300));
   check('market picks items for the goals from the profile', picked.includes('Подобрано для вас') && picked.includes('Многоразовый шопер') && picked.includes('меньше мусора'));
-  await q.goto(B+'/baraholka', {waitUntil:'networkidle'}); await q.screenshot({path:S+'/11-market-mobile.png'});
+  await q.goto(B+'/darom', {waitUntil:'networkidle'}); await q.screenshot({path:S+'/11-market-mobile.png'});
   q.once('dialog', d=>d.accept());
   await q.goto(B+'/', {waitUntil:'networkidle'}); await q.click('.burger');
   await Promise.all([q.waitForNavigation(), q.click('#site-menu button:has-text("Выйти из аккаунта")')]);

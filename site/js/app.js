@@ -34,23 +34,23 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 /* ---------- static content ---------- */
 // menu in three groups; the server reads this list too (pb_hooks/seo.js) to give search engines the links
 const NAV_GROUPS = [
-  ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/baraholka','Барахолка'],['/o-proekte','О проекте и обратная связь']]],
+  ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/darom','Вещи даром'],['/o-proekte','О проекте и обратная связь']]],
   ['Учиться и играть', [['/kabinet#challenges','Эко-челленджи'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»'],['/sortirovka','Сортировка и переработка'],['/mify','Мифы о переработке']]],
   ['Жить экологично', [['/servisy','Полезные сервисы'],['/tovary','Товары'],['/eda','Еда и рецепты'],['/eda#menu','Конструктор меню'],['/eda#cafes','Кафе'],['/moda','Мода'],['/vozduh','Чистота воздуха']]]
 ];
-// the home page is a crossroads: six interests, each leads to its own pages
+// the home page is a crossroads: six interests, each leads to its own pages; 1 marks the hottest link of the card
 const INTERESTS = [
-  ['🥗','Еда','/eda','Сезонные продукты, рецепты без отходов, меню на неделю и кафе',[['Меню на неделю','/eda#menu'],['Кафе','/eda#cafes'],['ИИ по фото','/eda#helper']]],
-  ['♻️','Сортировка','/sortirovka','Что куда сдавать, как готовить вторсырьё и сколько пользы это даёт',[['Калькулятор','/sortirovka#calc'],['Куда сдать в городе','/servisy'],['Мифы','/mify']]],
-  ['👗','Мода и вещи','/moda','Капсульный гардероб, ткани, уход, вторая жизнь вещей',[['Барахолка','/baraholka'],['Эко-товары','/tovary']]],
-  ['🌤️','Мой город','/vozduh','Чистота воздуха сейчас и пункты приёма вторсырья рядом',[['Воздух','/vozduh'],['Сервисы','/servisy']]],
-  ['🎮','Учиться и играть','/eko-test','Эко-тест с сертификатом, игра и челленджи с привычками',[['Эко-тест','/eko-test'],['Игра','/igra'],['Челленджи','/kabinet#challenges']]],
-  ['🌍','Сообщество','/mir','«Счастливый мир» участников, журнал и обратная связь',[['Мир','/mir'],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
+  ['🥗','Еда','/eda','Сезонные продукты, рецепты без отходов, меню на неделю и кафе',[['Кафе','/eda#cafes',1],['Меню на неделю','/eda#menu'],['ИИ по фото','/eda#helper']]],
+  ['♻️','Сортировка','/sortirovka','Что куда сдавать, как готовить вторсырьё и сколько пользы это даёт',[['Мифы','/mify',1],['Калькулятор','/sortirovka#calc'],['Куда сдать в городе','/servisy']]],
+  ['👗','Мода и вещи','/moda','Капсульный гардероб, ткани, уход, вторая жизнь вещей',[['Вещи даром','/darom',1],['Эко-товары','/tovary']]],
+  ['🌤️','Мой город','/vozduh','Чистота воздуха сейчас и пункты приёма вторсырья рядом',[['Сервисы','/servisy',1],['Воздух','/vozduh']]],
+  ['🎮','Учиться и играть','/eko-test','Эко-тест с сертификатом, игра и челленджи с привычками',[['Челленджи','/kabinet#challenges',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
+  ['🌍','Сообщество','/mir','«Счастливый мир» участников, журнал и обратная связь',[['Мир','/mir',1],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
 ];
 // sections used to live on the home page: old links like /#food now open their own pages
 const OLD_ANCHORS = {'#food':'/eda','#menu':'/eda#menu','#cafes':'/eda#cafes','#helper':'/eda#helper','#sort':'/sortirovka','#calc':'/sortirovka#calc',
   '#fashion':'/moda','#air':'/vozduh','#game':'/igra','#world':'/mir','#journal':'/zhurnal','#feedback':'/o-proekte#feedback','#contacts':'/o-proekte#contacts',
-  '#goods':'/tovary','#market':'/baraholka','#exam':'/eko-test','#sections':'/#interests'};
+  '#goods':'/tovary','#market':'/darom','#exam':'/eko-test','#sections':'/#interests'};
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -66,7 +66,7 @@ const MATERIALS = [
   {k:'tin', name:'Жестяные банки', mark:'FE 40', unit:'шт. в неделю', per:52, w:.06, step:1, def:1, co2:1.5, kwh:1.8,
    tips:['Банки из-под консервов магнитятся: это сталь.','Ополосните от остатков еды.','Острую крышку вдавите внутрь банки.']},
   {k:'textile', name:'Одежда и текстиль', mark:'TEX 60–61', unit:'вещей в месяц', per:12, w:.4, step:1, def:1, co2:3.4, kwh:0,
-   tips:['Целые вещи лучше отдать, продать или обменять: см. «Барахолку».','Изношенный текстиль принимают контейнеры фондов и некоторые магазины одежды.','Сдавайте чистым и сухим, в пакете.']},
+   tips:['Целые вещи лучше отдать тем, кому они нужнее: см. «Вещи даром».','Изношенный текстиль принимают контейнеры фондов и некоторые магазины одежды.','Сдавайте чистым и сухим, в пакете.']},
   {k:'bat', name:'Батарейки', mark:'опасные отходы', unit:'шт. в месяц', per:12, w:.023, step:1, def:2, co2:0, kwh:0, special:true,
    tips:['Батарейки нельзя выбрасывать в общий мусор: в них тяжёлые металлы.','Боксы для батареек есть во многих супермаркетах и магазинах электроники.','Перед сдачей заклейте контакты литиевых батарей скотчем.']}
 ];
@@ -136,7 +136,7 @@ const RECYCLE_PAGES = [
    where:['Контейнеры для стекла во дворах','Экоцентры и пункты приёма вторсырья'],
    faq:[['Нужно ли снимать этикетки с банок?','Нет, бумажные этикетки сгорают при переплавке.'],
         ['Принимают ли разбитое стекло?','Чаще всего да, если это тара. Заверните осколки, чтобы сотрудники не поранились.'],
-        ['Куда деть старую посуду?','Целую — отдать или продать на барахолке. Разбитую — в обычный мусор, аккуратно завернув.']],
+        ['Куда деть старую посуду?','Целую — отдать в «Вещи даром». Разбитую — в обычный мусор, аккуратно завернув.']],
    rel:['metall','bumaga']},
   {s:'metall', kind:'mat', ic:'🥫', mat:'alu', name:'Металлические банки',
    h1:'Куда сдать алюминиевые и жестяные банки',
@@ -156,10 +156,10 @@ const RECYCLE_PAGES = [
    title:'Куда сдать старую одежду и текстиль — DashaBotanika',
    desc:'Что делать со старой одеждой: отдать, продать, обменять, сдать в благотворительность или в переработку. Что принимают и как подготовить.',
    intro:'Самая экологичная вещь — та, что ещё послужит. Поэтому сначала подумайте, кому вещь может пригодиться, и только изношенное отправляйте в переработку текстиля.',
-   yes:['Целая чистая одежда и обувь — в благотворительность или на барахолку','Изношенный текстиль — в контейнеры для текстиля и пункты переработки','Постельное бельё, полотенца, шторы'],
+   yes:['Целая чистая одежда и обувь — в благотворительность или в «Вещи даром»','Изношенный текстиль — в контейнеры для текстиля и пункты переработки','Постельное бельё, полотенца, шторы'],
    no:['Грязные и мокрые вещи','Вещи с плесенью'],
    prep:['Постирайте и высушите.','Разделите: что можно отдать, а что только переработать.','Сложите в пакет и подпишите, если пункт просит сортировку.'],
-   where:['Барахолка DashaBotanika — отдать или продать вещь','Благотворительные фонды и контейнеры для одежды','Экоцентры и пункты переработки текстиля'],
+   where:['«Вещи даром» на DashaBotanika — отдать вещь тому, кому она пригодится','Благотворительные фонды и контейнеры для одежды','Экоцентры и пункты переработки текстиля'],
    faq:[['Принимают ли рваную одежду?','Да, в переработку текстиля: из неё делают ветошь и утеплитель. В благотворительность отдавайте только целое.'],
         ['Куда деть старую обувь?','Носибельную — отдать. Изношенную принимают немногие пункты, уточняйте в своём городе.'],
         ['Можно ли сдать нижнее бельё?','В переработку — часто да, в благотворительность — нет.']],
@@ -172,7 +172,7 @@ const RECYCLE_PAGES = [
    yes:['Телефоны, планшеты, ноутбуки','Зарядки, провода, наушники, мыши и клавиатуры','Небольшая бытовая техника: чайники, фены, утюги'],
    no:['Крупная техника — её чаще вывозят при покупке новой или забирают по заявке, уточняйте'],
    prep:['Сохраните нужные данные и сделайте сброс до заводских настроек.','Выньте сим-карты и карты памяти.','Батарейки из пультов и игрушек сдайте отдельно.'],
-   where:['Магазины электроники — многие принимают небольшую технику','Экоцентры и акции по сбору техники','Работающую технику — отдать или продать на барахолке'],
+   where:['Магазины электроники — многие принимают небольшую технику','Экоцентры и акции по сбору техники','Работающую технику — отдать в «Вещи даром»'],
    faq:[['Нужно ли удалять данные с телефона?','Да, обязательно: сделайте резервную копию и сбросьте телефон до заводских настроек.'],
         ['Принимают ли сломанную технику?','Да, в переработку принимают и сломанную.'],
         ['Куда деть старый холодильник?','Крупную технику часто забирают при доставке новой или по заявке — уточните у магазина или в экоцентре.']],
@@ -502,7 +502,20 @@ function interestsSection(){
     sectionHead('С чего начнём?','Что вам интересно','Выберите тему — всё остальное всегда в меню ☰ справа вверху.'),
     h('div',{class:'int-grid'}, INTERESTS.map(([ic,t,href,d,subs])=>h('div',{class:'int card'},
       h('a',{class:'int-main',href}, h('span',{class:'int-ic','aria-hidden':'true'},ic), h('span',{class:'int-t'},t), h('span',{class:'int-d'},d)),
-      h('div',{class:'int-subs'}, subs.map(([st,sh])=>h('a',{class:'chip',href:sh},st))))))));
+      h('div',{class:'int-subs'}, subs.map(([st,sh,hot])=>h('a',{class:'chip'+(hot ? ' hot' : ''),href:sh}, hot ? h('span',{'aria-hidden':'true'},'🔥 ') : null, st))))))));
+}
+/* right under the first screen: a big question mark in a cloud of myths, and a choice — clear them up first or go straight on */
+const MYTH_BITS = ['я один ничего не изменю','всё равно всё смешают','пластик — бесконечно','бумажный пакет лучше','чек — это бумага','одна банка ничего не решает','биопакет сам исчезнет','стекло всегда лучше','треугольник = переработают'];
+function mythsTeaser(){
+  return h('section',{class:'band mt',id:'myths-teaser','aria-label':'Мифы о переработке'}, h('div',{class:'wrap mt-wrap'},
+    h('div',{class:'mt-text'},
+      h('div',{class:'eyebrow'},'Прежде чем начать'),
+      h('h2',{class:'mt-title'},'Сначала развеем мифы?'),
+      h('p',{class:'lead'},'«Я один ничего не изменю», «всё равно всё смешивают»… Из-за таких мифов многие бросают, даже не начав. 10 коротких ответов с фактами — пара минут.'),
+      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#interests'},'Сомнений нет — к делу'))),
+    h('a',{class:'mt-art',href:'/mify','aria-label':'10 мифов о переработке и экологии'},
+      h('span',{class:'mt-q','aria-hidden':'true'},'?'),
+      MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
 }
 /* a peek at the community world: who lives there, and a door to the whole map */
 function worldTeaser(){
@@ -667,13 +680,13 @@ const MAT_REUSE = {
   glass:['Банки — для круп, специй, заготовок','Подсвечник или вазочка','Ланч с собой в банке вместо одноразового контейнера'],
   alu:['Баночка — подставка для кисточек и ручек','Но лучше выбирать напитки в стекле на разлив'],
   tin:['Горшок для рассады: проделайте дырочки в дне','Подставка для столовых приборов на кухне'],
-  textile:['Старые футболки — тряпки для уборки','Сшейте шопер или мешочки для овощей','Целые вещи — в барахолку: кому-то пригодятся'],
+  textile:['Старые футболки — тряпки для уборки','Сшейте шопер или мешочки для овощей','Целые вещи — в «Вещи даром»: кому-то пригодятся'],
   bat:['Перейдите на аккумуляторы: один заменяет сотни батареек','Заряжайте и пользуйтесь годами']
 };
 const ECO_LADDER = [
   {ic:'🚫', t:'Откажитесь', d:'То, что можно просто убрать из жизни — самый простой и самый полезный шаг.', ex:['Пакеты на кассе','Одноразовые стаканы и трубочки','Бумажные чеки — берите электронные','Рекламные листовки и пробники'], link:null},
   {ic:'🔁', t:'Замените многоразовым', d:'Один раз купили — годами не производите мусор.', ex:['Шопер','Своя кружка и бутылка','Контейнеры для еды','Сетки для овощей'], link:['/tovary','Многоразовые товары']},
-  {ic:'🫙', t:'Используйте повторно', d:'Дайте вещам вторую жизнь дома или отдайте тем, кому они нужнее.', ex:['Банки — под крупы','Коробки — для хранения','Одежду — обменять или отдать','Сломанное — починить'], link:['/baraholka','В барахолку']},
+  {ic:'🫙', t:'Используйте повторно', d:'Дайте вещам вторую жизнь дома или отдайте тем, кому они нужнее.', ex:['Банки — под крупы','Коробки — для хранения','Одежду — обменять или отдать','Сломанное — починить'], link:['/darom','В «Вещи даром»']},
   {ic:'♻️', t:'Переработайте', d:'То, что осталось, сдайте во вторсырьё — как, смотрите в схеме ниже.', ex:['Бумага','Пластик','Стекло','Металл'], link:null}
 ];
 function sortGuide(){
@@ -1001,7 +1014,7 @@ const SCHEMAS = {
   cafes:[{k:'name',l:'Название'},{k:'kind',l:'Тип (кофейня, веган-кафе…)'},{k:'city',l:'Город'},{k:'address',l:'Адрес'},{k:'map',l:'Ссылка на Яндекс Карты'},{k:'cuisine',l:'Кухня'},
     {k:'note',l:'Почему я его люблю',area:true},{k:'pros',l:'Плюсы (каждый с новой строки)',area:true},{k:'cons',l:'Минусы (каждый с новой строки)',area:true},{k:'dishes',l:'Что советую попробовать (до 3 блюд, каждое с новой строки)',area:true}],
   articles:[{k:'title',l:'Заголовок'},{k:'cat',l:'Рубрика',options:['Статья','Новость']},{k:'lead',l:'Короткое описание',area:true},{k:'body',l:'Текст',area:true}],
-  market:[{k:'title',l:'Что за вещь'},{k:'kind',l:'Формат',options:['Продам','Обмен','Отдам даром']},{k:'price',l:'Цена (если продаю)'},{k:'condition',l:'Состояние'},{k:'note',l:'Описание',area:true}]
+  market:[{k:'title',l:'Что за вещь'},{k:'condition',l:'Состояние'},{k:'note',l:'Описание',area:true}]
 };
 function addForm(coll, title){
   const fields = SCHEMAS[coll];
@@ -1377,10 +1390,10 @@ function goal(name){ try{ if (window.ym && window.METRIKA_ID) ym(window.METRIKA_
 const ART_CTA = {
   'Научиться сортировать отходы':['♻️','Не знаете, куда сдать?','Справочник для 11 видов отходов: что принимают, как подготовить и где сдать в вашем городе.','Открыть справочник','/sortirovka#kuda-sdat'],
   'Меньше мусора и пластика':['🔎','Что значит цифра в треугольнике?','Маркировка пластика 1–7: какой пластик сдаётся, а какой лучше не покупать.','Маркировка пластика','/markirovka'],
-  'Покупать осознанно: меньше и лучше':['📦','Вещи, которые ещё послужат','Барахолка участников: отдайте, обменяйте или найдите нужное рядом с домом.','В барахолку','/baraholka'],
+  'Покупать осознанно: меньше и лучше':['📦','Вещи, которые ещё послужат','«Вещи даром»: отдайте ненужное или заберите нужное рядом с домом — бесплатно.','В «Вещи даром»','/darom'],
   'Питаться экологичнее':['🥗','Меню на неделю за минуту','Сезонные продукты и список покупок. Любое блюдо можно заменить.','Собрать меню','/eda#menu'],
   'Экономить воду и энергию':['🏁','Закрепите привычку за 7 дней','Эко-челлендж: выберите 3–5 привычек и отмечайте каждый день — ваш персонаж будет расти.','Начать челлендж','/kabinet?tab=challenges'],
-  'Экологичный гардероб':['👗','Гардероб без лишнего','Шпаргалка по тканям, капсульный гардероб и барахолка участников.','Раздел «Мода»','/moda'],
+  'Экологичный гардероб':['👗','Гардероб без лишнего','Шпаргалка по тканям, капсульный гардероб и «Вещи даром» от участников.','Раздел «Мода»','/moda'],
   'Здоровье и чистый воздух':['🌤️','Чем дышит ваш город?','Индекс качества воздуха прямо сейчас и прогноз на сутки.','Проверить воздух','/vozduh'],
   'Научить детей заботиться о планете':['🎮','Игра «Эко-уборка»','Сортировка мусора на скорость — понятно и весело даже детям.','Играть','/igra'],
   '':['🎓','Проверьте себя за 3 минуты','Эко-тест: 10 вопросов о переработке, еде и быте и именной сертификат.','Пройти тест','/eko-test']
@@ -1517,7 +1530,7 @@ function articleEditor(it){
 const ART_WORDS = {
   'Меньше мусора и пластика':['пластик','многоразов','упаковк','отход','мусор','плёнк','пленк','шопер','бутыл','одноразов'],
   'Научиться сортировать отходы':['сортир','переработ','вторсыр','батаре','макулатур','маркировк','пункт','раздельн','сдать','сдават'],
-  'Покупать осознанно: меньше и лучше':['осознанн','покупк','потреблен','барахолк','вторая жизнь','ремонт','капсул','меньше вещ'],
+  'Покупать осознанно: меньше и лучше':['осознанн','покупк','потреблен','барахолк','даром','вторая жизнь','ремонт','капсул','меньше вещ'],
   'Питаться экологичнее':['еда','еду','рецепт','сезонн','овощ','кухн','меню','продукт','растительн','завтрак','ужин'],
   'Экономить воду и энергию':['вод','энерг','электр','свет','отоплен','ламп','счёт','счет','экономи'],
   'Экологичный гардероб':['одежд','гардероб','капсул','ткан','мода','моды','стирк','вещи','вещей'],
@@ -1674,12 +1687,12 @@ function privacyPage(){
     sec('2. Какие данные мы собираем',
       ul(['При регистрации: адрес электронной почты, пароль (хранится только в зашифрованном виде — его не видит даже администратор), имя на сайте и выбранный персонаж.',
         'По вашему желанию в профиле: возраст, пол, страна и город, эко-цели.',
-        'То, что вы сами публикуете или отправляете: комментарии, объявления на барахолке и их фото, личные сообщения, обратная связь и предложения статей.',
+        'То, что вы сами публикуете или отправляете: комментарии, объявления в «Вещах даром» и их фото, личные сообщения, обратная связь и предложения статей.',
         'Ваши результаты на сайте: эко-челленджи и отметки, результаты теста и игры, очки роста и уровни.',
         'Фото для ИИ-помощника (тарелка или упаковка): фото уменьшается в браузере и один раз отправляется на анализ в сервис Yandex Cloud (серверы в России). Мы его не сохраняем — запоминаем только, сколько разборов вы сделали сегодня.',
         'Технические данные: IP-адрес, время посещения, тип браузера и устройства. Они нужны для работы и защиты сайта.'])),
     sec('3. Зачем',
-      ul(['Чтобы вы могли зарегистрироваться, входить в кабинет и пользоваться им: челленджи, рост персонажа, сертификаты, барахолка, переписка.',
+      ul(['Чтобы вы могли зарегистрироваться, входить в кабинет и пользоваться им: челленджи, рост персонажа, сертификаты, «Вещи даром», переписка.',
         'Чтобы отправлять служебные письма: подтверждение почты и восстановление пароля.',
         'Чтобы присылать письма, которые вы сами выбрали в кабинете (личные сообщения, новые статьи, письмо недели). Выбор — это ваше отдельное согласие: время отметки сохраняется, а отписаться можно в любой момент — ссылкой «Отписаться» в каждом письме или в кабинете. Рекламных рассылок нет.',
         'Чтобы проверять объявления и защищать сайт от спама и злоупотреблений.',
@@ -1703,6 +1716,9 @@ function privacyPage(){
 
 /* ---------- myths about recycling and ecology: /mify ----------
    Для Даши — откуда факты (проверено 26.10.2026):
+   0. «Я один ничего не изменю, загрязняют заводы»: потребление домохозяйств — больше 60% мировых выбросов парниковых газов
+      (Ivanova et al., 2016, Journal of Industrial Ecology 20: 526–536, doi:10.1111/jiec.12371) — https://research.ou.nl/en/publications/environmental-impact-assessment-of-household-consumption/ ,
+      пересказ NTNU — https://norwegianscitechnews.com/2016/02/household-consumption-significant-driver-of-climate-other-environmental-impacts/
    1. Раздельный сбор «всё смешивают»: РЭО (Денис Буцаев) — https://360.ru/news/ekologiya/butsaev-razvenchal-mif-o-smeshivanii-othodov-iz-raznyh-bakov-v-musorovozah/ ;
       «до 8% из смешанных отходов, рассортированный поток в 5 раз продуктивнее» — https://news.rambler.ru/ecology/43832031-shest-mifov-o-razdelnom-sbore-musora/
    2. Треугольник = код материала, а не «перерабатывается»; стрелки заменили треугольником в 2013 — ASTM D7611: https://blog.ansi.org/ansi/resin-identification-codes-rics-astm-d7611/ ,
@@ -1722,6 +1738,9 @@ function privacyPage(){
       https://international-aluminium.org/landing/aluminium-recycling-saves-95-of-the-energy-needed-for-primary-aluminium-production/
    [миф, как на самом деле, что делать, ссылка на страницу сайта или null] */
 const MYTHS = [
+  ['Я один ничего не изменю: природу загрязняют заводы и большие компании',
+   'Заводы и компании работают не сами по себе: они выпускают то, что покупают люди. По исследованию 2016 года в журнале Journal of Industrial Ecology, на потребление домохозяйств — еду, жильё, транспорт и вещи — приходится больше 60% мировых выбросов парниковых газов. Привычки миллионов людей складываются в спрос, а спрос меняет то, что производят компании.',
+   'Начните с того, что даёт больше всего: меньше выбрасывать еды, реже покупать новое, беречь тепло и электричество, чаще ходить пешком и ездить на общественном транспорте. И рассказывайте друзьям — так привычки и распространяются.', ['/kabinet#challenges','Начать эко-челлендж']],
   ['Раздельно собирать бессмысленно: всё равно всё увезут в одной машине и смешают',
    'Так бывает не везде, и даже тогда разделённое вторсырьё ценнее. Из смешанного мусора удаётся выбрать лишь малую часть полезного — специалисты называют до 8%, а поток, который рассортировали жители, в разы продуктивнее. В Российском экологическом операторе «всё смешивают» прямо называют мифом.',
    'Спросите у регионального оператора или управляющей компании, кто и как вывозит контейнеры для вторсырья у вашего дома. Сомневаетесь — несите в пункты приёма и экоцентры: оттуда всё точно уходит в переработку.', ['/servisy','Куда сдать в вашем городе']],
@@ -1754,7 +1773,7 @@ function mythsSection(){
   return h('section',{class:'band',id:'myths'}, h('div',{class:'wrap'},
     sectionHead('Разрушаем мифы','Мифы о переработке и экологии','Что из того, что «все знают», правда, а что нет. Коротко, с фактами и тем, что с этим делать.'),
     h('div',{class:'grid g2 myths'}, MYTHS.map(([m, t, d, link],i)=>h('article',{class:'card myth'},
-      h('span',{class:'tag myth-tag'},'Миф '+(i+1)),
+      h('div',{class:'myth-top'}, h('span',{class:'tag myth-tag'},'Миф '+(i+1)), h('span',{class:'myth-fake','aria-label':'Это миф'},'FAKE')),
       h('h3',{class:'myth-m'},'«'+m+'»'),
       h('p',null, h('b',null,'На самом деле. '), t),
       h('p',{class:'myth-do'}, h('b',null,'Что делать. '), d),
@@ -1767,7 +1786,7 @@ const PAGES = {
   '/': {title:'DashaBotanika — эко: еда, быт, мода, образ жизни', render:()=>homePage()},
   '/kabinet': {title:'Личный кабинет — DashaBotanika', render:()=>cabinetPage()},
   '/tovary': {title:'Товары, которые делают мир чище — DashaBotanika', render:()=>{ SEC_H1 = true; return [goodsSection(false)]; }},
-  '/baraholka': {title:'Барахолка: отдать, обменять, продать — DashaBotanika', render:()=>{ SEC_H1 = true; return [marketSection()]; }},
+  '/darom': {title:'Вещи даром: отдать ненужное тем, кому пригодится — DashaBotanika', render:()=>{ SEC_H1 = true; return [marketSection()]; }},
   '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
   '/politika': {title:'Политика конфиденциальности — DashaBotanika', render:()=>[privacyPage()]},
   '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection()]; }},
@@ -1799,6 +1818,7 @@ function backBar(){
 function go(url){
   let u = new URL(url, location.origin);
   if ((u.pathname==='/' || u.pathname==='') && OLD_ANCHORS[u.hash]) u = new URL(OLD_ANCHORS[u.hash], location.origin);
+  if (OLD_PATHS[u.pathname.replace(/\/+$/,'')]) u = new URL(OLD_PATHS[u.pathname.replace(/\/+$/,'')]+u.search+u.hash, location.origin);
   const changed = (u.pathname.replace(/\/+$/,'') || '/') !== currentPath() || u.search !== location.search;
   closeModal();
   history.pushState(null,'',u.pathname+u.search+u.hash); INNER_STEPS++;
@@ -1814,14 +1834,20 @@ document.addEventListener('click', e=>{
   if (!href.startsWith('/') || href.startsWith('//') || /^\/(api|_|img|css|js)\//.test(href)) return;
   e.preventDefault(); go(href);
 });
-function fixOldAnchor(){ if (location.pathname==='/' && OLD_ANCHORS[location.hash]) history.replaceState(null,'',OLD_ANCHORS[location.hash]); }
+// renamed pages: the old address opens the new one (the server answers 301 too, see pb_hooks/seo.pb.js)
+const OLD_PATHS = {'/baraholka':'/darom'};
+function fixOldAnchor(){
+  const p = location.pathname.replace(/\/+$/,'');
+  if (OLD_PATHS[p]) history.replaceState(null,'',OLD_PATHS[p]+location.search+location.hash);
+  else if (location.pathname==='/' && OLD_ANCHORS[location.hash]) history.replaceState(null,'',OLD_ANCHORS[location.hash]);
+}
 fixOldAnchor();
 window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max(0, INNER_STEPS-1); closeModal(); render(); scrollToHash(location.hash); });
 
 function homePage(){
   // people first (who we are, the community, how to start), then games and tests, then everyday eco
   // a crossroads, not a long one-pager: every section has its own page, here are the doors to them
-  return [hero(), interestsSection(), firstSteps(), worldTeaser(), journalSection(true), aboutSection(), feedbackTeaser()];
+  return [hero(), mythsTeaser(), interestsSection(), firstSteps(), worldTeaser(), journalSection(true), aboutSection(), feedbackTeaser()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
@@ -1848,12 +1874,12 @@ function marketTeaser(){
   const extra = h('p',{class:'muted'});
   live(()=>{ const n = publicListings().length; extra.textContent = n ? 'И ещё '+n+' '+plural(n,'вещь','вещи','вещей')+' от участников.' : 'Выставить свою вещь может любой участник — Даша проверит объявление.'; });
   return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
-    sectionHead('Вторая жизнь вещей','Барахолка','Отдавайте, меняйте и продавайте то, что ещё послужит другим.'),
+    sectionHead('Вторая жизнь вещей','Вещи даром','Отдавайте бесплатно то, что ещё послужит другим.'),
     items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
-      h('span',{class:'tag',style:kindStyle(it.kind)},it.kind||'Продам'),
+      h('span',{class:'tag',style:kindStyle()},'Даром'),
       h('h3',{style:'font-size:20px'},it.title),
       h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it))))) : null,
-    h('div',{class:'more-row'}, extra, h('a',{class:'btn',href:'/baraholka'},'Перейти в барахолку'))
+    h('div',{class:'more-row'}, extra, h('a',{class:'btn',href:'/darom'},'Все вещи даром'))
   ));
 }
 
@@ -2066,13 +2092,14 @@ function feedbackSection(){
 }
 
 /* ---------- flea market: participants' listings, moderation, deal chats ---------- */
-const MK_KINDS = ['Продам','Обмен','Отдам даром'];
+// only giving away: no selling or swapping between members (decided 26.10.2026), the site sells only in «Эко-товары»
+const MK_KIND = 'Отдам даром';
 const mkState = l => l.moderation==='approved' ? 'approved' : l.moderation==='rejected' ? 'rejected' : 'pending';
 function publicListings(){ return COM.listings.filter(l=>l.status!=='gone' && mkState(l)==='approved').sort((a,b)=>b.ts-a.ts); }
 function pendingListings(){ return COM.listings.filter(l=>l.status!=='gone' && mkState(l)==='pending').sort((a,b)=>a.ts-b.ts); }
-const priceLabel = it => it.kind==='Продам' && it.price ? it.price : it.kind==='Отдам даром' ? 'Бесплатно' : 'Обмен';
-const kindStyle = k => k==='Отдам даром' ? 'background:var(--leaf);color:var(--on-moss)' : k==='Обмен' ? 'background:var(--sun);color:#2A1C05' : null;
-function dealLabel(kind){ return kind==='Отдам даром' ? 'Хочу забрать' : kind==='Обмен' ? 'Предложить обмен' : 'Хочу купить'; }
+const priceLabel = () => 'Бесплатно';
+const kindStyle = () => 'background:var(--leaf);color:var(--on-moss)';
+function dealLabel(){ return 'Хочу забрать'; }
 function dealBtn(ref, title, seller, kind){
   return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openDeal(ref, title, seller)}, dealLabel(kind));
 }
@@ -2087,14 +2114,14 @@ function userListingCard(it){
   if (img) img.addEventListener('error',()=>img.remove());
   return h('article',{class:'card'},
     img,
-    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle(it.kind)},it.kind||'Продам'), it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
+    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
     h('h3',{style:'font-size:20px'},it.title),
     h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
     it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
     it.city ? h('p',{class:'muted',style:'font-size:14px'},'Где забрать: ',it.city) : null,
     it.note ? h('p',{style:'font-size:15px;flex:1;white-space:pre-line'},it.note) : null,
     h('p',{class:'hint'},'Разместил(а): ', nameSpan(it.seller)),
-    mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Сообщения покупателей — в кабинете.') : dealBtn({listing:it.id}, it.title, it.seller, it.kind),
+    mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Сообщения от желающих забрать — в кабинете.') : dealBtn({listing:it.id}, it.title, it.seller, it.kind),
     commentsBlock('mk:'+it.id)
   );
 }
@@ -2159,7 +2186,7 @@ function threadView(tid, back){
   const actions = myIt ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
     myIt.status!=='reserved' && myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'reserved').then(()=>toast('Вещь отмечена как забронированная'))},'Забронировать') : null,
     myIt.status==='reserved' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'active').then(()=>toast('Бронь снята'))},'Снять бронь') : null,
-    myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'gone').then(()=>toast('Готово! Вещь убрана из барахолки'))},'Отдано / продано') : h('span',{class:'status'},'Сделка завершена')) : null;
+    myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'gone').then(()=>toast('Готово! Вещь убрана из «Вещей даром»'))},'Отдано / продано') : h('span',{class:'status'},'Сделка завершена')) : null;
   paintMsgs();
   const iAmSeller = t.seller === COM.uid || (!t.seller && t.buyer !== COM.uid);
   return [
@@ -2230,16 +2257,16 @@ function marketSection(){
   const addBtn = h('div');
   live(()=>{ const st = accState(); addBtn.replaceChildren(st==='member' ? h('button',{type:'button',class:'btn',onclick:()=>openAccount('things')},'Выставить свою вещь') : joinHint('выставить свою вещь')); });
   return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
-    sectionHead('Вторая жизнь вещей','Барахолка','Отдавайте, меняйте и продавайте то, что ещё послужит другим. Каждое объявление участников проверяет Даша.'),
+    sectionHead('Вторая жизнь вещей','Вещи даром','Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно. Каждое объявление участников проверяет Даша.'),
     h('div',{class:'grid g3',style:'margin-bottom:28px'},
-      [['1','Выставьте вещь','В личном кабинете: фото, описание и цена. Объявление появится после проверки.'],
-       ['2','Договоритесь','Нажмите «Хочу купить» или «Хочу забрать» и обсудите детали в личных сообщениях.'],
-       ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Оплата напрямую, сайт деньги не принимает.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
+      [['1','Выставьте вещь','В личном кабинете: фото и описание. Объявление появится после проверки.'],
+       ['2','Договоритесь','Нажмите «Хочу забрать» и обсудите детали в личных сообщениях.'],
+       ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Всё бесплатно: вещи здесь не продают.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
     pickedBlock(),
     h('h3',{style:'margin-bottom:14px'},'От Даши'),
     items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
       delBtn('market',it.id), exMark(it),
-      h('span',{class:'tag',style:kindStyle(it.kind)},it.kind||'Продам'),
+      h('span',{class:'tag',style:kindStyle()},'Даром'),
       h('h3',{style:'font-size:20px'},it.title),
       h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
       it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
@@ -2256,8 +2283,6 @@ function marketSection(){
 /* cabinet panels for the market */
 function thingsPanel(lists){
   const title = h('input',{id:'mk-title',maxlength:'100',placeholder:'Например, детский велосипед'});
-  const kind = h('select',{id:'mk-kind'}, MK_KINDS.map(o=>h('option',null,o)));
-  const price = h('input',{id:'mk-price',maxlength:'30',placeholder:'1500 ₽'});
   const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Как новое'});
   const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город, район или метро'});
   const note = h('textarea',{id:'mk-note',maxlength:'1500'});
@@ -2273,7 +2298,6 @@ function thingsPanel(lists){
   const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
     h('div',{class:'fields'},
       h('label',{for:'mk-title',style:'grid-column:1/-1'},'Что за вещь',title),
-      h('label',{for:'mk-kind'},'Формат',kind), h('label',{for:'mk-price'},'Цена (если продаёте)',price),
       h('label',{for:'mk-cond'},'Состояние',cond), h('label',{for:'mk-city'},'Где забрать',city)),
     h('label',{for:'mk-note'},'Описание: размер, бренд, особенности',note),
     h('label',{for:'mk-photo'},'Фото (необязательно)',file), photoBox,
@@ -2286,7 +2310,7 @@ function thingsPanel(lists){
     btn.disabled = true; btn.textContent = 'Отправляю…';
     try{
       const fd = new FormData();
-      Object.entries({seller:COM.uid, title:t, kind:kind.value, price:kind.value==='Продам' ? price.value.trim() : '', condition:cond.value.trim(), city:city.value.trim(), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
+      Object.entries({seller:COM.uid, title:t, kind:MK_KIND, price:'', condition:cond.value.trim(), city:city.value.trim(), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
       if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
       await pb.collection('listings').create(fd);
       f.reset(); framed = null; showFramed(); toast('Отправлено! Объявление появится после проверки');
@@ -2294,7 +2318,7 @@ function thingsPanel(lists){
     btn.disabled = false; btn.textContent = 'Отправить на проверку';
   });
   lists.things = h('div',{class:'list'});
-  return [h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в барахолке, а покупатели смогут написать вам.'), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
+  return [h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в «Вещах даром», и те, кому вещь нужна, смогут написать вам.'), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
 }
 function paintThings(el){
   const items = myItems().slice().sort((a,b)=>b.ts-a.ts);
@@ -2316,7 +2340,7 @@ function paintChats(el, openThread){
   el.replaceChildren(...(ts.length ? ts.map(([tid,t])=>h('button',{type:'button',class:'li',style:'text-align:left;cursor:pointer;font:inherit;color:inherit',onclick:()=>openThread(tid)},
       h('div',{class:'meta'}, isUnread(t) ? h('span',{class:'status accepted'},'Новое') : null, h('span',null, isDM(t) ? 'Личные сообщения' : t.buyer===COM.uid ? 'Вы покупаете' : 'Вас спрашивают'), h('span',null,dt(t.last_at))),
       h('b',null,t.title), h('span',{class:'hint'},'Собеседник: ',partnerName(t)))
-  ) : [h('p',{class:'hint'},'Сообщений пока нет. Нажмите «Хочу купить» или «Хочу забрать» на любой вещи в барахолке.')]));
+  ) : [h('p',{class:'hint'},'Сообщений пока нет. Нажмите «Хочу забрать» на любой вещи в «Вещах даром».')]));
 }
 function paintModeration(el){
   const pend = pendingListings();
@@ -2431,7 +2455,7 @@ const GROW_WAYS = {
   challenge_done:['🏁','/kabinet#challenges','Создать челлендж'], leaf:['🍃','/kabinet#challenges','Отметить привычки'],
   exam_passed:['🎓','/eko-test','Пройти тест'], game:['🎮','/igra','Играть'], article_read:['📖','/zhurnal','Читать журнал'],
   like:['♥','/zhurnal','К статьям'], comment:['💬','/zhurnal','Обсудить'], feedback:['💡','/o-proekte#feedback','Написать Даше'],
-  listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/baraholka','В барахолку'], signup:['✅',null,null],
+  listing_approved:['📦','/kabinet?tab=things','Выставить вещь'], deal_done:['🤝','/darom','В «Вещи даром»'], signup:['✅',null,null],
   profile_complete:['📝','/kabinet?tab=profile#cabinet-tabs','Заполнить'], invited:['🎁',null,null], invite_friend:['💌','/kabinet?tab=path#invite','Пригласить']
 };
 function growWays(){
@@ -2475,7 +2499,7 @@ function xpBreakdown(){
     game:()=>'Рекорд в игре '+(STATS.gameBest||0)+' ('+Math.floor((STATS.gameBest||0)/10)+' × 10 очков)', article_read:n=>n+' '+plural(n,'статья прочитана','статьи прочитаны','статей прочитано'),
     like:n=>n+' '+plural(n,'лайк','лайка','лайков'), comment:n=>n+' '+plural(n,'комментарий','комментария','комментариев'), feedback:n=>n+' '+plural(n,'сообщение','сообщения','сообщений')+' Даше',
     profile_complete:()=>'Профиль заполнен', invited:()=>'Пришли по приглашению', invite_friend:n=>n+' '+plural(n,'друг пришёл','друга пришли','друзей пришли')+' по вашей ссылке',
-    listing_approved:n=>n+' '+plural(n,'вещь опубликована','вещи опубликованы','вещей опубликовано'), deal_done:n=>n+' '+plural(n,'сделка','сделки','сделок')+' на барахолке'};
+    listing_approved:n=>n+' '+plural(n,'вещь опубликована','вещи опубликованы','вещей опубликовано'), deal_done:n=>n+' '+plural(n,'вещь отдана','вещи отданы','вещей отдано')+' через «Вещи даром»'};
   const rows = COM.growthRules.map(r=>({r, n:done[r.key]||0})).filter(x=>x.n > 0 && x.r.points > 0);
   if (!rows.length) return null;
   return h('details',{class:'grow-how'},
@@ -2764,8 +2788,8 @@ function servicesSection(opts){
     head,
     h('div',{class:'svc-bar'}, cityBox, catBox), list,
     cityOf ? h('div',{class:'card city-tips'}, h('h2',{style:'font-size:22px'},'Как подготовить вторсырьё'),
-      h('ul',null, ['Пластик и стекло — ополосните и снимите крышки; бутылки сплющите.','Бумагу и картон — сухими, без скотча и жирных пятен; коробки сложите.','Металлические банки — ополосните, можно смять.','Батарейки и лампы — только в специальные боксы, не в общий контейнер.','Одежду и вещи в хорошем состоянии лучше отдать: барахолка, благотворительные пункты.'].map(t=>h('li',null,t))),
-      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/sortirovka'},'Схема сортировки'), h('a',{class:'btn ghost small',href:'/baraholka'},'Барахолка'), h('a',{class:'btn ghost small',href:'/servisy'},'Все города'))) : null,
+      h('ul',null, ['Пластик и стекло — ополосните и снимите крышки; бутылки сплющите.','Бумагу и картон — сухими, без скотча и жирных пятен; коробки сложите.','Металлические банки — ополосните, можно смять.','Батарейки и лампы — только в специальные боксы, не в общий контейнер.','Одежду и вещи в хорошем состоянии лучше отдать: «Вещи даром», благотворительные пункты.'].map(t=>h('li',null,t))),
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/sortirovka'},'Схема сортировки'), h('a',{class:'btn ghost small',href:'/darom'},'Вещи даром'), h('a',{class:'btn ghost small',href:'/servisy'},'Все города'))) : null,
     h('p',{class:'hint',style:'margin-top:12px'},'Условия и адреса меняются — перед поездкой уточняйте на сайте сервиса.'),
     form, mineBox));
 }
@@ -3212,7 +3236,7 @@ function authForms(mode){
         toast(d.email ? 'Эта почта уже зарегистрирована или указана неверно' : d.password ? 'Пароль слишком простой или короткий' : 'Не получилось зарегистрироваться, проверьте поля');
       }
     });
-    return [invite, h('p',null,'В личном кабинете хранятся ваши эко-привычки, уровень и сертификаты, результаты экзамена и игры. Ещё можно оставлять отзывы, комментировать, выставлять вещи на барахолку и предлагать статьи.'), f];
+    return [invite, h('p',null,'В личном кабинете хранятся ваши эко-привычки, уровень и сертификаты, результаты экзамена и игры. Ещё можно оставлять отзывы, комментировать, отдавать вещи даром и предлагать статьи.'), f];
   }
   show(mode==='register' ? 'register' : 'login');
   return wrap;
@@ -3239,7 +3263,7 @@ function cabinetPage(){
   if (st==='signedout') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap cab-auth'},
     h('div',{class:'eyebrow'},'Личный кабинет'),
     h('h1',{class:'cab-name'}, tab==='register' || (!tab && refOf()) ? 'Регистрация' : 'Вход'),
-    h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи на барахолке и переписка. А ещё вы появитесь в «Счастливом мире».'),
+    h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи, которые вы отдаёте, и переписка. А ещё вы появитесь в «Счастливом мире».'),
     authForms(tab || (refOf() ? 'register' : '')),
     h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
   // like the home page: who you are and what matters now first, then the tabs with everything else
@@ -3256,7 +3280,7 @@ function cabinetNow(){
     box.replaceChildren(
       card('🏁','Челленджи', act.length ? 'Сегодня отмечено '+todayMarks+' из '+todayAll : 'Начните первый — 7–30 дней', '/kabinet?tab=challenges#cabinet-tabs', act.length && todayMarks < todayAll),
       card('💬','Сообщения', unread ? 'Новых: '+unread : 'Новых нет', '/kabinet?tab=chats#cabinet-tabs', unread > 0),
-      card('📦','Барахолка', things ? 'Мои вещи: '+things : 'Отдать или продать вещь', '/kabinet?tab=things#cabinet-tabs'),
+      card('🧺','Вещи даром', things ? 'Мои вещи: '+things : 'Отдать ненужную вещь', '/kabinet?tab=things#cabinet-tabs'),
       card('🎁','Пригласить друга', '+'+rulePoints('invite_friend',40)+' вам, +'+rulePoints('invited',50)+' другу', '/kabinet?tab=path#invite'));
   });
   return box;
@@ -3294,7 +3318,7 @@ function cabinetTabs(tab, tid){
   function build(){
     const me = COM.me;
     // my things — for every member; site management — a separate row, only for Dasha and moderators
-    const mineTabs = [['path','🌱 Мой эко путь'],['challenges','🏁 Челленджи'],['chats','💬 Сообщения'],['things','📦 Барахолка'],['mine','✍️ Публикации'],['profile','⚙️ Профиль и настройки']];
+    const mineTabs = [['path','🌱 Мой эко путь'],['challenges','🏁 Челленджи'],['chats','💬 Сообщения'],['things','🧺 Вещи даром'],['mine','✍️ Публикации'],['profile','⚙️ Профиль и настройки']];
     const adminTabs = (COM.admin ? [['articles','📝 Статьи'],['moder','✅ Проверка'],['fb','💡 Обратная связь']] : []).concat(COM.owner ? [['people','👥 Участники'],['levels','🏅 Уровни и рост']] : []);
     if (!mineTabs.concat(adminTabs).some(([k])=>k===cur)) cur = 'path';
     tabBtns = {};
@@ -3307,7 +3331,7 @@ function cabinetTabs(tab, tid){
     if (cur==='challenges') out.push(challengesSection());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); lists.svc = h('div',{class:'list'});
-      out.push(h('h3',{style:'font-size:20px'},'Объявления барахолки'), h('p',{class:'muted'},'Объявления участников появляются в барахолке только после вашего одобрения.'), lists.moder,
+      out.push(h('h3',{style:'font-size:20px'},'Объявления «Вещи даром»'), h('p',{class:'muted'},'Объявления участников появляются в «Вещах даром» только после вашего одобрения.'), lists.moder,
         h('h3',{style:'font-size:20px'},'Предложенные сервисы'), h('p',{class:'muted'},'Компании и проекты, которые участники предложили для раздела «Полезные сервисы».'), lists.svc,
         h('h3',{style:'font-size:20px'},'Жалобы на комментарии'), h('p',{class:'muted'},'Участники отметили эти комментарии. Удалите или оставьте — автор жалобы не узнаёт, кто решал.'), lists.rep = h('div',{class:'list'})); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(backupCard(), h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }
@@ -3506,7 +3530,7 @@ function profilePanel(){
         h('div',{class:'pf-head'}, h('h3',null,'Мой профиль'), h('button',{type:'button',class:'btn ghost small pf-edit',onclick:()=>{ editing = true; paint(); }},'Изменить')),
         h('div',{class:'pf-sum'}, h('span',null, p.age+' '+plural(p.age,'год','года','лет')), p.gender && p.gender!=='Не хочу указывать' ? h('span',null,p.gender) : null, h('span',null,'📍 '+[p.city,p.country].filter(Boolean).join(', '))),
         h('div',{class:'chips'}, (p.goals||[]).map(g=>h('span',{class:'chip on'},g))),
-        h('p',{class:'hint'},'По этим целям сайт подбирает статьи и вещи с барахолки. Профиль видите только вы и Даша.'));
+        h('p',{class:'hint'},'По этим целям сайт подбирает статьи и вещи из «Вещей даром». Профиль видите только вы и Даша.'));
       return;
     }
     const age = h('input',{id:'pf-age',type:'number',min:'6',max:'110',inputmode:'numeric',value:p.age||''});
@@ -3655,7 +3679,7 @@ function ecoBadges(){
     ['🎮','Чистый парк','Набрать 50 очков в «Эко-уборке»', (STATS.gameBest||0) >= 50, Math.min(STATS.gameBest||0,50)+' / 50'],
     ['📖','Читатель','Прочитать 5 статей журнала', reads >= 5, Math.min(reads,5)+' / 5'],
     ['💬','Голос сообщества','Оставить 5 комментариев', comments >= 5, Math.min(comments,5)+' / 5'],
-    ['📦','Вторая жизнь','Выставить вещь на барахолку', COM.listings.some(l=>l.seller===COM.uid && l.moderation==='approved')],
+    ['📦','Вторая жизнь','Отдать вещь даром', COM.listings.some(l=>l.seller===COM.uid && l.moderation==='approved')],
     ['💌','Друг природы','Пригласить друга', COM.refs.some(r=>r.inviter===COM.uid)],
     ['🌳', levelName(3),'Дорасти до третьего уровня', (me.level||1) >= 3]
   ];
