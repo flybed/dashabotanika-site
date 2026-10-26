@@ -92,7 +92,10 @@ function onMessage(app, msg) {
     let sub
     try { sub = app.findFirstRecordByFilter("tg_subs", "user = {:u}", { u: userId }) } catch (e) {
       sub = new Record(app.findCollectionByNameOrId("tg_subs")); sub.set("user", userId); sub.set("hour", 20); sub.set("tz", 180)
-      sub.set("topics", ["challenge", "messages", "weekly"])
+      // админам и модераторам — ещё и о новых участниках
+      let role = ""
+      try { role = app.findRecordById("users", userId).getString("role") } catch (e) {}
+      sub.set("topics", ["challenge", "messages", "weekly"].concat(role === "admin" || role === "moderator" ? ["signups"] : []))
     }
     sub.set("chat_id", chatId); sub.set("enabled", true)
     app.save(sub)
@@ -205,4 +208,4 @@ function flushArticles(app) {
 // для кабинета: есть ли токен и отвечает ли Telegram (getMe), чтобы честно показать, почему бот не подключается
 function status() { return { token: !!token(), ok: token() ? !!username() : false, error: errorText() } }
 
-module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles, openToday, status }
+module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles, openToday, status, subsWith }

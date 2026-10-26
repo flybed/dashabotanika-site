@@ -3583,7 +3583,8 @@ const NOTIFY_ROWS = [
   ['nudge','🏁 Начать новый челлендж','по воскресеньям, если сейчас челленджа нет',{tg:true, mail:true}],
   ['messages','💬 Личные сообщения','когда вам пишут; на почту — не чаще раза в 3 часа',{tg:true, mail:true}],
   ['articles','📖 Новые статьи','когда Даша публикует статью',{tg:true, mail:true}],
-  ['weekly','📬 Письмо недели','по воскресеньям: новые статьи, жизнь «Счастливого мира» и ваш прогресс',{tg:true, mail:true}]
+  ['weekly','📬 Письмо недели','по воскресеньям: новые статьи, жизнь «Счастливого мира» и ваш прогресс',{tg:true, mail:true}],
+  ['signups','👤 Новый участник','когда кто-то регистрируется на сайте (видят только админы и модераторы)',{tg:true, mail:true, admin:true}]
 ];
 function notifyCard(){
   const box = h('div',{class:'card tg-card',id:'tg'}, h('p',{class:'muted'},'Загружаем…'));
@@ -3618,7 +3619,7 @@ function notifyCard(){
   function paint(sub, nrec){
     if (nrec !== undefined) NREC = nrec;
     const mail = new Set((NREC && NREC.email_topics)||[]), tgw = new Set((sub && sub.enabled && sub.topics)||[]);
-    const rows = NOTIFY_ROWS.map(([k,t,d,ch])=>{
+    const rows = NOTIFY_ROWS.filter(r=>!r[3].admin || COM.admin).map(([k,t,d,ch])=>{
       const m = ch.mail ? h('input',{type:'checkbox','data-k':k,'data-c':'mail',checked:mail.has(k)?'':null,'aria-label':t+' — на почту'}) : h('span',{class:'hint',title:'Только в Telegram'},'—');
       const g = h('input',{type:'checkbox','data-k':k,'data-c':'tg',checked:tgw.has(k)?'':null,disabled:sub?null:'','aria-label':t+' — в Telegram'});
       return h('tr',null, h('th',{scope:'row'}, h('b',null,t), h('span',{class:'hint'},d)), h('td',null,m), h('td',null,g));

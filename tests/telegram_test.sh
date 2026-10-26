@@ -107,5 +107,24 @@ t = req('POST','/collections/users/auth-with-password',{'identity':'Боряx@t.
 st, r = req('POST','/tg/link',{},t)
 ok = st == 200 and r.get('url','').startswith('https://t.me/testbot?start=')
 print(('PASS' if ok else 'FAIL') + ' a relay for Telegram can be set in the admin panel (settings → TG_API)')
-raise SystemExit(0 if ok else 1)
+if not ok: raise SystemExit(1)
+# новый участник — сообщение админу в Telegram (тема signups включена ему по умолчанию), обычным участникам — нет
+mock = lambda path, b=None: json.load(u.urlopen(u.Request('http://127.0.0.1:8093'+path, method='POST' if b is not None else 'GET', data=json.dumps(b).encode() if b is not None else None, headers={'Content-Type':'application/json'})))
+fails = []
+def check(name, good):
+    print(('PASS ' if good else 'FAIL ') + name)
+    if not good: fails.append(name)
+bid = req('POST','/collections/users/auth-with-password',{'identity':'Боряx@t.local','password':'secret12'})[1]['record']['id']
+req('PATCH','/collections/users/records/'+bid,{'role':'admin'},su)
+code = r['url'].split('start=')[1]
+mock('/queue', {'update_id': 20, 'message': {'chat': {'id': 777}, 'text': '/start '+code}}); req('POST','/tg/poll',{},t)
+subs = req('GET','/collections/tg_subs/records',None,t)[1]['items']
+check('an admin who connects Telegram gets «new member» alerts by default', len(subs)==1 and 'signups' in subs[0]['topics'])
+ch = req('GET','/collections/characters/records')[1]['items']
+req('POST','/collections/users/records',{'email':'vika@t.local','password':'secret12','passwordConfirm':'secret12','name':'Вика','character':ch[1]['id']})
+n0 = len(mock('/calls'))
+st, res = req('POST','/notify/signups',None,su)
+new = [c for c in mock('/calls')[n0:] if c[0]=='sendMessage']
+check('a new member: the admin gets a message with the name and the character', res.get('sent')==1 and len(new)==1 and new[0][1]['chat_id']=='777' and 'Вика' in new[0][1]['text'] and ch[1]['emoji'] in new[0][1]['text'])
+raise SystemExit(1 if fails else 0)
 PY

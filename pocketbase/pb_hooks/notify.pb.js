@@ -25,6 +25,11 @@ onRecordAfterUpdateSuccess((e) => {
 // письмо недели — по воскресеньям в 11:00 по Москве
 cronAdd("notify-articles", "* * * * *", () => { require(`${__hooks}/notify.js`).flushArticles($app) })
 cronAdd("notify-weekly", "0 8 * * 0", () => { require(`${__hooks}/notify.js`).weekly($app, false) })
+// новый участник — админам и модераторам (рассылка из очереди раз в минуту)
+onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/notify.js`).onSignup(e.app, e.record) }, "users")
+cronAdd("notify-signups", "* * * * *", () => { require(`${__hooks}/notify.js`).flushSignups($app) })
+routerAdd("POST", "/api/notify/signups", (e) => e.json(200, { sent: require(`${__hooks}/notify.js`).flushSignups(e.app) }), $apis.requireSuperuserAuth())
+
 // напоминания о челлендже на почту — раз в час, у кого сейчас выбранное время
 cronAdd("notify-remind", "9 * * * *", () => { require(`${__hooks}/notify.js`).remindAll($app, false) })
 routerAdd("POST", "/api/notify/remind", (e) => e.json(200, { sent: require(`${__hooks}/notify.js`).remindAll(e.app, true) }), $apis.requireSuperuserAuth())
