@@ -2079,13 +2079,14 @@ function commentsBlock(target){
 
 function leaves(n){ n = Math.max(1, Math.min(5, n|0)); return h('span',{class:'stars','aria-label':n+' из 5'}, '❦'.repeat(n), h('span',{style:'opacity:.25'},'❦'.repeat(5-n))); }
 const FB_STATUS = {'':'Новое', in_progress:'В работе', done:'Сделано', declined:'Не подошло'};
-function feedbackOf(r){ return {id:r.id, author:r.author, text:r.text, status:r.status||'', reply:r.reply||'', ts:tsOf(r), photos:(r.photos||[]).map(f=>({thumb:'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+'?thumb=300x300', full:'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)}))}; }
+function feedbackOf(r){ return {id:r.id, author:r.author, text:r.text, page:r.page||'', status:r.status||'', reply:r.reply||'', ts:tsOf(r), photos:(r.photos||[]).map(f=>({thumb:'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+'?thumb=300x300', full:'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)}))}; }
 function fbPhotos(fb){ return fb.photos.length ? h('div',{class:'fb-photos'}, fb.photos.map(ph=>h('a',{href:ph.full,target:'_blank',rel:'noopener'}, h('img',{src:ph.thumb,alt:'Фото к сообщению',loading:'lazy'})))) : null; }
 function fbItem(fb, admin){
   const st = h('span',{class:'status '+(fb.status==='done'?'accepted':fb.status==='declined'?'declined':'')}, FB_STATUS[fb.status]||'Новое');
   return h('div',{class:'li'},
     h('div',{class:'meta'}, st, admin ? h('b',null,emojiOf(fb.author)+' '+nameOf(fb.author)) : null, h('span',null,dt(fb.ts)),
       fb.author===COM.uid || admin ? h('button',{type:'button',class:'x',title:'Удалить','aria-label':'Удалить сообщение',onclick:()=>{ if (confirm('Удалить сообщение?')) delDoc('feedback',fb.id); }},'×') : null),
+    fb.page ? h('div',{class:'hint'},'✨ Со страницы: ', h('a',{href:fb.page}, fb.page)) : null,
     h('div',{style:'white-space:pre-line'},fb.text), fbPhotos(fb),
     fb.reply ? h('div',{class:'fb-reply'}, h('b',null,'Ответ Даши: '), fb.reply) : null,
     admin ? fbAdminControls(fb) : null);
@@ -4336,6 +4337,47 @@ async function saveSite(){
 
 render();
 
+/* ---------- the magic wand: always at hand, «let's improve the site together» — an idea, screenshots,
+   and the page it was written on; it lands in the cabinet → «Обратная связь» ---------- */
+function magicWand(){
+  if (document.querySelector('.wand')) return;
+  const b = h('button',{type:'button',class:'wand','aria-label':'Предложить, как улучшить сайт'}, h('span',{class:'wand-ic','aria-hidden':'true'},'✨'), h('span',{class:'wand-t'},'Улучшим сайт вместе'));
+  b.addEventListener('click', openWand);
+  document.body.append(b);
+}
+function openWand(){
+  closeElephant();
+  const page = location.pathname + location.search + location.hash;
+  openModal(sheet=>{
+    sheet.classList.add('wand-sheet');
+    sheet.append(h('div',{class:'eyebrow'},'✨ Улучшим сайт вместе'), h('h2',{style:'font-size:26px'},'Сделаем эко-проект вместе'),
+      h('p',{class:'muted'},'Что улучшить, чего не хватает, что неудобно или сломалось? Пишите как есть — Даша читает каждое сообщение, а лучшие идеи появляются на сайте.'));
+    if (accState()!=='member'){ sheet.append(h('div',{class:'card'}, joinHint('предложить идею (так Даша сможет вам ответить)'))); return; }
+    const ta = h('textarea',{id:'wand-text',maxlength:'3000',placeholder:'Например: хочу видеть в рецептах калорийность',style:'min-height:120px'});
+    const files = h('input',{id:'wand-photos',type:'file',accept:'image/jpeg,image/png,image/webp,image/heic',multiple:''});
+    const btn = h('button',{type:'submit',class:'btn'},'Отправить');
+    const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+      h('label',{for:'wand-text'},'Ваша идея или замечание',ta),
+      h('label',{for:'wand-photos'},'Скриншоты (до 5, необязательно)',files),
+      h('p',{class:'hint'},'Страница: ', h('b',null,page), ' — приложится сама'),
+      h('div',null,btn));
+    f.addEventListener('submit', async e=>{ e.preventDefault();
+      const t = ta.value.trim(); if (t.length < 3){ ta.focus(); return; }
+      const fl = Array.from(files.files||[]);
+      if (fl.length > 5){ toast('Можно приложить до 5 скриншотов'); return; }
+      if (fl.some(x=>x.size > 10*1024*1024)){ toast('Каждый скриншот — до 10 МБ'); return; }
+      btn.disabled = true; btn.textContent = 'Отправляю…';
+      try{
+        const fd = new FormData(); fd.append('author', COM.uid); fd.append('text', t.slice(0,3000)); fd.append('page', page.slice(0,300));
+        for (const x of fl) fd.append('photos', await fitPhoto(x));
+        await pb.collection('feedback').create(fd);
+        closeModal(); toast('Спасибо! Даша прочитает и ответит — ответ будет в «О проекте» → «Мои сообщения»');
+      }catch(err){ writeErr(err); btn.disabled = false; btn.textContent = 'Отправить'; }
+    });
+    sheet.append(f);
+  });
+}
+
 /* ---------- the elephant: once a day one tip in the corner — what is new, or what this visitor has not tried yet ----------
    Order: tips Dasha writes in the cabinet (🐘 Подсказки слона), a fresh article, then for guests — join,
    for members — what they have not tried. A shown tip is not shown again; one a day, never during the tour or editing. */
@@ -4530,6 +4572,7 @@ function maybeTour(){
   render();
   maybeTour();
   setTimeout(maybeElephant, 7000);
+  magicWand();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
   watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden'}, l=>{
     const m = {}; l.forEach(r=>{ if ((r.role!=='writer' && !r.hidden) || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper (and anyone hidden by the admin) is not a dweller
