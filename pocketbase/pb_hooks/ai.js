@@ -1,13 +1,14 @@
 // ИИ-помощник: фото тарелки → как сделать блюдо полезнее и экологичнее; фото упаковки → куда сдать и как использовать.
 // Yandex AI Studio, совместимый с OpenAI формат (chat/completions, картинка как data:URL).
-// Переменные окружения: YC_API_KEY, YC_FOLDER (или те же ключи в админке, коллекция settings), по желанию YC_MODEL (по умолчанию gemma-3-27b-it), YC_API (только для тестов), AI_DAILY.
+// Переменные окружения: YC_API_KEY, YC_FOLDER (или те же ключи в админке, коллекция settings), по желанию YC_MODEL (по умолчанию qwen3.6-35b-a3b), YC_API (только для тестов), AI_DAILY.
 
 // сначала переменная окружения сервера, потом настройка из админки (/_/ → settings)
 function setting(k) { try { return String($app.findFirstRecordByData("settings", "key", k).getString("value") || "").trim() } catch (e) { return "" } }
 const env = (k) => String($os.getenv(k) || "").trim() || (k === "YC_API_KEY" || k === "YC_FOLDER" || k === "YC_MODEL" ? setting(k) : "")
 const daily = () => Math.max(1, parseInt(env("AI_DAILY") || "5", 10) || 5)
 const apiUrl = () => env("YC_API") || "https://llm.api.cloud.yandex.net/v1/chat/completions"
-const model = () => `gpt://${env("YC_FOLDER")}/${env("YC_MODEL") || "gemma-3-27b-it"}/latest`
+// gemma-3-27b-it в нашем каталоге закрыта (403); Qwen3.6 видит картинки и отвечает без своего инстанса
+const model = () => `gpt://${env("YC_FOLDER")}/${env("YC_MODEL") || "qwen3.6-35b-a3b"}/latest`
 const enabled = () => !!(env("YC_API_KEY") && env("YC_FOLDER"))
 
 const PROMPTS = {
@@ -36,6 +37,7 @@ function staffDetail(app, userId, why) {
   return {}
 }
 
+// max_tokens с запасом: модель сначала размышляет, иначе на сам ответ не хватит
 function analyze(app, userId, kind, image) {
   const st = status(app, userId)
   if (!st.enabled) return Object.assign(st, { ok: false, message: "Помощник скоро заработает — мы подключаем распознавание фото." })
@@ -47,7 +49,7 @@ function analyze(app, userId, kind, image) {
     res = $http.send({
       url: apiUrl(), method: "POST", timeout: 60,
       headers: { "content-type": "application/json", "authorization": "Api-Key " + env("YC_API_KEY"), "x-folder-id": env("YC_FOLDER") },
-      body: JSON.stringify({ model: model(), temperature: 0.4, max_tokens: 700, messages: [
+      body: JSON.stringify({ model: model(), temperature: 0.4, max_tokens: 2500, messages: [
         { role: "system", content: PROMPTS[kind] },
         { role: "user", content: [{ type: "text", text: kind === "food" ? "Что скажешь про эту тарелку?" : "Куда сдать эту упаковку?" }, { type: "image_url", image_url: { url: image } }] },
       ] }),
