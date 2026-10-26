@@ -415,6 +415,8 @@ function render(){
       h('a',{class:'logo',href:'/',html:LOGO+'<span>DashaBotanika</span>'}),
       h('span',{style:'flex:1'}),
       socialLinks(),
+      // «Вещи даром» is the community's main thing: always one tap away
+      h('a',{class:'darom-btn',href:'/darom','aria-label':'Вещи даром','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',{class:'darom-btn-t'},'Даром')),
       accountButton(),
       siteMenu(path)
     )),
@@ -442,6 +444,7 @@ function siteMenu(path){
   const btn = h('button',{type:'button',class:'burger','aria-label':'Меню','aria-expanded':'false','aria-controls':'site-menu'}, h('span'),h('span'),h('span'));
   const tail = h('div',{class:'menu-tail'});
   const panel = h('nav',{class:'menu',id:'site-menu','aria-label':'Разделы сайта',hidden:true},
+    h('a',{class:'menu-hot',href:'/darom','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',null, h('b',null,'Вещи даром'), h('small',null,'отдать и забрать бесплатно, рядом с домом'))),
     NAV_GROUPS.map(([g, items])=>h('div',{class:'menu-g'}, h('div',{class:'menu-gt'},g), items.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t)))), tail);
   live(()=>{
     tail.replaceChildren(...(accState()==='member'
@@ -1932,10 +1935,34 @@ window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max
 function homePage(){
   // people first (who we are, the community, how to start), then games and tests, then everyday eco
   // a crossroads, not a long one-pager: every section has its own page, here are the doors to them
-  return [hero(), mythsTeaser(), interestsSection(), firstSteps(), worldTeaser(), journalSection(true), aboutSection(), feedbackTeaser()];
+  return [hero(), daromSpotlight(), mythsTeaser(), interestsSection(), firstSteps(), worldTeaser(), journalSection(true), aboutSection(), feedbackTeaser()];
 }
 const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10; return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many; };
 
+/* «Вещи даром» on the home page, right under the hero: what is being given away now (nearest first), the counter and two doors */
+function daromSpotlight(){
+  const grid = h('div',{class:'ds-items'}), nums = h('div',{class:'ds-nums'}), sub = h('p',{class:'lead',style:'margin:0'});
+  live(()=>{
+    const all = publicListings();
+    loadDaromStats([]);
+    if (accState()==='member' && !PROFILE.loaded) loadProfile();
+    const near = PROFILE.rec && (PROFILE.rec.lat || PROFILE.rec.district);
+    const list = all.slice().sort((a,b)=> near ? ((sameDistrict(b)-sameDistrict(a)) || ((kmTo(a)??1e9)-(kmTo(b)??1e9)) || (b.ts-a.ts)) : b.ts-a.ts).slice(0,4);
+    const wants = (COM.wants||[]).filter(w=>w.status==='open').length, t = DAROM.stats;
+    sub.textContent = near ? 'Соседи отдают бесплатно то, что им больше не нужно. Вот что есть рядом с вами:' : 'Соседи отдают бесплатно то, что им больше не нужно: одежду, детские вещи, книги, технику. Без продажи и обмена.';
+    nums.replaceChildren(...[[all.length, plural(all.length,'вещь ждёт','вещи ждут','вещей ждут')+' хозяина'], wants ? [wants, plural(wants,'человек ищет','человека ищут','человек ищут')+' вещи'] : null, t && t.given ? [t.given, 'отдано из рук в руки'] : null, t && t.kg ? ['≈ '+t.kg+' кг', 'не попало на свалку'] : null]
+      .filter(Boolean).map(([n,l])=>h('div',null, h('b',null,n), h('span',null,l))));
+    grid.replaceChildren(...(list.length ? list.map(it=>h('a',{class:'ds-item',href:'/darom'},
+      it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',decoding:'async'}) : h('div',{class:'ds-ph','aria-hidden':'true'},catIcon(it.category)),
+      h('b',null,it.title), h('span',{class:'hint'}, nearLabel(it) || [it.city, it.district].filter(Boolean).join(', ') || (it.category||'')))) : [h('p',{class:'hint'},'Пока здесь пусто — станьте первым, кто отдаст вещь, и она появится на главной странице.')]));
+  });
+  const give = h('span');
+  live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register',onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
+  return h('section',{class:'band darom-spot',id:'darom-spot'}, h('div',{class:'wrap'},
+    h('div',{class:'ds-head'}, h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'🎁 Вещи даром'), h('h2',null,'Отдайте ненужное — заберите нужное. Бесплатно'), sub),
+      h('div',{class:'ds-cta'}, h('a',{class:'btn',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь рядом'), give)),
+    nums, grid));
+}
 function feedbackTeaser(){
   return h('section',{class:'band',id:'say'}, h('div',{class:'wrap'}, h('div',{class:'teaser'},
     h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'Обратная связь'), h('h2',null,'Есть идея или замечание?'),
