@@ -3247,7 +3247,8 @@ function openAccount(tab, tid){
   const q = new URLSearchParams();
   if (tab) q.set('tab', tab);
   if (tid) q.set('t', tid);
-  go('/kabinet'+(q.toString() ? '?'+q : '')+(tid ? '#cabinet-tabs' : ''));
+  // a cabinet tab (things, chats, profile…) opens scrolled to the tabs; login and sign-up stay at the top
+  go('/kabinet'+(q.toString() ? '?'+q : '')+(tid || (tab && tab!=='register' && tab!=='login') ? '#cabinet-tabs' : ''));
 }
 function logout(){
   if (!confirm('Выйти из аккаунта?')) return;
