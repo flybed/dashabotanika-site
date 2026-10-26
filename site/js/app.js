@@ -1973,8 +1973,11 @@ function daromSpotlight(){
   const give = h('span');
   live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register',onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
   return h('section',{class:'band darom-spot',id:'darom-spot'}, h('div',{class:'wrap'},
-    h('div',{class:'ds-head'}, h('div',{style:'display:grid;gap:10px'}, h('div',{class:'eyebrow'},'🎁 Вещи даром'), h('h2',null,'Отдайте ненужное — заберите нужное. Бесплатно'), sub),
-      h('div',{class:'ds-cta'}, h('a',{class:'btn',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь рядом'), give)),
+    h('div',{class:'ds-head'},
+      h('div',{style:'display:grid;gap:10px;align-content:center'}, h('div',{class:'eyebrow'},'🎁 Вещи даром'), h('h2',null,'Отдайте ненужное — заберите нужное. Бесплатно'), sub,
+        h('div',{class:'ds-cta'}, h('a',{class:'btn',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь рядом'), give)),
+      // a drawing of things that get a second life: a crib, a bike, a pan, a phone, books
+      h('img',{class:'ds-art',src:'/img/darom-things.svg',alt:'',width:'440',height:'320',loading:'lazy',decoding:'async'})),
     grid));
 }
 function feedbackTeaser(){
