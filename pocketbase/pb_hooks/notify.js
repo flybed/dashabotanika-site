@@ -208,4 +208,4 @@ function unsubRoute(e) {
     : e.html(400, unsubPage("Ссылка устарела", "Не получилось найти подписку. Настроить письма можно в личном кабинете."))
 }
 
-module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site }
+module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site, wanting, send }

@@ -2054,6 +2054,8 @@ function writeErr(e){
   const c = e && e.status;
   if (c===403 || c===401) toast('Нет прав на это действие. Войдите в аккаунт');
   else if (c===429) toast('Слишком часто, подождите немного');
+  // the server's own explanation in Russian (e.g. why thanks cannot be sent yet) is better than a generic one
+  else if (c===400 && /[а-яё]/i.test(String((e.response||{}).message||''))) toast(e.response.message);
   else if (c===400) toast('Проверьте, всё ли заполнено правильно');
   else toast('Не получилось отправить, попробуйте ещё раз');
   return null;
@@ -2180,9 +2182,22 @@ function feedbackSection(){
 /* ---------- flea market: participants' listings, moderation, deal chats ---------- */
 // only giving away: no selling or swapping between members (decided 26.10.2026), the site sells only in «Эко-товары»
 const MK_KIND = 'Отдам даром';
+// categories for search and filters (the same list is in the 1792479000_darom_more migration)
+const DAROM_CATS = [['Одежда и обувь','👕'],['Детское','🧸'],['Книги','📚'],['Кухня и посуда','🍳'],['Техника','🔌'],['Мебель и дом','🛋️'],['Растения','🪴'],['Для животных','🐾'],['Хобби и спорт','🚲'],['Другое','📦']];
+const catIcon = c => ((DAROM_CATS.find(x=>x[0]===c)||[])[1]) || '📦';
+const DAROM = {stats:null, people:{}, mine:null, filter:{cat:'', city:'', q:''}};
+const plusDays = n => new Date(Date.now()+n*86400000).toISOString().replace('T',' ');
+// the counter «saved from the landfill» and what is known about people who give: one request, cached for the page
+function loadDaromStats(ids){
+  const want = (ids||[]).filter(id=>id && !(id in DAROM.people));
+  if (DAROM.loading || (DAROM.stats && !want.length)) return;
+  DAROM.loading = true;
+  fetch('/api/darom/stats?u='+encodeURIComponent(want.join(','))).then(r=>r.json()).then(r=>{
+    DAROM.stats = r; want.forEach(id=>{ DAROM.people[id] = r.people[id] || null; }); }).catch(()=>{}).then(()=>{ DAROM.loading = false; refresh(); });
+}
 const mkState = l => l.moderation==='approved' ? 'approved' : l.moderation==='rejected' ? 'rejected' : 'pending';
-function publicListings(){ return COM.listings.filter(l=>l.status!=='gone' && mkState(l)==='approved').sort((a,b)=>b.ts-a.ts); }
-function pendingListings(){ return COM.listings.filter(l=>l.status!=='gone' && mkState(l)==='pending').sort((a,b)=>a.ts-b.ts); }
+function publicListings(){ return COM.listings.filter(l=>l.status!=='gone' && l.status!=='archived' && mkState(l)==='approved').sort((a,b)=>b.ts-a.ts); }
+function pendingListings(){ return COM.listings.filter(l=>l.status!=='gone' && l.status!=='archived' && mkState(l)==='pending').sort((a,b)=>a.ts-b.ts); }
 const priceLabel = () => 'Бесплатно';
 const kindStyle = () => 'background:var(--leaf);color:var(--on-moss)';
 function dealLabel(){ return 'Хочу забрать'; }
@@ -2191,7 +2206,7 @@ function dealBtn(ref, title, seller, kind){
 }
 function myItems(){ return COM.listings.filter(l=>l.seller===COM.uid); }
 function setMyItemStatus(id, status){ return write('listings/'+id, ()=>pb.collection('listings').update(id,{status})).catch(writeErr); }
-function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
+function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
 function userListingCard(it){
   const mine = it.seller === COM.uid;
@@ -2200,18 +2215,30 @@ function userListingCard(it){
   if (img) img.addEventListener('error',()=>img.remove());
   return h('article',{class:'card'},
     img,
-    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
+    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), h('span',{class:'tag'}, catIcon(it.category),' ',it.category||'Другое'), it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
     h('h3',{style:'font-size:20px'},it.title),
     h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
     it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
-    it.city ? h('p',{class:'muted',style:'font-size:14px'},'Где забрать: ',it.city) : null,
+    it.city ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',it.city, it.pickup ? ' · '+it.pickup : '') : it.pickup ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',it.pickup) : null,
     it.note ? h('p',{style:'font-size:15px;flex:1;white-space:pre-line'},it.note) : null,
-    h('p',{class:'hint'},'Разместил(а): ', nameSpan(it.seller)),
+    h('p',{class:'hint'},'Отдаёт: ', nameSpan(it.seller)), trustLine(it.seller),
     mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Сообщения от желающих забрать — в кабинете.') : dealBtn({listing:it.id}, it.title, it.seller, it.kind),
     commentsBlock('mk:'+it.id)
   );
 }
 
+// what is known about a person who gives: given away, received, thanks, profile — people trust those they know a bit about
+function trustLine(uid){
+  const box = h('p',{class:'trust'});
+  live(()=>{ const t = DAROM.people[uid];
+    if (t === undefined){ loadDaromStats([uid]); return; }
+    if (!t){ box.replaceChildren(); return; }
+    box.replaceChildren(...[t.given ? h('span',null,'🎁 отдал(а) ',h('b',null,t.given)) : h('span',null,'🌱 новичок в «Вещах даром»'),
+      t.got ? h('span',null,'🤲 получил(а) ',h('b',null,t.got)) : null,
+      t.thanks ? h('span',null,'💚 спасибо: ',h('b',null,t.thanks)) : null,
+      t.profile ? h('span',null,'✓ профиль заполнен') : null].filter(Boolean)); });
+  return box;
+}
 function threadOf(r){ return {key:r.key, title:r.title, listing:r.listing||'', seller:r.seller||'', buyer:r.buyer, last_from:r.last_from||'', last_at:r.last_at||0, read_by:r.read_by||{}}; }
 async function openDeal(ref, title, seller){
   if (accState() !== 'member'){ openAccount(); toast('Сначала войдите или зарегистрируйтесь, это быстро'); return; }
@@ -2275,10 +2302,13 @@ function threadView(tid, back){
     myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'gone').then(()=>toast('Готово! Вещь убрана из «Вещей даром»'))},'Отдано / продано') : h('span',{class:'status'},'Сделка завершена')) : null;
   paintMsgs();
   const iAmSeller = t.seller === COM.uid || (!t.seller && t.buyer !== COM.uid);
+  const thx = t.listing && t.buyer===COM.uid && t.seller ? h('div') : null;
+  if (thx) live(()=>{ const done = (COM.thanks||[]).some(x=>x.from===COM.uid && x.listing===t.listing);
+    thx.replaceChildren(done ? h('span',{class:'status accepted'},'💚 Вы сказали спасибо') : h('button',{type:'button',class:'btn ghost small',onclick:()=>openThanks(t)},'💚 Сказать спасибо')); });
   return [
     h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('button',{type:'button',class:'btn ghost small',onclick:back},'← Все сообщения'),
       h('div',{style:'min-width:0'}, h('b',null,t.title), h('div',{class:'hint'}, isDM(t) ? 'Собеседник: ' : iAmSeller ? 'Покупатель: ' : 'Продавец: ', partnerName(t)))),
-    actions, msgs, f,
+    actions, thx, msgs, f,
     h('p',{class:'hint'},'Сайт не принимает оплату. Договоритесь о передаче и способе оплаты напрямую. Не отправляйте здесь паспортные и банковские данные: переписку видят модераторы.')
   ];
 }
@@ -2328,12 +2358,18 @@ function marketSection(){
   const items = STATE.market;
   const userGrid = h('div');
   const cache = new Map();
+  const filters = h('div');
   live(()=>{
-    const pub = publicListings();
+    const all = publicListings();
     const st = accState();
-    if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'}, st==='loading' ? 'Загружаем…' : 'Пока никто ничего не выставил. Будьте первым!')); cache.clear(); return; }
+    loadDaromStats([...new Set(all.map(l=>l.seller))]);
+    if (!all.length){ filters.replaceChildren(); userGrid.replaceChildren(h('div',{class:'empty'}, st==='loading' ? 'Загружаем…' : 'Пока никто ничего не выставил. Будьте первым!')); cache.clear(); return; }
+    const F = DAROM.filter, q = F.q.trim().toLowerCase();
+    const pub = all.filter(l=>(!F.cat || (l.category||'Другое')===F.cat) && (!F.city || (l.city||'').trim()===F.city) && (!q || (l.title+' '+l.note+' '+l.city+' '+l.pickup).toLowerCase().includes(q)));
+    if (!filters.contains(document.activeElement)) filters.replaceChildren(daromFilters(all));
+    if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'},'Под этот фильтр пока ничего нет. Попробуйте другую категорию — или загляните позже.')); return; }
     const els = pub.map(it=>{
-      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,st,COM.uid].join('|');
+      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,it.category,it.pickup,st,COM.uid].join('|');
       let c = cache.get(it.id);
       if (!c || c.v !== v){ c = {v, el:userListingCard(it)}; cache.set(it.id,c); }
       return c.el;
@@ -2348,7 +2384,9 @@ function marketSection(){
       [['1','Выставьте вещь','В личном кабинете: фото и описание. Объявление появится после проверки.'],
        ['2','Договоритесь','Нажмите «Хочу забрать» и обсудите детали в личных сообщениях.'],
        ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Всё бесплатно: вещи здесь не продают.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
+    daromCounter(),
     pickedBlock(),
+    thanksFeed(),
     h('h3',{style:'margin-bottom:14px'},'От Даши'),
     items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
       delBtn('market',it.id), exMark(it),
@@ -2362,15 +2400,75 @@ function marketSection(){
     ))) : h('div',{class:'empty'},'Сейчас ничего нет, загляните позже.'),
     addForm('market','Новое объявление от Даши'),
     h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:40px 0 14px'}, h('h3',null,'От участников'), addBtn),
-    userGrid
+    filters, userGrid
   ));
+}
+
+/* filters: a category, a city, a word */
+function daromFilters(all){
+  const F = DAROM.filter;
+  const counts = {}; all.forEach(l=>{ const c = l.category||'Другое'; counts[c] = (counts[c]||0)+1; });
+  const cities = [...new Set(all.map(l=>(l.city||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const chip = (v, label) => h('button',{type:'button',class:'chip'+(F.cat===v?' on':''),'aria-pressed':F.cat===v?'true':'false',onclick:()=>{ F.cat = F.cat===v && v ? '' : v; refresh(); }}, label);
+  const q = h('input',{type:'search',value:F.q,placeholder:'Поиск: велосипед, коляска, книги…','aria-label':'Поиск по вещам',oninput:e=>{ F.q = e.target.value; clearTimeout(q._t); q._t = setTimeout(refresh, 250); }});
+  return h('div',{class:'darom-filters'},
+    h('div',{class:'chips'}, chip('','Все · '+all.length), ...DAROM_CATS.filter(([c])=>counts[c]).map(([c,ic])=>chip(c, ic+' '+c+' · '+counts[c]))),
+    h('div',{class:'darom-fl-row'}, q,
+      cities.length > 1 ? h('select',{'aria-label':'Город',onchange:e=>{ F.city = e.target.value; refresh(); }},
+        [h('option',{value:''},'Все города')].concat(cities.map(c=>h('option',{value:c,selected:F.city===c},c)))) : null));
+}
+/* how much has been saved from the landfill: all of us and (in the cabinet) you */
+function daromCounter(){
+  const box = h('div',{class:'darom-count'});
+  live(()=>{ const t = DAROM.stats; if (!t){ loadDaromStats([]); return; }
+    box.replaceChildren(...(t.given ? [h('div',null, h('b',null,t.given), h('span',null, plural(t.given,'вещь отдана','вещи отданы','вещей отдано')+' из рук в руки')),
+      h('div',null, h('b',null,'≈ '+t.kg+' кг'), h('span',null,'не попало на свалку')),
+      h('div',null, h('b',null,t.thanks), h('span',null, plural(t.thanks,'спасибо','спасибо','спасибо')+' дарителям'))] : [])); });
+  return box;
+}
+/* «Спасибо»: public thanks after a handover — the strongest reason for others to give too */
+function thanksOf(r){ return {id:r.id, listing:r.listing||'', giver:r.giver, from:r.from, title:r.title, text:r.text, photo:fileURL(r,'photo','600x450'), ts:tsOf(r)}; }
+function thanksFeed(){
+  const box = h('div');
+  live(()=>{ const list = (COM.thanks||[]).slice(0,6);
+    box.replaceChildren(...(list.length ? [h('h3',{style:'margin:8px 0 14px'},'💚 Спасибо дарителям'), h('div',{class:'grid g3 thanks-grid'}, list.map(x=>h('article',{class:'card thanks-card'},
+      x.photo ? h('img',{src:x.photo,alt:'Фото к благодарности: '+(x.title||''),loading:'lazy',decoding:'async'}) : null,
+      h('p',{class:'hint'}, nameSpan(x.from), ' благодарит ', nameSpan(x.giver), x.title ? ' за «'+x.title+'»' : ''),
+      h('p',{style:'white-space:pre-line'}, x.text))))] : [])); });
+  return box;
+}
+function openThanks(t){
+  openModal(sheet=>{
+    const ta = h('textarea',{id:'thx-text',maxlength:'600',placeholder:'Например: велосипед уже катается, сын в восторге!',style:'min-height:110px'});
+    const file = h('input',{id:'thx-photo',type:'file',accept:'image/jpeg,image/png,image/webp'});
+    const btn = h('button',{type:'submit',class:'btn'},'Сказать спасибо');
+    const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
+      h('label',{for:'thx-text'},'Пара тёплых слов',ta), h('label',{for:'thx-photo'},'Фото вещи у вас (необязательно)',file), h('div',null,btn));
+    f.addEventListener('submit', async e=>{ e.preventDefault();
+      const x = ta.value.trim(); if (x.length < 3){ ta.focus(); return; }
+      btn.disabled = true; btn.textContent = 'Отправляю…';
+      try{
+        const fd = new FormData(); fd.append('listing', t.listing); fd.append('giver', t.seller); fd.append('from', COM.uid); fd.append('text', x);
+        const fl = file.files && file.files[0]; if (fl) fd.append('photo', await fitPhoto(fl, 1200));
+        const r = await pb.collection('thanks').create(fd);
+        // show it at once, without waiting for the live update
+        if (!(COM.thanks||[]).some(x=>x.id===r.id)) COM.thanks = [thanksOf(r)].concat(COM.thanks||[]);
+        closeModal(); refresh(); toast('Спасибо отправлено! Его увидят все в «Вещах даром», а даритель получит очки роста');
+      }catch(err){ writeErr(err); btn.disabled = false; btn.textContent = 'Сказать спасибо'; }
+    });
+    sheet.append(h('div',{class:'eyebrow'},'💚 Спасибо дарителю'), h('h2',{style:'font-size:26px'},'«'+t.title+'»'),
+      h('p',{class:'muted'},'Благодарность появится в «Вещах даром» — так другие тоже захотят отдавать, а даритель получит очки роста.'), f);
+  });
 }
 
 /* cabinet panels for the market */
 function thingsPanel(lists){
   const title = h('input',{id:'mk-title',maxlength:'100',placeholder:'Например, детский велосипед'});
   const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Как новое'});
-  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город, район или метро'});
+  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город'});
+  const cat = h('select',{id:'mk-cat',required:''}, [h('option',{value:''},'Выберите…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
+  const pickup = h('input',{id:'mk-pickup',maxlength:'120',placeholder:'Например: м. Чкаловская, будни после 19:00'});
+  const days = h('select',{id:'mk-days'}, [['7','неделю'],['14','2 недели'],['30','месяц']].map(([v,t])=>h('option',{value:v,selected:v==='14'},t)));
   const note = h('textarea',{id:'mk-note',maxlength:'1500'});
   const file = h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp'});
   // the photo goes through the frame editor right after choosing; the finished frame is what we upload
@@ -2384,19 +2482,22 @@ function thingsPanel(lists){
   const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
     h('div',{class:'fields'},
       h('label',{for:'mk-title',style:'grid-column:1/-1'},'Что за вещь',title),
-      h('label',{for:'mk-cond'},'Состояние',cond), h('label',{for:'mk-city'},'Где забрать',city)),
+      h('label',{for:'mk-cat'},'Категория',cat), h('label',{for:'mk-cond'},'Состояние',cond),
+      h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-pickup'},'Где и когда забрать (без точного адреса)',pickup),
+      h('label',{for:'mk-days'},'Объявление актуально',days)),
     h('label',{for:'mk-note'},'Описание: размер, бренд, особенности',note),
     h('label',{for:'mk-photo'},'Фото (необязательно)',file), photoBox,
     h('div',null,btn));
   f.addEventListener('submit', async e=>{
     e.preventDefault();
     const t = title.value.trim(); if (t.length < 2){ title.focus(); return; }
+    if (!cat.value){ cat.focus(); toast('Выберите категорию — так вещь быстрее найдут'); return; }
     const fl = file.files && file.files[0];
     if (fl && fl.size > 15*1024*1024){ toast('Фото больше 15 МБ'); return; }
     btn.disabled = true; btn.textContent = 'Отправляю…';
     try{
       const fd = new FormData();
-      Object.entries({seller:COM.uid, title:t, kind:MK_KIND, price:'', condition:cond.value.trim(), city:city.value.trim(), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
+      Object.entries({seller:COM.uid, title:t, kind:MK_KIND, price:'', category:cat.value, condition:cond.value.trim(), city:city.value.trim(), pickup:pickup.value.trim(), until:plusDays(+days.value), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
       if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
       await pb.collection('listings').create(fd);
       f.reset(); framed = null; showFramed(); toast('Отправлено! Объявление появится после проверки');
@@ -2404,20 +2505,30 @@ function thingsPanel(lists){
     btn.disabled = false; btn.textContent = 'Отправить на проверку';
   });
   lists.things = h('div',{class:'list'});
-  return [h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в «Вещах даром», и те, кому вещь нужна, смогут написать вам.'), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
+  // your own counter: how much you have already given away
+  const myCount = h('div',{class:'darom-count'});
+  if (pb && COM.uid) pb.send('/api/darom/mine',{requestKey:null}).then(r=>{ if (r.given) myCount.replaceChildren(
+    h('div',null, h('b',null,r.given), h('span',null,'вы отдали '+plural(r.given,'вещь','вещи','вещей'))),
+    h('div',null, h('b',null,'≈ '+String(r.kg).replace('.',',')+' кг'), h('span',null,'не попало на свалку благодаря вам'))); }).catch(()=>{});
+  return [myCount, h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в «Вещах даром», и те, кому вещь нужна, смогут написать вам.'), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
 }
 function paintThings(el){
   const items = myItems().slice().sort((a,b)=>b.ts-a.ts);
   const lbl = {pending:'На проверке', approved:'Опубликовано', rejected:'Отклонено'};
   el.replaceChildren(...(items.length ? items.map(it=>{
     const ms = mkState(it);
-    const stl = it.status==='gone' ? 'Отдано' : it.status==='reserved' ? 'Забронировано' : lbl[ms];
+    const stl = it.status==='gone' ? 'Отдано' : it.status==='archived' ? 'В архиве' : it.status==='reserved' ? 'Забронировано' : lbl[ms];
+    const left = it.until ? Math.ceil((Date.parse(String(it.until).replace(' ','T')) - Date.now())/86400000) : null;
+    const extend = (status) => write('listings/'+it.id, ()=>pb.collection('listings').update(it.id, Object.assign({until:plusDays(14)}, status ? {status} : {}))).then(()=>toast(status ? 'Вещь снова в ленте на 2 недели' : 'Продлено на 2 недели')).catch(writeErr);
     return h('div',{class:'li'},
       h('div',{class:'meta'}, h('span',{class:'status '+(ms==='approved'?'accepted':ms==='rejected'?'declined':'')},stl), h('span',null,it.kind), h('span',null,priceLabel(it)), h('span',null,dt(it.ts))),
       h('b',null,it.title),
       ms==='rejected' && it.reason ? h('div',{class:'hint'},'Причина: ',it.reason) : null,
+      it.status!=='gone' && it.status!=='archived' && left!==null ? h('div',{class:'hint'}, left > 0 ? 'Актуально ещё '+left+' '+plural(left,'день','дня','дней') : 'Срок вышел — продлите, если вещь ещё у вас, иначе объявление уйдёт в архив') : null,
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
-        it.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'gone')},'Отдано / продано') : null,
+        it.status!=='gone' && it.status!=='archived' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend()},'Продлить на 2 недели') : null,
+        it.status==='archived' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend('active')},'Вернуть в ленту') : null,
+        it.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'gone')},'Отдано') : null,
         h('button',{type:'button',class:'btn danger small',onclick:()=>delDoc('listings',it.id)},'Удалить')));
   }) : [h('p',{class:'hint'},'Вы пока ничего не выставили.')]));
 }
@@ -4736,6 +4847,7 @@ function maybeTour(){
   watch('reviews',{sort:'-created'}, l=>{ COM.reviews = l.map(r=>({id:r.id, author:r.author, rating:r.rating, text:r.text, ts:tsOf(r)})); });
   watch('comments',{sort:'created'}, l=>{ COM.comments = l.map(r=>({id:r.id, target:r.target, author:r.author, text:r.text, ts:tsOf(r)})); });
   watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); });
+  watch('thanks',{sort:'-created'}, l=>{ COM.thanks = l.map(thanksOf); DAROM.stats = null; DAROM.people = {}; });
   if (COM.uid){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
     watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
