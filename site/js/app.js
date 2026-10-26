@@ -2462,7 +2462,7 @@ function peopleFilters(el){
     sel('did','Что сделали',[['','что угодно']].concat(DID.map(([k,t])=>[k,t]))),
     sel('sub','Подписки',[['','все'],['email','на письма'],['tg','в Telegram'],['any','хоть одна'],['none','без подписок']]),
     sel('sort','Порядок',[['new','сначала новые'],['last','недавно заходили'],['xp','больше очков']]),
-    h('button',{type:'button',class:'btn ghost small',onclick:()=>{ PEOPLE.at = 0; loadPeople(el); }},'Обновить'));
+    h('button',{type:'button',class:'btn ghost',onclick:()=>{ PEOPLE.at = 0; loadPeople(el); }},'Обновить'));
 }
 function personActivity(a){
   const chips = DID.filter(([k,,f])=>k!=='nothing' && f(a)).map(([k,t])=>{
