@@ -5,6 +5,9 @@ routerAdd("GET", "/api/seo/page", (e) => {
   // адрес страницы передаёт Caddy; ?p= — для проверки вручную
   const raw = String(e.request.header.get("X-Seo-Path") || e.request.url.query().get("p") || "/")
   const path = raw.replace(/\/+$/, "") || "/"
+  // переименованные страницы: старый адрес навсегда ведёт на новый (тот же список — OLD_PATHS в site/js/app.js)
+  const moved = { "/baraholka": "/darom" }[path]
+  if (moved) return e.redirect(301, moved)
   const r = require(`${__hooks}/seo.js`).render(e.app, path)
   e.response.header().set("Cache-Control", "no-cache")
   return e.html(r.status, r.html)

@@ -4,7 +4,7 @@
 
 // сначала переменная окружения сервера, потом настройка из админки (/_/ → settings)
 function setting(k) { try { return String($app.findFirstRecordByData("settings", "key", k).getString("value") || "").trim() } catch (e) { return "" } }
-const env = (k) => String($os.getenv(k) || "").trim() || (k === "YC_API_KEY" || k === "YC_FOLDER" ? setting(k) : "")
+const env = (k) => String($os.getenv(k) || "").trim() || (k === "YC_API_KEY" || k === "YC_FOLDER" || k === "YC_MODEL" ? setting(k) : "")
 const daily = () => Math.max(1, parseInt(env("AI_DAILY") || "5", 10) || 5)
 const apiUrl = () => env("YC_API") || "https://llm.api.cloud.yandex.net/v1/chat/completions"
 const model = () => `gpt://${env("YC_FOLDER")}/${env("YC_MODEL") || "gemma-3-27b-it"}/latest`

@@ -139,7 +139,7 @@ function weekNews(app) {
   } catch (e) {}
   const lines = []
   if (members) lines.push(`🐾 В мире поселились новые участники: ${members}`)
-  if (things) lines.push(`📦 На барахолке новых вещей: ${things}`)
+  if (things) lines.push(`🎁 В «Вещах даром» новых вещей: ${things}`)
   arts.forEach((a) => lines.push(`📖 «${esc(a.title)}»`))
   return lines
 }

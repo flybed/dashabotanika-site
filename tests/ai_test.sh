@@ -98,5 +98,10 @@ check('with the key from the admin panel the helper is on', req('GET','/ai/left'
 st, r = req('POST','/ai/photo',{'kind':'food','image':'data:image/jpeg;base64,' + 'A'*400},t)
 calls = json.load(u.urlopen('http://127.0.0.1:8091/'))
 check('the model is called with the key and folder from the admin panel', r.get('ok') and calls[-1]['auth']=='Api-Key panel-key' and calls[-1]['model']=='gpt://b1panel/gemma-3-27b-it/latest')
+rows = {x['key']: x['id'] for x in req('GET','/collections/settings/records',None,su)[1]['items']}
+req('PATCH','/collections/settings/records/'+rows['YC_MODEL'],{'value':'qwen2.5-vl-7b-instruct'},su)
+req('POST','/ai/photo',{'kind':'pack','image':'data:image/jpeg;base64,' + 'A'*400},t)
+calls = json.load(u.urlopen('http://127.0.0.1:8091/'))
+check('the model can be changed in the admin panel', calls[-1]['model']=='gpt://b1panel/qwen2.5-vl-7b-instruct/latest')
 raise SystemExit(1 if fails else 0)
 PY

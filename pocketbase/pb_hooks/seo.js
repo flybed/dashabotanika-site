@@ -96,7 +96,7 @@ function listings(app) {
   } catch (err) { return [] }
 }
 
-const priceLabel = (it) => (it.kind === "Продам" && it.price ? it.price : it.kind === "Отдам даром" ? "Бесплатно" : "Обмен")
+const priceLabel = () => "Бесплатно"
 
 function sec(id, eyebrow, title, lead, body, h1) {
   const t = h1 ? "h1" : "h2"
@@ -129,12 +129,12 @@ const SECTION_PAGES = {
   },
   "/moda": {
     title: "Эко-мода: капсульный гардероб, ткани и вторая жизнь вещей — DashaBotanika",
-    description: "Как одеваться осознанно: капсульный гардероб, шпаргалка по тканям с эко-оценкой, уход за вещами и барахолка, где вещи получают вторую жизнь.",
+    description: "Как одеваться осознанно: капсульный гардероб, шпаргалка по тканям с эко-оценкой, уход за вещами и «Вещи даром», где вещи получают вторую жизнь.",
     name: "Мода",
     body: (d, k) => sec("fashion", "Модная экология", "Одежда и аксессуары", "Самая экологичная вещь та, что уже висит в вашем шкафу.",
       k.FASHION_TIPS.map(([t, x]) => `<h3>${esc(t)}</h3><p>${esc(x)}</p>`).join("\n") +
       `<h3>Шпаргалка по тканям</h3><table><tr><th>Ткань</th><th>Плюсы</th><th>Минусы</th><th>Эко-оценка</th></tr>${k.FABRICS.map(([n, p, m, x]) => `<tr><td>${esc(n)}</td><td>${esc(p)}</td><td>${esc(m)}</td><td>${x} из 5</td></tr>`).join("")}</table>` +
-      `<p><a href="/baraholka">Барахолка</a> · <a href="/tovary">Эко-товары</a></p>`, true),
+      `<p><a href="/darom">Вещи даром</a> · <a href="/tovary">Эко-товары</a></p>`, true),
   },
   "/vozduh": {
     title: "Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika",
@@ -150,10 +150,10 @@ const SECTION_PAGES = {
   },
   "/mify": {
     title: "Мифы о переработке и экологии: что правда, а что нет — DashaBotanika",
-    description: "Правда ли, что раздельный мусор всё равно смешивают, бумажный пакет экологичнее пластикового, а пластик перерабатывается бесконечно? Разбираем 9 мифов с фактами.",
+    description: "Правда ли, что один человек ничего не изменит, раздельный мусор всё равно смешивают, бумажный пакет экологичнее пластикового, а пластик перерабатывается бесконечно? Разбираем 10 мифов с фактами.",
     name: "Мифы о переработке",
     body: (d, k) => sec("myths", "Разрушаем мифы", "Мифы о переработке и экологии", "Что из того, что «все знают», правда, а что нет. Коротко, с фактами и тем, что с этим делать.",
-      k.MYTHS.map(([m, t, x]) => `<article><h3>Миф: «${esc(m)}»</h3><p>На самом деле. ${esc(t)}</p><p>Что делать. ${esc(x)}</p></article>`).join("\n") + `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true),
+      k.MYTHS.map(([m, t, x]) => `<article><h3>Миф (fake): «${esc(m)}»</h3><p>На самом деле. ${esc(t)}</p><p>Что делать. ${esc(x)}</p></article>`).join("\n") + `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true),
   },
   "/mir": {
     title: "Счастливый мир участников DashaBotanika",
@@ -197,8 +197,10 @@ function homeHtml(d, k) {
   const arts = d.articles || []
   return [
     `<section id="top"><div class="wrap"><h1>Эко: еда, быт, мода, образ жизни!</h1><p>Разумный человек — счастливая планета</p><p>Сообщество людей, которые делают жизнь вкуснее, красивее и чище — маленькими шагами, без занудства и чувства вины.</p></div></section>`,
+    sec("myths-teaser", "Прежде чем начать", "Сначала развеем мифы?", "«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами.",
+      `<p><a href="/mify">Развеять мифы о переработке</a></p>`),
     sec("interests", "С чего начнём?", "Что вам интересно", "",
-      `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/baraholka">Барахолка</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
+      `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/darom">Вещи даром</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
     sec("journal", "Журнал", "Свежее в журнале", "", arts.slice(0, 3).map(articleLink).join("\n") + `<p><a href="/zhurnal">Все статьи</a></p>`),
     sec("about", "Про меня", (d.about || {}).name || "Даша", "", paras((d.about || {}).text)),
   ].join("\n")
@@ -217,14 +219,14 @@ function page(path, d, k, app) {
       body: sec("goods", "Быт", "Товары, которые делают мир чище", "Главное правило — сначала доносить то, что уже есть дома.", "<p><b>Скоро эти товары можно будет купить</b></p>" + productsHtml(d.products || []), true),
     })
   }
-  if (path === "/baraholka") {
+  if (path === "/darom") {
     const items = (d.market || []).concat(listings(app))
     return Object.assign(base, {
-      title: "Барахолка: отдать, обменять, продать — DashaBotanika",
-      description: "Эко-барахолка DashaBotanika: отдавайте, меняйте и продавайте вещи, которые ещё послужат другим. Объявления проверяет модератор.",
-      crumbs: [["Барахолка", "/baraholka"]],
-      body: sec("market", "Вторая жизнь вещей", "Барахолка", "Отдавайте, меняйте и продавайте то, что ещё послужит другим.",
-        items.map((it) => `<article><h3>${esc(it.title)}</h3><p>${esc(it.kind || "Продам")} · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).join("\n"), true),
+      title: "Вещи даром: отдать ненужное тем, кому пригодится — DashaBotanika",
+      description: "Вещи даром на DashaBotanika: отдавайте бесплатно то, что ещё послужит другим, и забирайте нужное рядом с домом. Без продажи — каждое объявление проверяет модератор.",
+      crumbs: [["Вещи даром", "/darom"]],
+      body: sec("market", "Вторая жизнь вещей", "Вещи даром", "Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно.",
+        items.map((it) => `<article><h3>${esc(it.title)}</h3><p>Даром · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).join("\n"), true),
     })
   }
   if (path === "/eko-test") {
@@ -378,7 +380,7 @@ function sitemap(app) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl)
   const urls = [["/", "weekly", "1.0"], ["/zhurnal", "daily", "0.9"], ["/eda", "monthly", "0.8"], ["/sortirovka", "monthly", "0.8"], ["/servisy", "weekly", "0.8"], ["/moda", "monthly", "0.7"],
-    ["/tovary", "monthly", "0.8"], ["/baraholka", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/mify", "monthly", "0.7"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
+    ["/tovary", "monthly", "0.8"], ["/darom", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/mify", "monthly", "0.7"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
   constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))

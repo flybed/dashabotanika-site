@@ -91,7 +91,7 @@ function weekLetter(app, userId, since) {
     arts.map((a) => `<p style="margin:0 0 12px;font-size:16px;line-height:1.5"><a href="${site(app)}/zhurnal/${esc(a.slug || a.id)}" style="color:#3A6234;font-weight:bold">${esc(a.title)}</a><br>${esc(String(a.lead || "").slice(0, 180))}</p>`).join(""))
   const world = []
   if (members) world.push(`🐾 новых жителей: <b>${members}</b>`)
-  if (things) world.push(`📦 новых вещей на барахолке: <b>${things}</b>`)
+  if (things) world.push(`🎁 новых вещей в «Вещах даром»: <b>${things}</b>`)
   if (world.length) blocks.push(`<h2 style="margin:18px 0 10px;font-family:Georgia,serif;font-size:20px">🌍 Жизнь «Счастливого мира»</h2>` + p(world.join("<br>")))
   let xp = 0
   try { xp = app.findRecordsByFilter("xp_log", "user = {:u} && created >= {:s} && initial = false", "", 0, 0, { u: userId, s: since }).reduce((s, r) => s + r.getInt("points"), 0) } catch (e) {}
