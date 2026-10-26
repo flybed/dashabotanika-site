@@ -292,6 +292,8 @@ body.editing .ex{display:none}
 .cafe-ph-del{position:absolute;bottom:6px;right:6px}
 .cafe-ph-add{grid-column:1/-1;justify-self:start}
 .cafe-cuisine{font-size:14px}
+.sugg-ph{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.sugg-ph img{width:120px;height:90px;object-fit:cover;border-radius:10px;display:block}
 .cafe-l{font-size:14px;display:grid;gap:2px}
 .cafe-l ul{margin:0;padding-left:20px}
 .cafe-l.pros li::marker{content:'＋ ';color:var(--moss)}

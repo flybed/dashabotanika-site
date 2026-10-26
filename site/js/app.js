@@ -1159,7 +1159,8 @@ function yandexMap(url){
   const ok = /^(www\.)?yandex\.(ru|com|by|kz|uz)$/.test(u.hostname) ? /^\/maps(\/|$)/.test(u.pathname) : /^maps\.yandex\.(ru|com)$/.test(u.hostname);
   return ok ? u.href : '';
 }
-// readers suggest a place; it goes to Dasha as an idea in «Предложения»
+// readers suggest a place with the same details as a cafe card (and up to 3 photos); it goes to Dasha in «Предложения»,
+// where one button turns it into a card of the selection
 function suggestCafe(){
   const box = h('div');
   let shown = null;
@@ -1168,26 +1169,54 @@ function suggestCafe(){
     if (st === shown) return; // live updates must not wipe what is being typed
     shown = st;
     if (st !== 'member'){ box.replaceChildren(h('div',{class:'card',style:'margin-top:20px'}, h('h3',{style:'font-size:18px'},'Знаете хорошее место?'), joinHint('предложить кафе'))); return; }
-    const name = h('input',{id:'cs-name',maxlength:'80'}), addr = h('input',{id:'cs-addr',maxlength:'160'}),
-      map = h('input',{id:'cs-map',type:'url',maxlength:'500',placeholder:'https://yandex.ru/maps/…'}), why = h('textarea',{id:'cs-why',maxlength:'2000'});
+    const inp = (id, ml, extra) => h('input',Object.assign({id, maxlength:String(ml)}, extra||{})), area = (id, ml, ph) => h('textarea',{id, maxlength:String(ml), placeholder:ph||null});
+    const name = inp('cs-name',80), kind = inp('cs-kind',60,{placeholder:'Кофейня, веган-кафе…'}), addr = inp('cs-addr',160),
+      map = inp('cs-map',500,{type:'url',placeholder:'https://yandex.ru/maps/…'}), cuisine = inp('cs-cuisine',80,{placeholder:'Русская, азиатская…'}),
+      why = area('cs-why',2000), pros = area('cs-pros',600,'Каждый плюс с новой строки'), cons = area('cs-cons',600,'Каждый минус с новой строки'),
+      dishes = area('cs-dishes',400,'До 3 блюд, каждое с новой строки'), file = h('input',{id:'cs-photos',type:'file',accept:'image/jpeg,image/png,image/webp',multiple:''});
+    const L = (id, t, el, wide) => h('label',{for:id,style:wide?'grid-column:1/-1':null}, t, el);
     const f = h('form',{class:'form',style:'margin-top:20px'},
       h('h3',{style:'font-size:18px'},'Предложить кафе'),
       h('p',{class:'hint'},'Даша заглянет и, если понравится, добавит его в подборку.'),
-      h('div',{class:'fields'}, h('label',{for:'cs-name'},'Название',name), h('label',{for:'cs-addr'},'Город и адрес',addr),
-        h('label',{for:'cs-map',style:'grid-column:1/-1'},'Ссылка на Яндекс Карты (необязательно)',map),
-        h('label',{for:'cs-why',style:'grid-column:1/-1'},'Чем место хорошее',why)),
+      h('div',{class:'fields'}, L('cs-name','Название',name), L('cs-kind','Тип (необязательно)',kind), L('cs-addr','Город и адрес',addr), L('cs-cuisine','Кухня (необязательно)',cuisine),
+        L('cs-map','Ссылка на Яндекс Карты (необязательно)',map,true), L('cs-why','Чем место хорошее',why,true),
+        L('cs-pros','Плюсы (необязательно)',pros), L('cs-cons','Минусы (необязательно)',cons),
+        L('cs-dishes','Что советуете попробовать (до 3 блюд)',dishes,true), L('cs-photos','Фото, до 3 (необязательно)',file,true)),
       h('div',null,h('button',{type:'submit',class:'btn'},'Отправить Даше')));
-    f.addEventListener('submit',e=>{ e.preventDefault();
+    f.addEventListener('submit',async e=>{ e.preventDefault();
       const n = name.value.trim(), a = addr.value.trim(), m = map.value.trim(), w = why.value.trim();
       if (!n){ name.focus(); return; } if (!a){ addr.focus(); return; }
       if (m && !yandexMap(m)){ toast('Нужна ссылка на Яндекс Карты'); map.focus(); return; }
       if (!w){ why.focus(); return; }
-      const text = [a, yandexMap(m), w].filter(Boolean).join('\n\n');
-      pb.collection('suggestions').create({author:COM.uid, kind:'Идея для сайта', title:('Кафе: '+n).slice(0,120), text:text.slice(0,4000)})
-        .then(()=>{ f.reset(); toast('Спасибо! Даша посмотрит'); }).catch(writeErr); });
+      const files = [...(file.files||[])];
+      if (files.length > CAFE_PHOTOS){ toast('Можно до '+CAFE_PHOTOS+' фото'); file.focus(); return; }
+      if (files.some(x=>x.size > 15*1024*1024)){ toast('Фото больше 15 МБ, уменьшите его'); return; }
+      const cafe = {name:n, kind:kind.value.trim(), address:a, map:yandexMap(m), cuisine:cuisine.value.trim(), note:w,
+        pros:pros.value.trim(), cons:cons.value.trim(), dishes:listLines(dishes.value).slice(0,3).join('\n')};
+      const text = [a, cafe.map, w, cafe.cuisine && 'Кухня: '+cafe.cuisine, cafe.pros && 'Плюсы:\n'+cafe.pros, cafe.cons && 'Минусы:\n'+cafe.cons, cafe.dishes && 'Попробовать:\n'+cafe.dishes].filter(Boolean).join('\n\n');
+      const btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Отправляю…';
+      try{
+        const fd = new FormData();
+        Object.entries({author:COM.uid, kind:'Идея для сайта', title:('Кафе: '+n).slice(0,120), text:text.slice(0,4000), cafe:JSON.stringify(cafe)}).forEach(([k,v])=>fd.append(k,v));
+        for (const x of files) fd.append('photos', await fitPhoto(x, 1600));
+        await pb.collection('suggestions').create(fd);
+        f.reset(); toast('Спасибо! Даша посмотрит');
+      }catch(err){ writeErr(err); }
+      btn.disabled = false; btn.textContent = 'Отправить Даше';
+    });
     box.replaceChildren(f);
   });
   return box;
+}
+// «Добавить в подборку кафе»: the suggestion becomes a card with all its details and photos
+function acceptCafe(s){
+  if (!EDIT.can){ toast('Добавлять кафе может только редактор сайта'); return; }
+  const c = s.cafe || {}, comma = (c.address||'').indexOf(',');
+  STATE.cafes.push({id:'c'+uid(), name:c.name||s.title.replace(/^Кафе:\s*/,''), kind:c.kind||'', city:comma > 0 ? c.address.slice(0,comma).trim() : '', address:comma > 0 ? c.address.slice(comma+1).trim() : (c.address||''),
+    map:c.map||'', cuisine:c.cuisine||'', note:c.note||'', pros:c.pros||'', cons:c.cons||'', dishes:c.dishes||'', photos:(s.photos||[]).slice(0, CAFE_PHOTOS), by:s.author});
+  setSuggStatus(s.id, 'accepted');
+  markDirty(); setEditing(true); go('/eda#cafes');
+  toast('Кафе добавлено в подборку. Проверьте карточку и нажмите «Сохранить изменения»');
 }
 
 function markRead(articleId){
@@ -3456,8 +3485,10 @@ function cabinetTabs(tab, tid){
       lists.inbox.replaceChildren(...(all.length ? all.map(s=>h('div',{class:'li'},
         h('div',{class:'meta'}, h('span',{class:'status '+(s.status||'')},statusLabel(s.status)), h('span',null,s.kind), h('b',null,nameOf(s.author)), h('span',null,dt(s.ts))),
         h('b',null,s.title), h('div',{style:'white-space:pre-line;font-size:15px'},s.text),
+        s.photos && s.photos.length ? h('div',{class:'sugg-ph'}, s.photos.map(u=>h('a',{href:u,target:'_blank',rel:'noopener'}, h('img',{src:u+'?thumb=600x450',alt:'Фото к предложению',loading:'lazy'})))) : null,
         !s.status ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},
-          h('button',{type:'button',class:'btn small',onclick:()=>acceptSugg(s)},'Опубликовать в журнале'),
+          s.cafe ? h('button',{type:'button',class:'btn small',onclick:()=>acceptCafe(s)},'Добавить в подборку кафе')
+            : h('button',{type:'button',class:'btn small',onclick:()=>acceptSugg(s)},'Опубликовать в журнале'),
           h('button',{type:'button',class:'btn ghost small',onclick:()=>setSuggStatus(s.id,'declined')},'Отклонить')) : null
       )) : [h('p',{class:'hint'},'Новых предложений нет.')]));
     }
@@ -4427,7 +4458,8 @@ function maybeTour(){
     watch('referrals',{}, l=>{ COM.refs = l; });
     watch('reports',{sort:'-created'}, l=>{ COM.myReports = l.filter(r=>r.reporter===COM.uid).map(r=>r.comment); COM.reports = l; });
     loadProfile();
-    watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r)})); });
+    watch('suggestions',{sort:'-created'}, l=>{ COM.sugg = l.map(r=>({id:r.id, author:r.author, kind:r.kind, title:r.title, text:r.text, status:r.status||'', ts:tsOf(r),
+      cafe:r.cafe && r.cafe.name ? r.cafe : null, photos:(r.photos||[]).map(fn=>'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(fn))})); });
     try{
       const hr = await pb.collection('habits').getFirstListItem(pb.filter('owner = {:o}',{o:COM.uid}),{requestKey:null});
       habRec = hr.id;
