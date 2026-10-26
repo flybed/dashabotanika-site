@@ -62,6 +62,22 @@ function mdHtml(src) {
 const mdPlain = (s) => String(s || "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
   .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm, "").replace(/^\s*(-{3,}|❦+)\s*$/gm, "").trim()
 
+// «## Частые вопросы» → «### вопрос» + ответ: то же, что articleFaq в site/js/app.js — для FAQ-разметки
+function articleFaq(text) {
+  const out = []
+  let on = false, q = null, a = []
+  const push = () => { if (q && a.length) out.push([q, a.join(" ")]); q = null; a = [] }
+  for (const raw of String(text || "").split("\n")) {
+    const l = raw.trim(), m = l.match(/^(#{2,3})\s+(.+)$/)
+    if (m && m[1] === "##") { push(); on = /частые вопросы|вопросы и ответы/i.test(m[2]); continue }
+    if (!on) continue
+    if (m) { push(); q = mdPlain(m[2]); continue }
+    if (q && l && !/^!\[/.test(l)) a.push(mdPlain(l))
+  }
+  push()
+  return out
+}
+
 function read(path) { return toString($os.readFile(path)) }
 
 // Постоянные тексты (советы, ткани, рецепты, вопросы теста) живут в скрипте сайта — берём оттуда.
@@ -306,12 +322,16 @@ function page(path, d, k, app) {
     // свои заголовок и описание для поиска (поля SEO в редакторе статьи), иначе — из статьи
     const desc = cut(a.seo_desc || a.lead || mdPlain(a.body), 200)
     const image = a.image ? (/^https?:/.test(a.image) ? a.image : ORIGIN + a.image) : null
+    const faq = articleFaq(a.body)
+    const about = d.about || {}, bio = String(about.text || "").split(/\n{2,}/)[0].replace(/\s*\(Этот текст.*$/, "").trim()
     return Object.assign(base, {
       title: a.seo_title || `${a.title} — DashaBotanika`, description: desc, type: "article", canonical: url, image,
       crumbs: [["Журнал", "/zhurnal"], [a.title, url]],
-      ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, datePublished: a.date || undefined, inLanguage: "ru", image: image || undefined,
-        author: { "@type": "Person", name: (d.about || {}).name || "Даша" }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }],
-      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc((a.image_alt || "").trim() || a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${mdHtml(a.body)}</div></article>`,
+      ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, abstract: a.answer || undefined, datePublished: a.date || undefined,
+        dateModified: a.updated || a.date || undefined, inLanguage: "ru", image: image || undefined,
+        author: { "@type": "Person", name: about.name || "Даша", url: ORIGIN + "/o-proekte", description: bio || undefined }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }]
+        .concat(faq.length ? [{ "@type": "FAQPage", mainEntity: faq.map(([q, x]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: x } })) }] : []),
+      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc((a.image_alt || "").trim() || a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${a.answer ? `<section class="answer"><h2>Коротко</h2><p>${mdInline(a.answer)}</p></section>\n` : ""}${mdHtml(a.body)}\n<aside class="author"><p>Автор — <a href="/o-proekte">${esc(about.name || "Даша")}</a>, DashaBotanika.${bio ? " " + esc(cut(bio, 220)) : ""}</p>${a.updated && a.updated > (a.date || "") ? `<p>Обновлено: <time datetime="${esc(a.updated)}">${esc(a.updated)}</time></p>` : ""}</aside></div></article>`,
     })
   }
   return null

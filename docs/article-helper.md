@@ -30,7 +30,8 @@ GET https://dashabotanika.ru/api/collections/content/records?filter=(key='site')
 POST https://dashabotanika.ru/api/collections/drafts/records   (Authorization: token)
 {"author": record.id, "cat": "Статья" | "Новость", "title": "...", "lead": "...", "body": "...",
  "keywords": "основной поисковый запрос", "sources": "ссылки для проверки фактов", "note": "что проверить Даше",
- "image": "/api/files/photos/<id>/<file>", "image_alt": "что на обложке, до 150 знаков"}
+ "image": "/api/files/photos/<id>/<file>", "image_alt": "что на обложке, до 150 знаков",
+ "answer": "Коротко: 2–3 предложения, прямой ответ на вопрос из заголовка (правила — в docs/content-plan.md)"}
 ```
 Текст статьи — с простой разметкой (сайт превращает её в вёрстку): `## Заголовок` раздела, `**жирный**`, `> совет` (плашка), `---` (разделитель), списки `- …` или `1. …`, абзацы через пустую строку. Подробно — в docs/content-plan.md.
 
