@@ -3036,6 +3036,9 @@ function helperSection(only){
     if (accState()!=='member'){ openAccount('register'); return; }
     const label = btn.textContent; btn.disabled = true; btn.textContent = 'Смотрю на фото…';
     out.replaceChildren(h('div',{class:'card ai-wait'}, h('span',{class:'ai-spin','aria-hidden':'true'},'🌀'), 'Помощник разглядывает фото, это займёт до минуты…'));
+    // after the photo picker the phone returns to where it was: bring the answer into view, now and when it arrives
+    const showOut = ()=>setTimeout(()=>out.scrollIntoView({behavior:'smooth', block:'start'}), 80);
+    showOut();
     try{
       const image = await shrinkPhoto(file);
       const r = await pb.send('/api/ai/photo',{method:'POST', body:{kind, image}, requestKey:null});
@@ -3044,6 +3047,7 @@ function helperSection(only){
         ? h('div',{class:'card ai-res'}, h('div',{class:'ai-res-head'}, h('img',{src:image,alt:'Ваше фото',class:'ai-photo'}), h('div',null, h('div',{class:'eyebrow'}, kind==='food' ? '🥗 Совет по тарелке' : '♻️ Куда сдать упаковку'), h('p',{class:'hint'},'Совет от ИИ — проверяйте важное, особенно про здоровье.'))), aiAnswer(r.text))
         : h('div',{class:'card tg-err'}, r.message, r.detail ? h('span',{class:'hint',style:'display:block;font-weight:400;word-break:break-word'},'Для админов: '+r.detail) : null));
     }catch(e){ out.replaceChildren(h('div',{class:'card tg-err'},'Не получилось отправить фото. Попробуйте другое фото или чуть позже.', h('span',{class:'hint',style:'display:block;font-weight:400'}, 'Код ошибки: '+((e && e.status) || 'нет связи')))); }
+    showOut();
     btn.disabled = false; btn.textContent = label;
   }
   const photoBtn = (kind, label) => {
