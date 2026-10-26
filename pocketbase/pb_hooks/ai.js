@@ -70,7 +70,7 @@ function analyze(app, userId, kind, image) {
 }
 
 // проверка для админов: на каком шаге Яндекс отказывает — базовая текстовая модель, наша модель текстом, наша модель с картинкой
-function check(app, userId) {
+function check(app, userId, extra) {
   if (!staffDetail(app, userId, "x").detail) return { ok: false, message: "Только для админов" }
   if (!enabled()) return { ok: false, message: "Нет YC_FOLDER или YC_API_KEY" }
   const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
@@ -88,6 +88,9 @@ function check(app, userId) {
     yandexgpt_lite_text: tryModel(`gpt://${folder}/yandexgpt-lite/latest`, "Скажи «привет»"),
     our_model_text: tryModel(model(), "Скажи «привет»"),
     our_model_image: tryModel(model(), [{ type: "text", text: "Что на картинке?" }, { type: "image_url", image_url: { url: pixel } }]),
+    // ?models=a,b — другие модели с картинкой, чтобы найти доступную (не больше 8)
+    others: String(extra || "").split(",").map((x) => x.trim()).filter((x) => /^[\w.\-\/]{2,60}$/.test(x)).slice(0, 8).map((m) =>
+      [m, tryModel(`gpt://${folder}/${m}${m.indexOf("/") < 0 ? "/latest" : ""}`, [{ type: "text", text: "Что на картинке?" }, { type: "image_url", image_url: { url: pixel } }])]),
   }
 }
 
