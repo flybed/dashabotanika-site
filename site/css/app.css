@@ -275,6 +275,21 @@ body.editing .ex{display:none}
 .g-over>div{display:grid;gap:12px;justify-items:center;max-width:420px}
 .g-over .big{font-family:var(--font-display);font-size:56px;font-weight:800;color:var(--moss);line-height:1}
 .legend{display:grid;gap:8px}
+.cafe-ph{display:grid;gap:6px;grid-template-columns:2fr 1fr;margin:-4px 0 4px}
+.cafe-ph.n1{grid-template-columns:1fr}
+.cafe-ph.none{display:block;margin:0}
+.cafe-ph-i{position:relative;margin:0;border-radius:14px;overflow:hidden;aspect-ratio:4/3;background:var(--soft)}
+.cafe-ph.n2 .cafe-ph-i,.cafe-ph.n3 .cafe-ph-i:first-child{grid-row:span 2}
+.cafe-ph.n3 .cafe-ph-i:not(:first-child){aspect-ratio:auto}
+.cafe-ph-i img{width:100%;height:100%;object-fit:cover;display:block}
+.cafe-ph-del{position:absolute;bottom:6px;right:6px}
+.cafe-ph-add{grid-column:1/-1;justify-self:start}
+.cafe-cuisine{font-size:14px}
+.cafe-l{font-size:14px;display:grid;gap:2px}
+.cafe-l ul{margin:0;padding-left:20px}
+.cafe-l.pros li::marker{content:'＋ ';color:var(--moss)}
+.cafe-l.cons li::marker{content:'－ ';color:var(--clay)}
+.cafe-l.dishes li::marker{content:'🍴 '}
 .g-actions{display:flex;gap:12px;align-items:center;margin-top:12px}
 .g-act{min-width:140px}
 .g-act:disabled{opacity:.45;cursor:default}
