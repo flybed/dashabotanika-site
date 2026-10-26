@@ -28,7 +28,7 @@ function forUser(app, u) {
     ai: { food: ai.filter((r) => r.getString("kind") === "food").length, pack: ai.filter((r) => r.getString("kind") === "pack").length },
     email_topics: notify ? notify.getStringSlice("email_topics") : [],
     tg: tg ? { on: tg.getBool("enabled"), topics: tg.getStringSlice("topics") } : null,
-    profile: prof ? { age: prof.getInt("age"), gender: prof.getString("gender"), city: prof.getString("city"), country: prof.getString("country"), goals: prof.getStringSlice("goals") } : null,
+    profile: prof ? { age: prof.getInt("age"), gender: prof.getString("gender"), city: [prof.getString("city"), prof.getString("district")].filter(Boolean).join(", "), country: prof.getString("country"), goals: prof.getStringSlice("goals") } : null,
     log: log.map((r) => ({ at: DATE(r, "created"), key: r.getString("key"), title: r.getString("title"), count: r.getInt("count"), points: r.getInt("points"), initial: r.getBool("initial") })),
   }
 }
