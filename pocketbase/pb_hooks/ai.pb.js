@@ -12,4 +12,4 @@ routerAdd("POST", "/api/ai/photo", (e) => {
 }, $apis.requireAuth("users"))
 
 // для админов: на каком шаге Yandex AI Studio отказывает (базовая модель, наша модель, картинка)
-routerAdd("GET", "/api/ai/check", (e) => e.json(200, require(`${__hooks}/ai.js`).check(e.app, e.auth.id)), $apis.requireAuth("users"))
+routerAdd("GET", "/api/ai/check", (e) => e.json(200, require(`${__hooks}/ai.js`).check(e.app, e.auth.id, e.request.url.query().get("models"))), $apis.requireAuth("users"))
