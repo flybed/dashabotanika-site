@@ -1319,6 +1319,31 @@ function mdBlocks(src){
 const mdPlain = s => String(s||'').replace(/!\[[^\]]*\]\([^)]*\)/g,'').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\*\*|(^|\s)_|_(\s|$)/g,'$1$2')
   .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm,'').replace(/^\s*(-{3,}|❦+)\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
 const readMinutes = s => Math.max(1, Math.round(mdPlain(s).split(/\s+/).length / 180));
+/* «Частые вопросы» at the end of an article: «## Частые вопросы», then «### вопрос» and the answer under it.
+   The page shows them as usual; search engines also get them as FAQ markup (pb_hooks/seo.js does the same) */
+function articleFaq(text){
+  const out = []; let on = false, q = null, a = [];
+  const push = () => { if (q && a.length) out.push([q, a.join(' ')]); q = null; a = []; };
+  for (const raw of String(text||'').split('\n')){
+    const l = raw.trim(), m = l.match(/^(#{2,3})\s+(.+)$/);
+    if (m && m[1]==='##'){ push(); on = /частые вопросы|вопросы и ответы/i.test(m[2]); continue; }
+    if (!on) continue;
+    if (m){ push(); q = mdPlain(m[2]); continue; }
+    if (q && l && !/^!\[/.test(l)) a.push(mdPlain(l));
+  }
+  push(); return out;
+}
+/* who wrote it: a short card at the end of every article (search engines trust a visible author) */
+function authorCard(){
+  const ab = STATE.about||{}, name = ab.name||'Даша';
+  const bio = String(ab.text||'').split(/\n{2,}/)[0].replace(/\s*\(Этот текст.*$/,'').trim();
+  const pic = (STATE.photos||{}).hero;
+  return h('aside',{class:'art-author'},
+    pic ? h('div',{class:'art-author-ph'}, photoImg(pic, name, '')) : null,
+    h('div',null, h('div',{class:'eyebrow'},'Автор'), h('b',null, name+', DashaBotanika'),
+      bio ? h('p',null, bio.length > 220 ? bio.slice(0,217).replace(/\s+\S*$/,'')+'…' : bio) : null,
+      h('a',{class:'linkish',href:'/o-proekte'},'О проекте и Даше →')));
+}
 function articleBody(text, mid){
   const {nodes, heads} = mdBlocks(text);
   // the «mid» card goes before the third section (or after the third block), so it meets the reader halfway
@@ -1503,13 +1528,17 @@ function articlePage(path){
     return [h('article',{class:'band art-page',id:'article'}, h('div',{class:'wrap narrow'},
       h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/zhurnal'},'Журнал')),
       h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null,
+        it.updated && it.updated > (it.date||'') ? h('span',{class:'date'},'· обновлено ', h('time',{datetime:it.updated}, fmtDate(it.updated))) : null,
         h('span',{class:'date'},'⏱ ',readMinutes(it.body),' мин чтения')),
       h('h1',null,it.title),
       it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, coverAlt(it), '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
+      // «Коротко»: the direct answer to the question in the title — the part search engines quote
+      it.answer ? h('div',{class:'art-answer'}, h('div',{class:'art-answer-t'},'Коротко'), h('p',null, mdInline(it.answer))) : null,
       ...articleBody(it.body, midCta(it)),
       h('div',{class:'art-end',role:'separator','aria-hidden':'true'},'❦ ❦ ❦'),
+      authorCard(),
       endCta(it),
       articleEditor(it),
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/zhurnal'},'← Все статьи')),
@@ -1546,7 +1575,9 @@ function articleEditor(it){
   slugField.querySelector('input').addEventListener('change', ()=>{ const now = articleSlug(it); if (now !== slugWas){ it.old_slugs = [...new Set([...(it.old_slugs||[]), slugWas])].filter(x=>x!==now); markDirty(); } });
   return h('div',{class:'form edit-only art-editor'},
     h('h3',null,'✏️ Редактировать статью'),
-    field('title','Заголовок'), field('lead','Короткое описание',{area:true,h:70}), bodyField,
+    field('title','Заголовок'), field('lead','Короткое описание',{area:true,h:70}),
+    field('answer','Коротко: прямой ответ',{area:true,h:80,max:400, hint:'2–3 предложения, которые сразу отвечают на вопрос из заголовка. Их показывают поисковики и ИИ-ответы. Частые вопросы — в конце текста: «## Частые вопросы», под ним «### Вопрос?» и ответ.'}),
+    bodyField,
     h('h3',{style:'margin-top:10px'},'🔎 Для поиска и ссылок'),
     h('p',{class:'hint'},'Если оставить пустым, сайт возьмёт заголовок и короткое описание статьи.'),
     field('seo_title','Заголовок в поиске',{max:60, ph:it.title+' — DashaBotanika', hint:'До 60 знаков, главный запрос — в начале. Например: «Куда сдать батарейки в Новосибирске: 5 мест».'}),
@@ -3633,16 +3664,17 @@ function paintDrafts(el){
     // the cover comes with the draft; it can be replaced or removed before publishing
     let image = d.image||'';
     const alt = h('input',{maxlength:'150',value:d.image_alt||'',placeholder:'Что на картинке'});
+    const answer = h('textarea',{maxlength:'600',style:'min-height:70px'}); answer.value = d.answer||'';
     const cover = h('div',{class:'draft-cover'});
     const paintCover = () => cover.replaceChildren(...[image ? photoImg(image, alt.value||d.title, '') : h('p',{class:'hint'},'Картинки пока нет.'),
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
         EDIT.can ? h('button',{type:'button',class:'btn ghost small',onclick:()=>pickAndUpload(nid=>{ image = nid; paintCover(); }, true)}, image ? 'Заменить картинку' : 'Загрузить картинку') : null,
         image ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ image = ''; paintCover(); }},'Убрать') : null)].filter(Boolean));
     paintCover();
-    const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value, image, image_alt:alt.value.trim()});
+    const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value, image, image_alt:alt.value.trim(), answer:answer.value.trim()});
     box.append(head, h('div',{class:'form draft-ed'},
       h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead),
-      h('div',null, h('div',{class:'ae-l'},'Картинка превью'), cover), h('label',null,'Что на картинке (alt)',alt),
+      h('div',null, h('div',{class:'ae-l'},'Картинка превью'), cover), h('label',null,'Что на картинке (alt)',alt), h('label',null,'Коротко: прямой ответ (видно над текстом и в поиске)',answer),
       h('label',null,'Текст статьи',mdTools(f.body),f.body),
       d.sources ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Источники для проверки: '), d.sources) : null,
       d.note ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Заметка помощника: '), d.note) : null,
@@ -3668,6 +3700,7 @@ async function publishDraft(d, v, btn){
     const plainBody = mdPlain(v.body), lead = v.lead || (plainBody.length > 200 ? plainBody.slice(0,197).replace(/\s+\S*$/,'')+'…' : plainBody);
     const art = {id:'a'+uid(), cat:v.cat||'Статья', date:iso(new Date()), title:v.title, lead, body:v.body, slug};
     if (v.image){ art.image = v.image; if (v.image_alt) art.image_alt = v.image_alt; }
+    if (v.answer) art.answer = v.answer;
     data.articles.unshift(art);
     const r = await pb.collection('content').update(CONTENT.id, {data});
     CONTENT.data = JSON.parse(JSON.stringify(r.data));
@@ -4436,6 +4469,9 @@ async function saveSite(){
   const btn = document.getElementById('save-btn');
   if (!EDIT.can || !CONTENT.id){ toast('Сохранять может только редактор сайта'); return; }
   for (const k of ['cafes','market']) STATE[k].forEach(it=>{ if (it.example && it._touched) delete it.example; });
+  // an article whose text changed gets today as «обновлено» (search engines prefer fresh pages)
+  const was = {}; ((CONTENT.data||{}).articles||[]).forEach(a=>{ was[a.id] = a; });
+  STATE.articles.forEach(a=>{ const o = was[a.id]; if (o && ['title','lead','body','answer','image'].some(k=>(o[k]||'')!==(a[k]||''))) a.updated = iso(new Date()); });
   btn.disabled = true; btn.textContent = 'Сохраняю…';
   try{
     const r = await pb.collection('content').update(CONTENT.id, {data:STATE});
