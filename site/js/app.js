@@ -2206,7 +2206,7 @@ function dealBtn(ref, title, seller, kind){
 }
 function myItems(){ return COM.listings.filter(l=>l.seller===COM.uid); }
 function setMyItemStatus(id, status){ return write('listings/'+id, ()=>pb.collection('listings').update(id,{status})).catch(writeErr); }
-function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
+function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', chosen:r.chosen||'', claims:r.claims||0, lend_days:r.lend_days||0, return_by:r.return_by||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
 function userListingCard(it){
   const mine = it.seller === COM.uid;
@@ -2215,14 +2215,17 @@ function userListingCard(it){
   if (img) img.addEventListener('error',()=>img.remove());
   return h('article',{class:'card'},
     img,
-    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), h('span',{class:'tag'}, catIcon(it.category),' ',it.category||'Другое'), it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
+    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), h('span',{class:'tag'}, catIcon(it.category),' ',it.category||'Другое'),
+      it.kind==='Одолжу' ? h('span',{class:'tag',style:'background:var(--sky,#8FC3D6);color:#123'},'🔁 На время'+(it.lend_days ? ' · '+it.lend_days+' дн.' : '')) : null,
+      it.status==='lent' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'На руках'+(it.return_by ? ' до '+fmtDate(String(it.return_by).slice(0,10)) : '')) : null, it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
     h('h3',{style:'font-size:20px'},it.title),
     h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
     it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
     it.city ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',it.city, it.pickup ? ' · '+it.pickup : '') : it.pickup ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',it.pickup) : null,
     it.note ? h('p',{style:'font-size:15px;flex:1;white-space:pre-line'},it.note) : null,
     h('p',{class:'hint'},'Отдаёт: ', nameSpan(it.seller)), trustLine(it.seller),
-    mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Сообщения от желающих забрать — в кабинете.') : dealBtn({listing:it.id}, it.title, it.seller, it.kind),
+    it.claims && !mine ? h('p',{class:'hint'},'🙋 Желающих: ',h('b',null,it.claims),' · даритель выберет сам, кто написал первым — не важно') : null,
+    mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Желающие и их сообщения — в кабинете.') : it.status==='lent' ? null : claimBtn(it),
     commentsBlock('mk:'+it.id)
   );
 }
@@ -2239,6 +2242,32 @@ function trustLine(uid){
       t.profile ? h('span',null,'✓ профиль заполнен') : null].filter(Boolean)); });
   return box;
 }
+/* «Хочу забрать»: a couple of words why you need it — the giver chooses, not «whoever was first» */
+function claimBtn(it){
+  const mineClaim = (COM.claims||[]).find(c=>c.listing===it.id && c.user===COM.uid);
+  if (mineClaim) return h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}, h('span',{class:'status accepted'},'✓ Вы в списке желающих'),
+    h('button',{type:'button',class:'btn ghost small',onclick:()=>openDeal({listing:it.id}, it.title, it.seller)},'Написать'));
+  return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openClaim(it)}, it.kind==='Одолжу' ? 'Хочу взять на время' : 'Хочу забрать');
+}
+function openClaim(it){
+  if (accState() !== 'member'){ openAccount(); toast('Сначала войдите или зарегистрируйтесь, это быстро'); return; }
+  openModal(sheet=>{
+    const ta = h('textarea',{id:'claim-note',maxlength:'300',placeholder:'Например: дочке 5 лет, как раз её размер. Могу забрать в выходные.',style:'min-height:90px'});
+    const btn = h('button',{type:'submit',class:'btn'},'Отправить');
+    const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'}, h('label',{for:'claim-note'},'Пара слов дарителю (необязательно)',ta), h('div',null,btn));
+    f.addEventListener('submit', async e=>{ e.preventDefault(); btn.disabled = true;
+      try{
+        const r = await pb.collection('claims').create({listing:it.id, user:COM.uid, note:ta.value.trim().slice(0,300)});
+        COM.claims = (COM.claims||[]).concat([claimOf(r)]); closeModal(); refresh();
+        toast('Вы в списке желающих! Даритель выберет, кому отдать, — мы сообщим');
+        openDeal({listing:it.id}, it.title, it.seller);
+      }catch(err){ writeErr(err); btn.disabled = false; }
+    });
+    sheet.append(h('div',{class:'eyebrow'}, it.kind==='Одолжу' ? '🔁 Взять на время' : '🎁 Хочу забрать'), h('h2',{style:'font-size:26px'},'«'+it.title+'»'),
+      h('p',{class:'muted'},'Здесь нет правила «кто первый написал». Даритель читает всех желающих и сам выбирает, кому отдать. Напишите, зачем вам вещь и когда удобно забрать.'), f);
+  });
+}
+function claimOf(r){ return {id:r.id, listing:r.listing, user:r.user, note:r.note||'', ts:tsOf(r)}; }
 function threadOf(r){ return {key:r.key, title:r.title, listing:r.listing||'', seller:r.seller||'', buyer:r.buyer, last_from:r.last_from||'', last_at:r.last_at||0, read_by:r.read_by||{}}; }
 async function openDeal(ref, title, seller){
   if (accState() !== 'member'){ openAccount(); toast('Сначала войдите или зарегистрируйтесь, это быстро'); return; }
@@ -2299,7 +2328,7 @@ function threadView(tid, back){
   const actions = myIt ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
     myIt.status!=='reserved' && myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'reserved').then(()=>toast('Вещь отмечена как забронированная'))},'Забронировать') : null,
     myIt.status==='reserved' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'active').then(()=>toast('Бронь снята'))},'Снять бронь') : null,
-    myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'gone').then(()=>toast('Готово! Вещь убрана из «Вещей даром»'))},'Отдано / продано') : h('span',{class:'status'},'Сделка завершена')) : null;
+    myIt.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(myIt.id,'gone').then(()=>toast('Готово! Вещь убрана из «Вещей даром»'))},'Отдано') : h('span',{class:'status'},'Сделка завершена')) : null;
   paintMsgs();
   const iAmSeller = t.seller === COM.uid || (!t.seller && t.buyer !== COM.uid);
   const thx = t.listing && t.buyer===COM.uid && t.seller ? h('div') : null;
@@ -2307,7 +2336,7 @@ function threadView(tid, back){
     thx.replaceChildren(done ? h('span',{class:'status accepted'},'💚 Вы сказали спасибо') : h('button',{type:'button',class:'btn ghost small',onclick:()=>openThanks(t)},'💚 Сказать спасибо')); });
   return [
     h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('button',{type:'button',class:'btn ghost small',onclick:back},'← Все сообщения'),
-      h('div',{style:'min-width:0'}, h('b',null,t.title), h('div',{class:'hint'}, isDM(t) ? 'Собеседник: ' : iAmSeller ? 'Покупатель: ' : 'Продавец: ', partnerName(t)))),
+      h('div',{style:'min-width:0'}, h('b',null,t.title), h('div',{class:'hint'}, isDM(t) || !t.listing ? 'Собеседник: ' : iAmSeller ? 'Хочет забрать: ' : 'Отдаёт: ', partnerName(t)))),
     actions, thx, msgs, f,
     h('p',{class:'hint'},'Сайт не принимает оплату. Договоритесь о передаче и способе оплаты напрямую. Не отправляйте здесь паспортные и банковские данные: переписку видят модераторы.')
   ];
@@ -2369,7 +2398,7 @@ function marketSection(){
     if (!filters.contains(document.activeElement)) filters.replaceChildren(daromFilters(all));
     if (!pub.length){ userGrid.replaceChildren(h('div',{class:'empty'},'Под этот фильтр пока ничего нет. Попробуйте другую категорию — или загляните позже.')); return; }
     const els = pub.map(it=>{
-      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,it.category,it.pickup,st,COM.uid].join('|');
+      const v = [it.title,it.kind,it.price,it.condition,it.city,it.note,it.photo,it.status,it.category,it.pickup,it.claims,it.return_by,st,COM.uid,(COM.claims||[]).some(c=>c.listing===it.id)].join('|');
       let c = cache.get(it.id);
       if (!c || c.v !== v){ c = {v, el:userListingCard(it)}; cache.set(it.id,c); }
       return c.el;
@@ -2382,7 +2411,7 @@ function marketSection(){
     sectionHead('Вторая жизнь вещей','Вещи даром','Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно. Каждое объявление участников проверяет Даша.'),
     h('div',{class:'grid g3',style:'margin-bottom:28px'},
       [['1','Выставьте вещь','В личном кабинете: фото и описание. Объявление появится после проверки.'],
-       ['2','Договоритесь','Нажмите «Хочу забрать» и обсудите детали в личных сообщениях.'],
+       ['2','Даритель выбирает','Нажмите «Хочу забрать» и напишите пару слов. Даритель сам решит, кому отдать: кто первый — не важно.'],
        ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Всё бесплатно: вещи здесь не продают.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
     daromCounter(),
     pickedBlock(),
@@ -2400,10 +2429,93 @@ function marketSection(){
     ))) : h('div',{class:'empty'},'Сейчас ничего нет, загляните позже.'),
     addForm('market','Новое объявление от Даши'),
     h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:40px 0 14px'}, h('h3',null,'От участников'), addBtn),
-    filters, userGrid
+    filters, userGrid,
+    wantsBlock(), daromSubCard()
   ));
 }
 
+/* «Ищу»: what people need — the other half of giving */
+function wantOf(r){ return {id:r.id, author:r.author, title:r.title, category:r.category||'', city:r.city||'', note:r.note||'', borrow:!!r.borrow, status:r.status||'open', ts:tsOf(r)}; }
+async function offerWant(w){
+  if (accState() !== 'member'){ openAccount(); toast('Сначала войдите или зарегистрируйтесь, это быстро'); return; }
+  if (w.author===COM.uid){ toast('Это ваш запрос'); return; }
+  const key = 'W'+w.id+'_'+COM.uid;
+  let tid = Object.keys(COM.threads).find(id=>COM.threads[id].key===key);
+  try{
+    if (!tid){
+      let r;
+      try{ r = await pb.collection('chats').getFirstListItem(pb.filter('key = {:k}',{k:key}),{requestKey:null}); }
+      catch(e){ const now = Date.now(); r = await pb.collection('chats').create({key, title:('Ищу: '+w.title).slice(0,120), seller:w.author, buyer:COM.uid, last_from:COM.uid, last_at:now, read_by:{[COM.uid]:now}}); }
+      COM.threads[r.id] = threadOf(r); tid = r.id;
+    }
+    openAccount('chats', tid);
+  }catch(e){ writeErr(e); }
+}
+function wantsBlock(){
+  const list = h('div'), formSlot = h('div');
+  let lastSt = '';
+  live(()=>{ const open = (COM.wants||[]).filter(w=>w.status==='open');
+    list.replaceChildren(...(open.length ? [h('div',{class:'grid g3'}, open.slice(0,30).map(w=>h('article',{class:'card want-card'},
+      h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:'background:var(--sun);color:#2A1C05'}, w.borrow ? '🔁 Возьму на время' : '🔍 Ищу'), w.category ? h('span',{class:'tag'},catIcon(w.category),' ',w.category) : null),
+      h('h3',{style:'font-size:19px'}, w.title), w.city ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',w.city) : null,
+      w.note ? h('p',{style:'font-size:15px;white-space:pre-line'}, w.note) : null,
+      h('p',{class:'hint'},'Ищет: ', nameSpan(w.author)),
+      w.author===COM.uid ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('wants').update(w.id,{status:'found'}).then(()=>toast('Отлично, что нашлось!')).catch(writeErr)},'Нашлось'),
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>delDoc('wants',w.id)},'Удалить'))
+        : h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>offerWant(w)},'🎁 У меня есть'))))] : [h('p',{class:'hint'},'Пока никто ничего не ищет. Напишите первым — вдруг у кого-то это пылится на балконе.')]));
+    const st = accState(); if (st!==lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? wantForm() : joinHint('написать, что вы ищете')); }
+  });
+  return h('div',{class:'wants',id:'ishu'}, h('h3',{style:'margin:40px 0 6px'},'🔍 Ищу'), h('p',{class:'muted',style:'margin:0 0 14px'},'Напишите, что вам нужно, — у кого есть, откликнутся. Когда такая вещь появится в «Вещах даром», мы сообщим.'), list, formSlot);
+}
+function wantForm(){
+  const title = h('input',{id:'want-title',maxlength:'100',placeholder:'Например: детское автокресло 9–18 кг'});
+  const cat = h('select',{id:'want-cat'}, [h('option',{value:''},'Выберите…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
+  const city = h('input',{id:'want-city',maxlength:'80',placeholder:'Город',value:(PROFILE.rec && PROFILE.rec.city)||''});
+  const note = h('textarea',{id:'want-note',maxlength:'600',placeholder:'Размер, для чего, когда нужно',style:'min-height:70px'});
+  const borrow = h('input',{id:'want-borrow',type:'checkbox'});
+  const btn = h('button',{type:'submit',class:'btn'},'Опубликовать запрос');
+  const f = h('form',{class:'form',style:'margin-top:16px'}, h('div',{class:'fields'},
+      h('label',{for:'want-title',style:'grid-column:1/-1'},'Что ищете',title), h('label',{for:'want-cat'},'Категория',cat), h('label',{for:'want-city'},'Город',city)),
+    h('label',{for:'want-note'},'Подробнее (необязательно)',note), h('label',{class:'consent',for:'want-borrow'}, borrow, 'Достаточно взять на время'), h('div',null,btn));
+  f.addEventListener('submit', async e=>{ e.preventDefault();
+    const t = title.value.trim(); if (t.length < 3){ title.focus(); return; }
+    if (!cat.value){ cat.focus(); toast('Выберите категорию — так мы сообщим, когда такое появится'); return; }
+    btn.disabled = true;
+    try{ const r = await pb.collection('wants').create({author:COM.uid, title:t, category:cat.value, city:city.value.trim(), note:note.value.trim(), borrow:borrow.checked, status:'open'});
+      COM.wants = [wantOf(r)].concat((COM.wants||[]).filter(x=>x.id!==r.id)); f.reset(); refresh(); toast('Запрос опубликован. Сообщим, когда такое появится'); }
+    catch(err){ writeErr(err); }
+    btn.disabled = false;
+  });
+  return f;
+}
+/* subscription: new things in chosen categories and city — by mail or Telegram */
+function daromSubCard(){
+  const box = h('div',{class:'card darom-sub',id:'darom-sub'});
+  let rec = null, loaded = false, lastSt = '';
+  const paint = ()=>{
+    if (accState()!=='member'){ box.replaceChildren(h('h3',{style:'font-size:20px'},'🔔 Сообщать о новых вещах'), joinHint('получать уведомления о новых вещах')); return; }
+    const cats = new Set(rec ? rec.cats||[] : []);
+    const city = h('input',{maxlength:'80',placeholder:'Город (пусто — любой)',value:rec ? rec.city||'' : ((PROFILE.rec && PROFILE.rec.city)||''),'aria-label':'Город'});
+    const em = h('input',{type:'checkbox',checked:rec ? !!rec.email : true}), tg = h('input',{type:'checkbox',checked:rec ? !!rec.tg : false});
+    const chips = DAROM_CATS.map(([c,ic])=>{ const b = h('button',{type:'button',class:'chip'+(cats.has(c)?' on':''),'aria-pressed':cats.has(c)?'true':'false'}, ic+' '+c);
+      b.addEventListener('click', ()=>{ cats.has(c) ? cats.delete(c) : cats.add(c); b.classList.toggle('on'); b.setAttribute('aria-pressed', cats.has(c)?'true':'false'); }); return b; });
+    const save = h('button',{type:'button',class:'btn small',onclick:async ()=>{
+      const data = {user:COM.uid, cats:[...cats], city:city.value.trim(), email:em.checked, tg:tg.checked};
+      try{ rec = rec ? await pb.collection('darom_subs').update(rec.id, data) : await pb.collection('darom_subs').create(data);
+        toast(em.checked || tg.checked ? 'Подписка сохранена: сообщим о новых вещах' : 'Уведомления о новых вещах выключены'); paint(); }
+      catch(err){ writeErr(err); } }}, rec ? 'Сохранить' : 'Подписаться');
+    box.replaceChildren(h('h3',{style:'font-size:20px'},'🔔 Сообщать о новых вещах'),
+      h('p',{class:'muted',style:'margin:0'},'Выберите категории (ничего не выбрано — все) и город. Пришлём одно письмо или сообщение на несколько новых вещей, не чаще раза в полчаса.'),
+      h('div',{class:'chips',style:'margin-top:4px'}, chips), city,
+      h('div',{style:'display:flex;gap:18px;flex-wrap:wrap'}, h('label',{class:'consent'}, em, 'На почту'), h('label',{class:'consent'}, tg, 'В Telegram (если подключён в профиле)')),
+      h('div',null, save));
+  };
+  live(()=>{ const st = accState(); if (st===lastSt) return; lastSt = st;
+    if (st==='member' && !loaded){ loaded = true; pb.collection('darom_subs').getFirstListItem(pb.filter('user = {:u}',{u:COM.uid}),{requestKey:null}).then(r=>{ rec = r; }).catch(()=>{}).then(paint); }
+    else paint(); });
+  return box;
+}
 /* filters: a category, a city, a word */
 function daromFilters(all){
   const F = DAROM.filter;
@@ -2468,6 +2580,10 @@ function thingsPanel(lists){
   const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город'});
   const cat = h('select',{id:'mk-cat',required:''}, [h('option',{value:''},'Выберите…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
   const pickup = h('input',{id:'mk-pickup',maxlength:'120',placeholder:'Например: м. Чкаловская, будни после 19:00'});
+  const how = h('select',{id:'mk-how'}, [h('option',{value:MK_KIND},'🎁 Отдать насовсем'), h('option',{value:'Одолжу'},'🔁 Одолжить на время')]);
+  const lendDays = h('input',{id:'mk-lend',type:'number',min:'1',max:'90',value:'14'});
+  const lendBox = h('label',{for:'mk-lend',hidden:''},'На сколько дней одалживаете',lendDays);
+  how.addEventListener('change', ()=>{ lendBox.hidden = how.value!=='Одолжу'; });
   const days = h('select',{id:'mk-days'}, [['7','неделю'],['14','2 недели'],['30','месяц']].map(([v,t])=>h('option',{value:v,selected:v==='14'},t)));
   const note = h('textarea',{id:'mk-note',maxlength:'1500'});
   const file = h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp'});
@@ -2482,6 +2598,7 @@ function thingsPanel(lists){
   const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
     h('div',{class:'fields'},
       h('label',{for:'mk-title',style:'grid-column:1/-1'},'Что за вещь',title),
+      h('label',{for:'mk-how'},'Как отдаёте',how), lendBox,
       h('label',{for:'mk-cat'},'Категория',cat), h('label',{for:'mk-cond'},'Состояние',cond),
       h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-pickup'},'Где и когда забрать (без точного адреса)',pickup),
       h('label',{for:'mk-days'},'Объявление актуально',days)),
@@ -2497,7 +2614,7 @@ function thingsPanel(lists){
     btn.disabled = true; btn.textContent = 'Отправляю…';
     try{
       const fd = new FormData();
-      Object.entries({seller:COM.uid, title:t, kind:MK_KIND, price:'', category:cat.value, condition:cond.value.trim(), city:city.value.trim(), pickup:pickup.value.trim(), until:plusDays(+days.value), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
+      Object.entries({seller:COM.uid, title:t, kind:how.value, price:'', lend_days:how.value==='Одолжу' ? Math.max(1,Math.min(90,+lendDays.value||14)) : 0, category:cat.value, condition:cond.value.trim(), city:city.value.trim(), pickup:pickup.value.trim(), until:plusDays(+days.value), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
       if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
       await pb.collection('listings').create(fd);
       f.reset(); framed = null; showFramed(); toast('Отправлено! Объявление появится после проверки');
@@ -2517,7 +2634,14 @@ function paintThings(el){
   const lbl = {pending:'На проверке', approved:'Опубликовано', rejected:'Отклонено'};
   el.replaceChildren(...(items.length ? items.map(it=>{
     const ms = mkState(it);
-    const stl = it.status==='gone' ? 'Отдано' : it.status==='archived' ? 'В архиве' : it.status==='reserved' ? 'Забронировано' : lbl[ms];
+    const stl = it.status==='gone' ? 'Отдано' : it.status==='archived' ? 'В архиве' : it.status==='lent' ? 'На руках' : it.status==='reserved' ? 'Забронировано' : lbl[ms];
+    const claims = (COM.claims||[]).filter(c=>c.listing===it.id).sort((a,b)=>a.ts-b.ts);
+    const lend = it.kind==='Одолжу';
+    const pick = c => fetch('/api/darom/choose',{method:'POST',headers:{'Content-Type':'application/json',Authorization:pb.authStore.token},body:JSON.stringify({claim:c.id})})
+      .then(r=>r.ok ? r.json() : r.json().then(x=>Promise.reject({status:r.status,response:x}))).then(()=>toast('Готово! '+nameOf(c.user)+' получит сообщение, договоритесь о встрече')).catch(writeErr);
+    const claimList = claims.length && it.status!=='gone' ? h('div',{class:'claims'}, h('div',{class:'hint',style:'font-weight:800'},'🙋 Желающие ('+claims.length+') — выберите, кому '+(lend ? 'одолжить' : 'отдать')+':'),
+      ...claims.map(c=>h('div',{class:'claim'+(it.chosen===c.user?' on':'')}, h('div',null, nameSpan(c.user), trustLine(c.user), c.note ? h('div',{style:'white-space:pre-line;font-size:15px'},c.note) : null),
+        it.chosen===c.user ? h('span',{class:'status accepted'},'✓ Выбран(а)') : it.status==='lent' ? null : h('button',{type:'button',class:'btn ghost small',onclick:()=>pick(c)}, lend ? 'Одолжить' : 'Отдать')))) : null;
     const left = it.until ? Math.ceil((Date.parse(String(it.until).replace(' ','T')) - Date.now())/86400000) : null;
     const extend = (status) => write('listings/'+it.id, ()=>pb.collection('listings').update(it.id, Object.assign({until:plusDays(14)}, status ? {status} : {}))).then(()=>toast(status ? 'Вещь снова в ленте на 2 недели' : 'Продлено на 2 недели')).catch(writeErr);
     return h('div',{class:'li'},
@@ -2525,17 +2649,21 @@ function paintThings(el){
       h('b',null,it.title),
       ms==='rejected' && it.reason ? h('div',{class:'hint'},'Причина: ',it.reason) : null,
       it.status!=='gone' && it.status!=='archived' && left!==null ? h('div',{class:'hint'}, left > 0 ? 'Актуально ещё '+left+' '+plural(left,'день','дня','дней') : 'Срок вышел — продлите, если вещь ещё у вас, иначе объявление уйдёт в архив') : null,
+      claimList,
+      it.status==='lent' && it.return_by ? h('div',{class:'hint'},'Вернуть должны до ',fmtDate(String(it.return_by).slice(0,10))) : null,
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
-        it.status!=='gone' && it.status!=='archived' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend()},'Продлить на 2 недели') : null,
+        lend && it.chosen && it.status!=='lent' && it.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'lent').then(()=>toast('Отмечено: вещь на руках. Напомним о возврате'))},'Одолжено') : null,
+        it.status==='lent' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'active').then(()=>toast('Вещь снова в ленте'))},'Вернули') : null,
+        it.status!=='gone' && it.status!=='archived' && it.status!=='lent' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend()},'Продлить на 2 недели') : null,
         it.status==='archived' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend('active')},'Вернуть в ленту') : null,
-        it.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'gone')},'Отдано') : null,
+        it.status!=='gone' && !lend ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'gone')},'Отдано') : null,
         h('button',{type:'button',class:'btn danger small',onclick:()=>delDoc('listings',it.id)},'Удалить')));
   }) : [h('p',{class:'hint'},'Вы пока ничего не выставили.')]));
 }
 function paintChats(el, openThread){
   const ts = Object.entries(COM.threads).sort((a,b)=>(b[1].last_at||0)-(a[1].last_at||0));
   el.replaceChildren(...(ts.length ? ts.map(([tid,t])=>h('button',{type:'button',class:'li',style:'text-align:left;cursor:pointer;font:inherit;color:inherit',onclick:()=>openThread(tid)},
-      h('div',{class:'meta'}, isUnread(t) ? h('span',{class:'status accepted'},'Новое') : null, h('span',null, isDM(t) ? 'Личные сообщения' : t.buyer===COM.uid ? 'Вы покупаете' : 'Вас спрашивают'), h('span',null,dt(t.last_at))),
+      h('div',{class:'meta'}, isUnread(t) ? h('span',{class:'status accepted'},'Новое') : null, h('span',null, isDM(t) ? 'Личные сообщения' : !t.listing && t.key && t.key[0]==='W' ? (t.buyer===COM.uid ? 'Вы предлагаете' : 'Ответ на «Ищу»') : t.buyer===COM.uid ? 'Вы хотите забрать' : 'Вас спрашивают'), h('span',null,dt(t.last_at))),
       h('b',null,t.title), h('span',{class:'hint'},'Собеседник: ',partnerName(t)))
   ) : [h('p',{class:'hint'},'Сообщений пока нет. Нажмите «Хочу забрать» на любой вещи в «Вещах даром».')]));
 }
@@ -4848,9 +4976,11 @@ function maybeTour(){
   watch('comments',{sort:'created'}, l=>{ COM.comments = l.map(r=>({id:r.id, target:r.target, author:r.author, text:r.text, ts:tsOf(r)})); });
   watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); });
   watch('thanks',{sort:'-created'}, l=>{ COM.thanks = l.map(thanksOf); DAROM.stats = null; DAROM.people = {}; });
+  watch('wants',{sort:'-created',filter:'status = "open"'}, l=>{ COM.wants = l.map(wantOf); });
   if (COM.uid){
     watch('chats',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.id] = threadOf(r); }); COM.threads = m; });
     watch('feedback',{sort:'-created'}, l=>{ COM.feedback = l.map(feedbackOf); });
+    watch('claims',{sort:'created'}, l=>{ COM.claims = l.map(claimOf); });
     pb.collection('reads').getFullList({fields:'article',requestKey:null}).then(l=>{ l.forEach(r=>{ COM.reads[r.article] = true; }); COM.readsLoaded = true; refresh(); }).catch(()=>{});
     if (COM.admin) watch('presence',{}, l=>{ const m = {}; l.forEach(r=>{ m[r.user] = Date.parse(String(r.last_seen).replace(' ','T')) || 0; }); COM.presence = m; });
     startPresence();

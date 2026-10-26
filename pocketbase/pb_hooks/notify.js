@@ -2,7 +2,7 @@
 // Отправляются через почтовые настройки PocketBase (Unisender Go). В каждом письме — «Отписаться» в один клик.
 const SITE = "https://dashabotanika.ru"
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", signups: "новые участники", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж" }
+const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", signups: "новые участники", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж", darom: "новые вещи даром" }
 
 function site(app) { const u = String(app.settings().meta.appURL || "").replace(/\/+$/, ""); return /^https?:\/\//.test(u) && !/localhost|127\.0\.0\.1/.test(u) ? u : SITE }
 
@@ -194,6 +194,8 @@ function unsubscribe(app, id, token, topic) {
   if (!token || rec.getString("token") !== token) return null
   const left = topic === "all" ? [] : rec.getStringSlice("email_topics").filter((t) => t !== topic)
   rec.set("email_topics", left); app.save(rec)
+  // письма о новых вещах даром включаются в подписке на странице «Вещей даром»
+  if (topic === "darom" || topic === "all") { try { const d = app.findFirstRecordByFilter("darom_subs", "user = {:u}", { u: rec.getString("user") }); d.set("email", false); app.save(d) } catch (e) {} }
   return topic === "all" ? "все письма" : (TOPIC_NAME[topic] || "эти письма")
 }
 
