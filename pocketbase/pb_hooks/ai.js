@@ -69,4 +69,26 @@ function analyze(app, userId, kind, image) {
   return { ok: true, enabled: true, limit: st.limit, left: st.left - 1, text: text.slice(0, 2000) }
 }
 
-module.exports = { status, analyze }
+// проверка для админов: на каком шаге Яндекс отказывает — базовая текстовая модель, наша модель текстом, наша модель с картинкой
+function check(app, userId) {
+  if (!staffDetail(app, userId, "x").detail) return { ok: false, message: "Только для админов" }
+  if (!enabled()) return { ok: false, message: "Нет YC_FOLDER или YC_API_KEY" }
+  const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+  const tryModel = (uri, content) => {
+    try {
+      const res = $http.send({ url: apiUrl(), method: "POST", timeout: 40,
+        headers: { "content-type": "application/json", "authorization": "Api-Key " + env("YC_API_KEY"), "x-folder-id": env("YC_FOLDER") },
+        body: JSON.stringify({ model: uri, max_tokens: 20, messages: [{ role: "user", content }] }) })
+      return res.statusCode + (res.statusCode === 200 ? " ✓" : ": " + toString(res.body).slice(0, 300))
+    } catch (e) { return "нет связи: " + String(e).slice(0, 200) }
+  }
+  const folder = env("YC_FOLDER")
+  return {
+    ok: true, folder: folder.slice(0, 4) + "…" + folder.slice(-4), model: model(),
+    yandexgpt_lite_text: tryModel(`gpt://${folder}/yandexgpt-lite/latest`, "Скажи «привет»"),
+    our_model_text: tryModel(model(), "Скажи «привет»"),
+    our_model_image: tryModel(model(), [{ type: "text", text: "Что на картинке?" }, { type: "image_url", image_url: { url: pixel } }]),
+  }
+}
+
+module.exports = { status, analyze, check }
