@@ -350,9 +350,8 @@ body.editing .ex{display:none}
 .world{position:relative;aspect-ratio:1000/420;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--surface)}
 .world svg{width:100%;height:100%;display:block}
 .dweller{position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:0;cursor:default;outline:none}
-.dweller .em{font-size:clamp(22px,3.4vw,36px);line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));transition:transform .2s}
+.dweller .em{font-size:clamp(16px,1.9vw,22px);line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18));transition:transform .2s}
 .dweller .nm{font-size:11px;font-weight:800;background:color-mix(in srgb,var(--surface) 82%,transparent);padding:0 6px;border-radius:999px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
-.dweller.first .em{font-size:clamp(36px,5.6vw,60px)}
 .dweller.me .nm{background:var(--moss);color:var(--on-moss)}
 .world + p{max-width:70ch}
 @media (max-width:640px){.world{aspect-ratio:4/3}.dweller .nm{font-size:10px;max-width:80px}}
@@ -436,11 +435,8 @@ a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-conten
 .grow-how ul{margin:8px 0;padding-left:20px;display:grid;gap:4px;font-size:15px}
 @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 @media (max-width:640px){.grow{grid-template-columns:1fr}.grow-pet{max-width:200px;justify-self:center;width:100%}}
-.dweller.st-2 .em{font-size:clamp(26px,3.9vw,40px)}.dweller.st-3 .em{font-size:clamp(30px,4.4vw,46px)}
-.dweller.st-4 .em{font-size:clamp(34px,5vw,52px)}.dweller.st-5 .em{font-size:clamp(38px,5.6vw,58px)}
 .like{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;font-weight:800;color:var(--clay);cursor:pointer}
 .like[aria-pressed="true"]{background:color-mix(in srgb,var(--clay) 14%,var(--surface));border-color:var(--clay)}
-.world .dweller.first .em{font-size:clamp(40px,6.2vw,66px)}
 .grow-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;align-items:end}
 .grow-step{display:grid;justify-items:center;gap:2px;opacity:.38;filter:grayscale(1)}
 .grow-step.on{opacity:1;filter:none}
@@ -567,10 +563,12 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 @media (prefers-reduced-motion: reduce){.w-cloud,.w-fall,.w-splash,.w-blades{animation:none}}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .world svg{filter:brightness(.72) saturate(.9)}}
 :root[data-theme="dark"] .world svg{filter:brightness(.72) saturate(.9)}
-.dweller .em,.dweller.st-1 .em{font-size:clamp(28px,3.6vw,42px)}
-.dweller.st-2 .em{font-size:clamp(30px,3.9vw,46px)}.dweller.st-3 .em{font-size:clamp(33px,4.3vw,50px)}
-.dweller.st-4 .em{font-size:clamp(36px,4.7vw,55px)}.dweller.st-5 .em{font-size:clamp(39px,5.1vw,60px)}
-.world .dweller.first .em{font-size:clamp(34px,4.6vw,54px)}
+/* size by level: newcomers are small, every level is about a quarter bigger, so growth is plain to see
+   and a crowded world still fits; Dasha is never smaller than level 4 */
+.dweller .em,.dweller.st-1 .em{font-size:clamp(16px,1.9vw,22px)}
+.dweller.st-2 .em{font-size:clamp(20px,2.4vw,28px)}.dweller.st-3 .em{font-size:clamp(25px,3vw,35px)}
+.dweller.st-4 .em{font-size:clamp(31px,3.7vw,44px)}.dweller.st-5 .em{font-size:clamp(38px,4.6vw,55px)}
+.world .dweller.first:not(.st-5) .em{font-size:clamp(31px,3.7vw,44px)}
 .dweller{cursor:pointer;z-index:1}
 .dweller .pop{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:5;min-width:150px;
   background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;gap:4px;justify-items:center;text-align:center;
@@ -955,9 +953,9 @@ footer a{color:inherit}
   .world-view::-webkit-scrollbar{display:none}
   .world-view .world{width:900px;max-width:none;aspect-ratio:1000/420;border:0;border-radius:0}
   /* the map is 900px wide here: sizes in px, still growing with the level */
-  .world-view .dweller .em{font-size:30px}.world-view .dweller.st-2 .em{font-size:33px}.world-view .dweller.st-3 .em{font-size:36px}
-  .world-view .dweller.st-4 .em{font-size:40px}.world-view .dweller.st-5 .em{font-size:44px}
-  .world-view .dweller.first .em{font-size:50px}
+  .world-view .dweller .em{font-size:18px}.world-view .dweller.st-2 .em{font-size:23px}.world-view .dweller.st-3 .em{font-size:29px}
+  .world-view .dweller.st-4 .em{font-size:36px}.world-view .dweller.st-5 .em{font-size:45px}
+  .world-view .dweller.first:not(.st-5) .em{font-size:36px}
   .world-view .dweller .nm{font-size:11px;max-width:110px}
   .world-wrap .sn-more{top:calc(50% - 17px)}
   .world-wrap .sn-back{left:-4px;right:auto}
