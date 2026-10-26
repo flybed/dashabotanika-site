@@ -998,7 +998,8 @@ function challengesSection(){
 /* ---------- editable collections ---------- */
 const SCHEMAS = {
   products:[{k:'title',l:'Название'},{k:'cat',l:'Категория (Кухня, Ванная…)'},{k:'replaces',l:'Чем заменяет'},{k:'why',l:'Почему это лучше',area:true}],
-  cafes:[{k:'name',l:'Название'},{k:'kind',l:'Тип (кофейня, веган-кафе…)'},{k:'city',l:'Город'},{k:'address',l:'Адрес'},{k:'map',l:'Ссылка на Яндекс Карты'},{k:'note',l:'Почему я его люблю',area:true}],
+  cafes:[{k:'name',l:'Название'},{k:'kind',l:'Тип (кофейня, веган-кафе…)'},{k:'city',l:'Город'},{k:'address',l:'Адрес'},{k:'map',l:'Ссылка на Яндекс Карты'},{k:'cuisine',l:'Кухня'},
+    {k:'note',l:'Почему я его люблю',area:true},{k:'pros',l:'Плюсы (каждый с новой строки)',area:true},{k:'cons',l:'Минусы (каждый с новой строки)',area:true},{k:'dishes',l:'Что советую попробовать (до 3 блюд, каждое с новой строки)',area:true}],
   articles:[{k:'title',l:'Заголовок'},{k:'cat',l:'Рубрика',options:['Статья','Новость']},{k:'lead',l:'Короткое описание',area:true},{k:'body',l:'Текст',area:true}],
   market:[{k:'title',l:'Что за вещь'},{k:'kind',l:'Формат',options:['Продам','Обмен','Отдам даром']},{k:'price',l:'Цена (если продаю)'},{k:'condition',l:'Состояние'},{k:'note',l:'Описание',area:true}]
 };
@@ -1070,6 +1071,59 @@ function foodSection(){
   ));
 }
 
+// a list typed one item per line («- » in front is fine too)
+const listLines = t => String(t||'').split('\n').map(x=>x.replace(/^\s*[-—–•*]\s*/,'').trim()).filter(Boolean);
+const CAFE_PHOTOS = 3;
+let CAFE_EDIT = null; // id of the cafe whose card is open for editing
+function cafeEditForm(it){
+  const inputs = {};
+  const form = h('form',{class:'form edit-only',style:'margin:0'},
+    h('div',{class:'fields'}, SCHEMAS.cafes.map(f=>{
+      const id = 'ed-cafe-'+it.id+'-'+f.k;
+      const el = f.area ? h('textarea',{id}) : h('input',{id});
+      el.value = it[f.k] || ''; inputs[f.k] = el;
+      return h('label',{for:id,style:f.area?'grid-column:1/-1':null},f.l,el);
+    })),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('button',{type:'submit',class:'btn small'},'Готово'),
+      h('button',{type:'button',class:'btn ghost small',onclick:()=>{ CAFE_EDIT = null; render(); }},'Отмена')));
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    if (!inputs.name.value.trim()){ inputs.name.focus(); return; }
+    for (const f of SCHEMAS.cafes) it[f.k] = inputs[f.k].value.trim();
+    delete it.example; CAFE_EDIT = null; markDirty(); render(); location.hash = 'cafes';
+  });
+  return form;
+}
+// up to three photos: the first one big, the others next to it; in edit mode each can be removed
+function cafePhotos(it){
+  const ph = (Array.isArray(it.photos) ? it.photos : []).slice(0, CAFE_PHOTOS);
+  const del = i => h('button',{type:'button',class:'btn danger small edit-only cafe-ph-del','aria-label':'Убрать фото',onclick:()=>{ it.photos = ph.filter((_,j)=>j!==i); markDirty(); render(); }},'✕');
+  return h('div',{class:'cafe-ph'+(ph.length ? ' n'+ph.length : ' none')},
+    ph.map((id,i)=>h('figure',{class:'cafe-ph-i'}, photoImg(id, it.name+(ph.length>1 ? ', фото '+(i+1) : ''), ''), del(i))),
+    ph.length < CAFE_PHOTOS ? uploadBtn('📷 Добавить фото ('+ph.length+' из '+CAFE_PHOTOS+')', url=>{ it.photos = ph.concat(url).slice(0, CAFE_PHOTOS); }, 'cafe-ph-add') : null);
+}
+function cafeList(title, items, cls){
+  return items.length ? h('div',{class:'cafe-l '+cls}, h('b',null,title), h('ul',null, items.map(x=>h('li',null,x)))) : null;
+}
+function cafeCard(it){
+  if (CAFE_EDIT === it.id && EDIT.on) return h('article',{class:'card'}, h('h3',{style:'font-size:18px'},'Изменить: ',it.name), cafeEditForm(it));
+  return h('article',{class:'card cafe'},
+    cafePhotos(it),
+    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, delBtn('cafes',it.id), h('button',{type:'button',class:'btn small edit-only',onclick:()=>{ CAFE_EDIT = it.id; render(); }},'Изменить')),
+    exMark(it),
+    h('span',{class:'tag'},it.kind||'Кафе'),
+    h('h3',null,it.name),
+    h('p',{class:'muted',style:'font-size:14px;font-weight:700'},[it.city,it.address].filter(Boolean).join(', ')),
+    it.cuisine ? h('p',{class:'cafe-cuisine'}, h('b',null,'Кухня: '), it.cuisine) : null,
+    it.note ? h('p',{style:'font-size:15px'},it.note) : null,
+    cafeList('Плюсы', listLines(it.pros), 'pros'),
+    cafeList('Минусы', listLines(it.cons), 'cons'),
+    cafeList('Что советую попробовать', listLines(it.dishes).slice(0,3), 'dishes'),
+    h('div',{style:'flex:1'}),
+    yandexMap(it.map) ? h('div',null, h('a',{class:'btn ghost small',href:yandexMap(it.map),target:'_blank',rel:'noopener'},'📍 На Яндекс Картах')) : null,
+    commentsBlock('cafes:'+it.id)
+  );
+}
 function cafesSection(){
   const items = STATE.cafes;
   return h('section',{class:'band alt',id:'cafes'}, h('div',{class:'wrap'},
@@ -1077,15 +1131,7 @@ function cafesSection(){
     h('div',{class:'split'},
       photoFig('cafes','Даша пьёт кофе','pebble2','Кофе — это ритуал'),
       h('div',null,
-        items.length ? h('div',{class:'grid g2'}, items.map(it=>h('article',{class:'card'},
-          delBtn('cafes',it.id), exMark(it),
-          h('span',{class:'tag'},it.kind||'Кафе'),
-          h('h3',null,it.name),
-          h('p',{class:'muted',style:'font-size:14px;font-weight:700'},[it.city,it.address].filter(Boolean).join(', ')),
-          h('p',{style:'font-size:15px;flex:1'},it.note),
-          yandexMap(it.map) ? h('div',null, h('a',{class:'btn ghost small',href:yandexMap(it.map),target:'_blank',rel:'noopener'},'📍 На Яндекс Картах')) : null,
-          commentsBlock('cafes:'+it.id)
-        ))) : h('div',{class:'empty'},'Скоро здесь появятся любимые места.'),
+        items.length ? h('div',{class:'grid g2'}, items.map(cafeCard)) : h('div',{class:'empty'},'Скоро здесь появятся любимые места.'),
         addForm('cafes','Новое кафе'),
         suggestCafe()
       )

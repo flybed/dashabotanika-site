@@ -117,7 +117,7 @@ const SECTION_PAGES = {
       sec("menu", "Конструктор меню", "Меню на неделю за минуту", "Выберите цель и тип питания — соберём простое меню из сезонных продуктов и список покупок. Любое блюдо можно заменить.",
         `<ul>${k.DISHES.slice(0, 30).map((x) => `<li>${esc(x[0])}</li>`).join("")}</ul>`) +
       sec("cafes", "Куда пойти", "Моя подборка кафе", "Места, где вкусно и бережно: сезонное меню, своя кружка, минимум одноразового.",
-        (d.cafes || []).filter((c) => !c.example).map((c) => `<article><h3>${esc(c.name)}</h3><p>${esc([c.kind, c.city, c.address].filter(Boolean).join(", "))}</p><p>${esc(c.note)}</p></article>`).join("\n")),
+        (d.cafes || []).filter((c) => !c.example).map((c) => `<article><h3>${esc(c.name)}</h3><p>${esc([c.kind, c.city, c.address].filter(Boolean).join(", "))}</p><p>${esc(c.note)}</p>${c.cuisine ? `<p>Кухня: ${esc(c.cuisine)}</p>` : ""}${c.dishes ? `<p>Что попробовать: ${esc(String(c.dishes).split("\n").map((x) => x.replace(/^\s*[-—–•*]\s*/, "").trim()).filter(Boolean).slice(0, 3).join(", "))}</p>` : ""}</article>`).join("\n")),
   },
   "/sortirovka": {
     title: "Как сортировать мусор дома: что куда сдавать и калькулятор пользы — DashaBotanika",

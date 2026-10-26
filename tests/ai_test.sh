@@ -70,3 +70,33 @@ st, r = req('GET','/collections/ai_uses/records',None,t)
 check('usage records are not visible through the API', st in (403, 404) or r.get('totalItems',0)==0)
 raise SystemExit(1 if fails else 0)
 PY
+# ключ, вписанный в админке (/_/ → settings), без переменных окружения на сервере
+kill "$(cat "$T/pid")"; sleep 1
+"$PB" superuser upsert su@test.local Passw0rd123 --dir="$T/pb_data" >/dev/null
+start YC_API=http://127.0.0.1:8091/v1/chat/completions
+python3 - <<'PY'
+import json, urllib.request as u, urllib.error, urllib.parse as up
+B = 'http://127.0.0.1:8089/api'
+fails = []
+def req(m, p, b=None, t=None):
+    r = u.Request(B+p, method=m, data=json.dumps(b).encode() if b is not None else None, headers={'Content-Type':'application/json', **({'Authorization':t} if t else {})})
+    try: return 200, json.load(u.urlopen(r))
+    except urllib.error.HTTPError as e: return e.code, {}
+def check(name, ok):
+    print(('PASS ' if ok else 'FAIL ') + name)
+    if not ok: fails.append(name)
+t = req('POST','/collections/users/auth-with-password',{'identity':'a@t.local','password':'secret12'})[1]['token']
+check('without a key in the admin panel the helper is off', req('GET','/ai/left',None,t)[1].get('enabled') is False)
+st, r = req('GET','/collections/settings/records',None,t)
+check('members cannot see the settings with the key', st in (403, 404) or r.get('totalItems',0)==0)
+su = req('POST','/collections/_superusers/auth-with-password',{'identity':'su@test.local','password':'Passw0rd123'})[1]['token']
+rows = {x['key']: x['id'] for x in req('GET','/collections/settings/records',None,su)[1]['items']}
+check('the admin panel has empty YC_FOLDER and YC_API_KEY to fill in', set(rows) >= {'YC_FOLDER','YC_API_KEY'})
+req('PATCH','/collections/settings/records/'+rows['YC_FOLDER'],{'value':'b1panel'},su)
+req('PATCH','/collections/settings/records/'+rows['YC_API_KEY'],{'value':' panel-key '},su)
+check('with the key from the admin panel the helper is on', req('GET','/ai/left',None,t)[1].get('enabled') is True)
+st, r = req('POST','/ai/photo',{'kind':'food','image':'data:image/jpeg;base64,' + 'A'*400},t)
+calls = json.load(u.urlopen('http://127.0.0.1:8091/'))
+check('the model is called with the key and folder from the admin panel', r.get('ok') and calls[-1]['auth']=='Api-Key panel-key' and calls[-1]['model']=='gpt://b1panel/gemma-3-27b-it/latest')
+raise SystemExit(1 if fails else 0)
+PY

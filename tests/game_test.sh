@@ -1,10 +1,10 @@
 #!/bin/sh
 # Рейтинг игры «Эко-уборка»: рекорд (game_best) виден всем, поэтому сервер принимает только 0…1000,
 # старые слишком большие рекорды при обновлении подрезаются, а почта участников в списке не видна.
-#   PB=/path/to/pocketbase sh tests/game_test.sh [base-ref]
+#   PB=/path/to/pocketbase sh tests/game_test.sh [base-ref]   (по умолчанию — версия до ограничения рекорда)
 set -eu
 PB=${PB:-pocketbase}
-BASE=${1:-origin/main}
+BASE=${1:-a0aef54}  # последняя версия до ограничения рекорда (#83), чтобы проверить подрезку старых рекордов
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 T=$(mktemp -d)
 trap 'kill $(cat "$T/pid" 2>/dev/null) 2>/dev/null || true; rm -rf "$T"' EXIT

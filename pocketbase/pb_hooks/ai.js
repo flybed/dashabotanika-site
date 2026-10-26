@@ -1,8 +1,10 @@
 // ИИ-помощник: фото тарелки → как сделать блюдо полезнее и экологичнее; фото упаковки → куда сдать и как использовать.
 // Yandex AI Studio, совместимый с OpenAI формат (chat/completions, картинка как data:URL).
-// Переменные окружения: YC_API_KEY, YC_FOLDER, по желанию YC_MODEL (по умолчанию gemma-3-27b-it), YC_API (только для тестов), AI_DAILY.
+// Переменные окружения: YC_API_KEY, YC_FOLDER (или те же ключи в админке, коллекция settings), по желанию YC_MODEL (по умолчанию gemma-3-27b-it), YC_API (только для тестов), AI_DAILY.
 
-const env = (k) => String($os.getenv(k) || "").trim()
+// сначала переменная окружения сервера, потом настройка из админки (/_/ → settings)
+function setting(k) { try { return String($app.findFirstRecordByData("settings", "key", k).getString("value") || "").trim() } catch (e) { return "" } }
+const env = (k) => String($os.getenv(k) || "").trim() || (k === "YC_API_KEY" || k === "YC_FOLDER" ? setting(k) : "")
 const daily = () => Math.max(1, parseInt(env("AI_DAILY") || "5", 10) || 5)
 const apiUrl = () => env("YC_API") || "https://llm.api.cloud.yandex.net/v1/chat/completions"
 const model = () => `gpt://${env("YC_FOLDER")}/${env("YC_MODEL") || "gemma-3-27b-it"}/latest`
