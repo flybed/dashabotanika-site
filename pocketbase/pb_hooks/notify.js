@@ -2,7 +2,7 @@
 // Отправляются через почтовые настройки PocketBase (Unisender Go). В каждом письме — «Отписаться» в один клик.
 const SITE = "https://dashabotanika.ru"
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж" }
+const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", signups: "новые участники", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж" }
 
 function site(app) { const u = String(app.settings().meta.appURL || "").replace(/\/+$/, ""); return /^https?:\/\//.test(u) && !/localhost|127\.0\.0\.1/.test(u) ? u : SITE }
 
@@ -150,6 +150,44 @@ function remindAll(app, force) {
   return sent
 }
 
+// ---------- новый участник: админам и модераторам (кроме скрытых) в Telegram и/или на почту, по их выбору ----------
+// регистрация только ставит в очередь, рассылает cron раз в минуту — вход на сайт не ждёт Telegram и почту
+function onSignup(app, user) {
+  const store = app.store(), q = store.get("signup_queue") || []
+  q.push(user.id)
+  store.set("signup_queue", q)
+}
+function flushSignups(app) {
+  const store = app.store(), ids = store.get("signup_queue") || []
+  if (!ids.length) return 0
+  store.set("signup_queue", [])
+  const tg = require(`${__hooks}/tg.js`)
+  let admins = []
+  try { admins = app.findRecordsByFilter("users", "(role = 'admin' || role = 'moderator') && hidden != true", "", 0, 0) } catch (e) {}
+  let total = 0
+  try { total = app.countRecords("users", $dbx.exp("hidden != true")) } catch (e) {}
+  let sent = 0
+  for (const id of ids) {
+    let u
+    try { u = app.findRecordById("users", id) } catch (e) { continue } // успел удалить аккаунт
+    let ch = null
+    try { ch = app.findRecordById("characters", u.getString("character")) } catch (e) {}
+    const who = esc(u.getString("name") || "Участник"), pet = ch ? `${ch.getString("emoji")} ${esc(ch.getString("name"))}` : ""
+    for (const a of admins) {
+      if (a.id === id) continue
+      const url = a.getString("role") === "admin" ? `${site(app)}/kabinet?tab=people#cabinet-tabs` : `${site(app)}/mir`
+      for (const sub of tg.subsWith(app, "signups", a.id)) {
+        tg.send(sub.getString("chat_id"), `👤 Новый участник: <b>${who}</b>${pet ? " — " + pet : ""}\nВсего участников: ${total}`, ["Посмотреть", url]); sent++
+      }
+      for (const rec of wanting(app, "signups", a.id)) {
+        if (send(app, rec, "signups", `Новый участник: ${u.getString("name") || "Участник"} — DashaBotanika`, "Новый участник",
+          p(`На сайте зарегистрировался(-ась) <b>${who}</b>${pet ? " — " + pet : ""}.`) + p(`Всего участников: ${total}.`), "Посмотреть", url)) sent++
+      }
+    }
+  }
+  return sent
+}
+
 function unsubscribe(app, id, token, topic) {
   let rec
   try { rec = app.findRecordById("notify", id) } catch (e) { return null }
@@ -170,4 +208,4 @@ function unsubRoute(e) {
     : e.html(400, unsubPage("Ссылка устарела", "Не получилось найти подписку. Настроить письма можно в личном кабинете."))
 }
 
-module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, remindAll, unsubscribe, unsubRoute, site }
+module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site }
