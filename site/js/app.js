@@ -414,7 +414,7 @@ function render(){
   SEC_H1 = false;
   app.replaceChildren(
     h('header',{class:'top'}, h('div',{class:'wrap'},
-      h('a',{class:'logo',href:'/',html:LOGO+'<span>DashaBotanika</span>'}),
+      h('a',{class:'logo',href:'/','aria-label':'DashaBotanika — на главную',html:LOGO+'<span>DashaBotanika</span>'}),
       h('span',{style:'flex:1'}),
       socialLinks(),
       // «Вещи даром» is the community's main thing: always one tap away
@@ -519,7 +519,7 @@ function mythsTeaser(){
       h('h2',{class:'mt-title'},'Экология — дорого, сложно и бессмысленно?'),
       h('p',{class:'lead'},'Так думают многие. Разбираем популярные мифы с фактами, цифрами и без нравоучений.'),
       h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы'))),
-    h('a',{class:'mt-art',href:'/mify','aria-label':'15 мифов об экологии и переработке'},
+    h('a',{class:'mt-art',href:'/mify',tabindex:'-1','aria-hidden':'true'},
       h('span',{class:'mt-q','aria-hidden':'true'},'?'),
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
 }
@@ -2033,7 +2033,7 @@ function daromInset(){
   return h('aside',{class:'darom-inset'},
     h('div',{class:'eyebrow'},'🎁 Вещи даром на DashaBotanika'), h('b',{class:'di-t'},'Отдайте ненужное — заберите нужное. Бесплатно'), line, items,
     h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/darom',onclick:()=>goal('darom_article_find')},'Смотреть вещи рядом'),
-      h('a',{class:'btn ghost small',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register',onclick:()=>goal('darom_article_give')},'Отдать свою вещь')));
+      h('a',{class:'btn ghost small',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register&next=things',onclick:()=>goal('darom_article_give')},'Отдать свою вещь')));
 }
 /* «Вещи даром» on the home page, right under the hero: what is being given away now (nearest first), the counter and two doors */
 function daromSpotlight(){
@@ -2051,7 +2051,7 @@ function daromSpotlight(){
       h('b',null,it.title), h('span',{class:'hint'}, nearLabel(it) || [it.city, it.district].filter(Boolean).join(', ') || (it.category||'')))) : [h('p',{class:'hint'},'Стань одним из первых участников — размести вещь бесплатно.')]));
   });
   const give = h('span');
-  live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register',onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
+  live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register&next=things',onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
   return h('section',{class:'band darom-spot',id:'darom-spot'}, h('div',{class:'wrap'},
     h('div',{class:'ds-head'},
       h('div',{style:'display:grid;gap:10px;align-content:center'}, h('div',{class:'eyebrow'},'🎁 Вещи даром'), h('h2',null,'Отдай то, что тебе больше не нужно. Найди то, что пригодится тебе. Бесплатно'), sub,
@@ -2186,10 +2186,10 @@ function writeErr(e){
 }
 function delDoc(coll, id){ return write(coll+'/'+id, ()=>pb.collection(coll).delete(id)).catch(writeErr); }
 
-function joinHint(what){
+function joinHint(what, next){
   const st = accState();
   if (st==='loading') return h('p',{class:'hint'},'Загружаем…');
-  return h('p',{class:'hint'},'Чтобы '+what+', ', h('button',{type:'button',class:'linkish',onclick:()=>openAccount()},'войдите или зарегистрируйтесь'),'. Это займёт минуту.');
+  return h('p',{class:'hint'},'Чтобы '+what+', ', h('button',{type:'button',class:'linkish',onclick:()=>next ? go('/kabinet?tab=register&next='+next) : openAccount()},'войдите или зарегистрируйтесь'),'. Это займёт минуту.');
 }
 
 /* report a comment: pick a reason; Dasha and moderators see it in «Проверка» */
@@ -2609,7 +2609,7 @@ function marketSection(opts){
     userGrid.replaceChildren(h('div',{class:'grid g3'}, els));
   });
   const addBtn = h('div');
-  live(()=>{ const st = accState(); addBtn.replaceChildren(st==='member' ? h('button',{type:'button',class:'btn',onclick:()=>openAccount('things')},'Выставить свою вещь') : joinHint('выставить свою вещь')); });
+  live(()=>{ const st = accState(); addBtn.replaceChildren(st==='member' ? h('button',{type:'button',class:'btn',onclick:()=>openAccount('things')},'Выставить свою вещь') : joinHint('выставить свою вещь','things')); });
   return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
     head,
     h('div',{class:'grid g3',style:'margin-bottom:28px'},
@@ -3895,7 +3895,8 @@ function authForms(mode){
     const tabs = h('div',{class:'tabs',role:'tablist'}, [['login','Вход'],['register','Регистрация']].map(([k,l])=>h('button',{type:'button',role:'tab','aria-selected':String(k===mode),onclick:()=>show(k)},l)));
     wrap.replaceChildren(tabs, ...(mode==='register' ? registerForm() : loginForm()));
   }
-  function done(msg){ try{ sessionStorage.setItem('db-welcome', msg); }catch(e){} location.reload(); }
+  // after sign-up or sign-in the visitor lands where they were going (?next=things — the «give a thing» form), otherwise the page reloads
+  function done(msg){ try{ sessionStorage.setItem('db-welcome', msg); }catch(e){} const nx = new URLSearchParams(location.search).get('next'); if (CAB_TABS.includes(nx)) location.replace('/kabinet?tab='+nx+'#cabinet-tabs'); else location.reload(); }
   function loginForm(){
     const email = h('input',{id:'li-email',type:'email',autocomplete:'email',required:''});
     const pass = h('input',{id:'li-pass',type:'password',autocomplete:'current-password',required:''});
@@ -5143,7 +5144,7 @@ render();
    and the page it was written on; it lands in the cabinet → «Обратная связь» ---------- */
 function magicWand(){
   if (document.querySelector('.wand')) return;
-  const b = h('button',{type:'button',class:'wand','aria-label':'Предложить, как улучшить сайт'}, h('span',{class:'wand-ic','aria-hidden':'true'},'✨'), h('span',{class:'wand-t'},'Улучшим сайт вместе'));
+  const b = h('button',{type:'button',class:'wand','aria-label':'Улучшим сайт вместе: предложить идею'}, h('span',{class:'wand-ic','aria-hidden':'true'},'✨'), h('span',{class:'wand-t'},'Улучшим сайт вместе'));
   b.addEventListener('click', openWand);
   document.body.append(b);
 }
@@ -5221,14 +5222,22 @@ function showElephant(tip){
   if (document.querySelector('.reader-bar')) el.classList.add('lift');
   document.body.append(el); ELE_EL = el;
 }
+// not on the first day of acquaintance and not by itself on phones (the corner there is the content); on a computer it leaves after 20 s
+const ELE_FIRST = 'db-first-day';
 function maybeElephant(){
+  const today = iso(new Date());
+  let first = today; try{ first = localStorage.getItem(ELE_FIRST) || today; localStorage.setItem(ELE_FIRST, first); }catch(e){}
+  if (first === today || matchMedia('(max-width:640px)').matches) return;
   if (TOUR_EL || EDIT.on || MODAL || !tourDone() || ELE_EL) return;
-  const st = eleState(), today = iso(new Date());
+  const st = eleState();
   if (st.day === today) return;
   const tip = eleTips().find(t=>!st.seen.includes(t.id));
   if (!tip) return;
   st.day = today; st.seen.push(tip.id); eleSave(st);
   showElephant(tip);
+  const el = ELE_EL; let held = false;
+  el.addEventListener('mouseenter', ()=>{ held = true; }); el.addEventListener('focusin', ()=>{ held = true; });
+  setTimeout(()=>{ if (ELE_EL === el && !held) closeElephant(); }, 20000);
 }
 // cabinet → «🐘 Подсказки слона»: Dasha adds what the elephant tells people (a new feature, a section, an event)
 function promoAdminPanel(){
@@ -5297,7 +5306,8 @@ function startTour(){
     const el = document.querySelector(TOUR[i][0]); if (!el) return;
     const r = el.getBoundingClientRect(), pad = 8, topBar = 70;
     const top = Math.max(r.top - pad, el.closest('header') ? 0 : topBar), bottom = Math.min(r.bottom + pad, innerHeight - 8);
-    Object.assign(spot.style, {left:(r.left-pad)+'px', top:top+'px', width:(r.width+pad*2)+'px', height:Math.max(0,bottom-top)+'px'});
+    // moved with transform, not left/top: the light glides without counting as a layout shift
+    Object.assign(spot.style, {transform:'translate('+(r.left-pad)+'px,'+top+'px)', width:(r.width+pad*2)+'px', height:Math.max(0,bottom-top)+'px'});
     const tw = Math.min(340, innerWidth - 32), below = innerHeight - bottom > tip.offsetHeight + 24 || top < tip.offsetHeight + 24;
     tip.style.width = tw+'px';
     const left = Math.min(Math.max(16, r.left + r.width/2 - tw/2), innerWidth - tw - 16), y = below ? Math.min(bottom + 14, innerHeight - tip.offsetHeight - 12) : Math.max(12, top - tip.offsetHeight - 14);

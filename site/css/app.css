@@ -1,7 +1,7 @@
 /* Layout: страница-гербарий — широкие «грядки»-секции на бумажном фоне, липкая навигация, карточки только у объектов (товары, кафе, вещи) */
 :root{
   --paper:#EDE6D6; --surface:#F7F3EA; --ink:#232A1E; --muted:#575B50;
-  --moss:#3A6234; --on-moss:#FFFFFF; --leaf:#86A85C; --sun:#C9932E; --clay:#AD5E39;
+  --moss:#3A6234; --on-moss:#FFFFFF; --leaf:#86A85C; --sun:#C9932E; --clay:#934A2B;
   --line:#D8CEB9; --soft:#E3DAC5;
   --stone:#8D9187; --stone-hi:#C9CCC2; --stone-dk:#5E6359; --sand-deep:#D9CBAE;
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .34 0 0 0 0 .22 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
@@ -1089,9 +1089,13 @@ section.band.mt{padding-block:clamp(24px,3vw,36px)}
 @keyframes mt-float{0%,100%{translate:0 0}50%{translate:0 -6px}}
 @media (prefers-reduced-motion:reduce){.mt-bit{animation:none}}
 @media (max-width:900px){.mt-wrap{grid-template-columns:1fr;gap:20px}.mt-art{max-width:560px;width:100%;justify-self:center}}
-/* phone: all six clouds, staggered left/right so the long ones do not overlap */
-@media (max-width:560px){.mt-art{aspect-ratio:1.05/1}.mt-q{height:38%;font-size:64px}.mt-bit{font-size:12px;padding:5px 10px}.mt-bit.b6{display:none}
-  .mt-bit.b0{left:0;top:0}.mt-bit.b1{right:0;left:auto;top:11%}.mt-bit.b3{left:0;top:23%}.mt-bit.b2{right:0;top:auto;bottom:23%}.mt-bit.b5{left:0;bottom:11%}.mt-bit.b4{right:0;bottom:0}}
+/* phone: the question mark on top, the six clouds flow under it — nothing overlaps, nothing covers the text */
+@media (max-width:560px){.mt-art{aspect-ratio:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:10px 8px;padding-top:6px}
+  .mt-q{position:relative;left:auto;top:auto;transform:none;height:auto;width:104px;flex:0 0 100%;max-width:104px;margin:0 calc(50% - 52px) 6px;font-size:58px}
+  .mt-art:hover .mt-q{transform:scale(1.05)}
+  .mt-bit{position:static;font-size:12.5px;padding:8px 12px;animation:none;rotate:0deg}
+  .mt-bit.b0,.mt-bit.b1,.mt-bit.b2,.mt-bit.b3,.mt-bit.b4,.mt-bit.b5{left:auto;right:auto;top:auto;bottom:auto;rotate:0deg}
+  .mt-bit.b6{display:none}}
 .wt-row{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
 .wt-em{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:26px;background:var(--surface);border:1px solid var(--line)}
 #world-teaser .muted{margin-bottom:16px;max-width:640px}
@@ -1107,7 +1111,7 @@ section.band.mt{padding-block:clamp(24px,3vw,36px)}
 
 /* guided tour */
 .tour{position:fixed;inset:0;z-index:90}
-.tour-spot{position:fixed;border-radius:18px;box-shadow:0 0 0 200vmax rgba(18,22,14,.64), 0 0 0 3px var(--sun);transition:all .3s ease;pointer-events:none}
+.tour-spot{position:fixed;left:0;top:0;border-radius:18px;box-shadow:0 0 0 200vmax rgba(18,22,14,.64), 0 0 0 3px var(--sun);transition:transform .3s ease,width .3s ease,height .3s ease;pointer-events:none}
 .tour-tip{position:fixed;background:var(--surface);color:var(--ink);border-radius:18px;padding:18px 18px 14px;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);display:grid;gap:8px;transition:top .3s ease,left .3s ease}
 .tour-tip h3{font-size:21px}
 .tour-tip p{margin:0;font-size:15.5px;line-height:1.45;color:var(--muted)}
@@ -1432,10 +1436,24 @@ html,body{overflow-x:clip}
 .acard-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-height:24px}
 .acard-meta .date{margin-left:auto}
 .tag.why{background:color-mix(in srgb,var(--sun) 18%,var(--surface));color:var(--ink);text-transform:none;letter-spacing:0;font-weight:700;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.acard-t{font-size:21px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.acard-t{font-size:21px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .acard-lead{margin:0;color:var(--muted);font-size:15px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 /* cards that are links or hold actions: the same calm hover */
 .start-steps li.card{transition:border-color .2s ease,box-shadow .2s ease}
 .start-steps li.card:hover{border-color:color-mix(in srgb,var(--moss) 45%,var(--line));box-shadow:0 14px 28px -20px rgba(35,42,30,.35)}
 /* keyboard focus on cards with a link inside */
 .acard:focus-within,.int:focus-within,.start-steps li.card:focus-within{border-color:var(--moss)}
+
+/* phones: everything you tap is at least 44 px tall (Apple/Google guideline) */
+@media (max-width:640px){
+  .btn,.btn.small{min-height:44px}
+  .chip{min-height:44px}
+  .int-subs .chip{min-height:44px;padding:6px 13px}
+  .logo{min-height:44px}
+  header .soc,.burger{width:44px;height:44px}
+  .darom-btn{height:44px}
+  .acc-btn{min-height:44px}
+  .steps .linkish{min-height:44px;display:inline-flex;align-items:center}
+}
+/* the narrowest phones: a slightly smaller title so long article names fit four lines */
+@media (max-width:360px){.acard-t{font-size:19px}}
