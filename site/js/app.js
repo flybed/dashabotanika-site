@@ -516,7 +516,7 @@ function mythsTeaser(){
       h('div',{class:'eyebrow'},'Прежде чем начать'),
       h('h2',{class:'mt-title'},'Сначала развеем мифы?'),
       h('p',{class:'lead'},'«Я один ничего не изменю», «всё равно всё смешивают»… Из-за таких мифов многие бросают, даже не начав. 10 коротких ответов с фактами — пара минут.'),
-      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#interests'},'Сомнений нет — к делу'))),
+      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#uborka'},'Сомнений нет — к делу'))),
     h('a',{class:'mt-art',href:'/mify','aria-label':'10 мифов о переработке и экологии'},
       h('span',{class:'mt-q','aria-hidden':'true'},'?'),
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
@@ -1938,7 +1938,7 @@ window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max
 
 function homePage(){
   // for someone who came by chance: first what you get (in 5 seconds), then how to start, then who Dasha is, then the deep end
-  return [hero(), benefitsSection(), daromSpotlight(), startSection(), cleaningTeaser(), dashaIntro(), interestsSection(), journalSection(true), worldTeaser(), firstSteps(), mythsTeaser(), feedbackTeaser()];
+  return [hero(), benefitsSection(), daromSpotlight(), startSection(), mythsTeaser(), cleaningTeaser(), dashaIntro(), interestsSection(), journalSection(true), worldTeaser(), firstSteps(), feedbackTeaser()];
 }
 /* «Что ты получишь здесь»: benefits for a person, not the sections of the project */
 const BENEFITS = [
