@@ -5,15 +5,19 @@ const base = () => String($os.getenv("GEO_API") || "https://nominatim.openstreet
 const r2 = (x) => Math.round(Number(x) * 100) / 100
 
 let lastError = ""
+const PLACE_TYPES = ["suburb", "city_district", "borough", "quarter", "neighbourhood", "district", "station", "city", "town", "village"]
 function lookup(country, city, district) {
   const tries = [[district, city, country], [city, country]].map((a) => a.filter(Boolean).join(", "))
   for (const q of tries) {
     if (!q || !city) continue
     try {
-      const res = $http.send({ url: `${base()}/search?format=jsonv2&limit=1&accept-language=ru&q=${encodeURIComponent(q)}`, method: "GET",
+      const res = $http.send({ url: `${base()}/search?format=jsonv2&limit=8&accept-language=ru&q=${encodeURIComponent(q)}`, method: "GET",
         headers: { "user-agent": "DashaBotanikaBot/1.0 (https://dashabotanika.ru)" }, timeout: 6 })
       const j = res.json
-      if (res.statusCode === 200 && j && j[0] && Number(j[0].lat)) return { lat: r2(j[0].lat), lon: r2(j[0].lon) }
+      // одноимённых мест много (улица, институт, посёлок) — для района берём сам район или станцию метро
+      const rank = (x) => { const i = PLACE_TYPES.indexOf(x.addresstype || x.type); return i < 0 ? 99 : i }
+      const pick = (j || []).slice().sort((a, b) => rank(a) - rank(b))[0]
+      if (res.statusCode === 200 && pick && Number(pick.lat)) return { lat: r2(pick.lat), lon: r2(pick.lon) }
       lastError = res.statusCode === 200 ? "не нашли: " + q : "ответ " + res.statusCode
     } catch (e) { lastError = "нет связи с сервисом карт" }
   }

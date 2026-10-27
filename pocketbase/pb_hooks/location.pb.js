@@ -39,6 +39,14 @@ routerAdd("POST", "/api/geo/backfill", (e) => {
   const role = e.auth ? e.auth.getString("role") : ""
   if (role !== "admin" && role !== "moderator") return e.json(403, { message: "Только для администратора" })
   const geo = require(`${__hooks}/geo.js`)
+  // {"redo": id вещи} — точка встала не туда: заново по городу и району автора
+  const redo = String((e.requestInfo().body || {}).redo || "")
+  if (redo) try {
+    const l = e.app.findRecordById("listings", redo)
+    const p = e.app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: l.getString("seller") })
+    p.set("lat", 0); p.set("lon", 0)
+    if (geo.profilePoint(e.app, p)) geo.syncListings(e.app, p)
+  } catch (err) {}
   const done = geo.backfill(e.app, 10)
   return e.json(200, { done, left: e.app.findRecordsByFilter("listings", "lat = 0 && city != '' && status != 'gone'", "", 0, 0).length, error: geo.lastError() })
 }, $apis.requireAuth("users"))
