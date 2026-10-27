@@ -1087,7 +1087,9 @@ section.band.mt{padding-block:clamp(24px,3vw,36px)}
 @keyframes mt-float{0%,100%{translate:0 0}50%{translate:0 -6px}}
 @media (prefers-reduced-motion:reduce){.mt-bit{animation:none}}
 @media (max-width:900px){.mt-wrap{grid-template-columns:1fr;gap:20px}.mt-art{max-width:560px;width:100%;justify-self:center}}
-@media (max-width:560px){.mt-bit{font-size:12px;padding:5px 10px}.mt-bit.b6,.mt-bit.b2{display:none}.mt-art{aspect-ratio:1.5/1}}
+/* phone: all six clouds, staggered left/right so the long ones do not overlap */
+@media (max-width:560px){.mt-art{aspect-ratio:1.05/1}.mt-q{height:38%;font-size:64px}.mt-bit{font-size:12px;padding:5px 10px}.mt-bit.b6{display:none}
+  .mt-bit.b0{left:0;top:0}.mt-bit.b1{right:0;left:auto;top:11%}.mt-bit.b3{left:0;top:23%}.mt-bit.b2{right:0;top:auto;bottom:23%}.mt-bit.b5{left:0;bottom:11%}.mt-bit.b4{right:0;bottom:0}}
 .wt-row{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
 .wt-em{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-size:26px;background:var(--surface);border:1px solid var(--line)}
 #world-teaser .muted{margin-bottom:16px;max-width:640px}
@@ -1414,3 +1416,7 @@ html,body{overflow-x:clip}
 @media (max-width:900px){.start-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){.start-steps{grid-template-columns:1fr}}
 .hero h1{font-size:clamp(38px,5.4vw,68px)}
+/* myths: «partly true» verdict and facts with sources */
+.myth-fake.half{background:var(--sun,#D49A2A);color:#2A1C05;box-shadow:0 2px 0 color-mix(in srgb,var(--sun,#D49A2A) 60%,#000)}
+.myth-facts{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14.5px}
+.myth-facts a{color:var(--moss);font-weight:700;white-space:nowrap}
