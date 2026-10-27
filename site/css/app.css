@@ -1457,3 +1457,16 @@ html,body{overflow-x:clip}
 }
 /* the narrowest phones: a slightly smaller title so long article names fit four lines */
 @media (max-width:360px){.acard-t{font-size:19px}}
+/* «Вещи даром»: first screen with two actions, the catalogue right under it, how it works after */
+.darom-hero{display:grid;gap:18px;margin-bottom:22px}
+.darom-hero .sec-head{margin-bottom:0}
+.darom-actions{display:flex;gap:10px;flex-wrap:wrap}
+.darom-catalog{scroll-margin-top:84px;margin-top:8px}
+.darom-cat-t{font-size:clamp(24px,3vw,32px);margin:0 0 16px}
+.darom-empty{display:grid;justify-items:center;gap:12px;text-align:center;padding:28px 18px}
+.darom-empty p{margin:0}
+.darom-view{margin:0 0 14px;width:max-content;max-width:100%}
+.darom-dasha{margin-top:36px}
+.darom-how{margin-top:44px}
+.darom-example{margin-top:22px;display:grid;gap:10px}
+.darom-view button{min-height:40px}

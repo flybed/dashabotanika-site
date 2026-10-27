@@ -2558,22 +2558,20 @@ function pickedForYou(){
     return {l, score, why};
   }).filter(x=>x.score >= 2).sort((a,b)=>b.score-a.score || b.l.ts-a.l.ts).slice(0,3);
 }
+// «Подобрано для вас»: only when there are real matches — no hint and no «nothing yet»
 function pickedBlock(){
   const box = h('div',{class:'picked'});
   if (accState()==='member' && !PROFILE.loaded) loadProfile();
   live(()=>{
-    if (accState()!=='member'){ box.replaceChildren(); return; }
-    if (!PROFILE.loaded){ box.replaceChildren(); return; }
-    if (!profileDone(PROFILE.rec)){ box.replaceChildren(h('div',{class:'card picked-hint'}, h('span',{'aria-hidden':'true',style:'font-size:26px'},'🎯'),
-      h('div',{style:'flex:1;min-width:200px'}, h('b',null,'Подберём вещи для вас'), h('div',{class:'hint'},'Укажите в профиле город и эко-цели — покажем подходящие объявления.')),
-      h('a',{class:'btn small',href:'/kabinet?tab=profile#cabinet-tabs'},'Заполнить профиль'))); return; }
+    if (accState()!=='member' || !PROFILE.loaded || !profileDone(PROFILE.rec)){ box.replaceChildren(); return; }
     const list = pickedForYou();
-    box.replaceChildren(h('h3',{style:'margin-bottom:12px'},'🎯 Подобрано для вас'),
-      list.length ? h('div',{class:'grid g3'}, list.map(({l,why})=>{ const c = userListingCard(l); c.classList.add('picked-card'); c.prepend(h('div',{class:'picked-why'}, why.slice(0,3).map(w=>h('span',null,w)))); return c; }))
-        : h('p',{class:'hint'},'Пока нет вещей под ваш город и цели — загляните позже или посмотрите всё ниже.'));
+    box.replaceChildren(...(list.length ? [h('h3',{style:'margin-bottom:12px'},'🎯 Подобрано для вас'),
+      h('div',{class:'grid g3'}, list.map(({l,why})=>{ const c = userListingCard(l); c.classList.add('picked-card'); c.prepend(h('div',{class:'picked-why'}, why.slice(0,3).map(w=>h('span',null,w)))); return c; }))] : []));
   });
   return box;
 }
+// «Отдать вещь»: a member goes straight to the form, a guest signs up first and lands on the same form
+function giveThing(){ goal('darom_give_page'); if (accState()==='member') openAccount('things'); else go('/kabinet?tab=register&next=things'); }
 function marketSection(opts){
   const cityOf = opts && opts.cityOf;
   const head = h('div');
@@ -2583,19 +2581,31 @@ function marketSection(opts){
     SEC_H1 = true;
     head.replaceChildren(sectionHead('Вторая жизнь вещей', c ? 'Отдам даром '+inCity(c) : 'Вещи даром', c ? 'Соседи '+inCity(c)+' отдают бесплатно то, что им больше не нужно. Без продажи и обмена — даритель сам выбирает, кому отдать.' : 'Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно. Каждое объявление участников проверяет Даша.'));
     SEC_H1 = false; });
-  const items = STATE.market;
+  // first screen: two actions — give (the catalogue needs things) and find
+  const actions = h('div',{class:'darom-actions'},
+    h('button',{type:'button',class:'btn',onclick:giveThing},'🎁 Отдать вещь'),
+    h('a',{class:'btn ghost',href:'#darom-catalog',onclick:e=>{ e.preventDefault(); goal('darom_find_page'); const el = document.getElementById('darom-catalog'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); }},'Найти вещь'));
+  // Dasha's own giveaways; a teaching example lives in «Как это работает», marked «Пример»
+  const own = STATE.market.filter(it=>!it.example), examples = STATE.market.filter(it=>it.example);
   const userGrid = h('div');
   const cache = new Map();
-  const filters = h('div');
+  const filters = h('div'), viewBar = h('div'), mapBox = daromMapBox();
   live(()=>{
     const all = publicListings();
     const st = accState();
     loadDaromStats([...new Set(all.map(l=>l.seller))]);
-    if (!all.length){ filters.replaceChildren(); userGrid.replaceChildren(h('div',{class:'empty'}, st==='loading' ? 'Загружаем…' : 'Пока никто ничего не выставил. Будьте первым!')); cache.clear(); return; }
+    if (!all.length){
+      filters.replaceChildren(); viewBar.replaceChildren(); mapBox.hidden = true; cache.clear();
+      userGrid.replaceChildren(st==='loading' ? h('div',{class:'empty'},'Загружаем…') : h('div',{class:'empty darom-empty'},
+        h('p',null,'Пока здесь нет объявлений. Стань первым, кто подарит вещь.'),
+        h('button',{type:'button',class:'btn',onclick:giveThing},'Разместить объявление')));
+      return; }
     const F = DAROM.filter, q = F.q.trim().toLowerCase();
     const near = l => { if (!F.near) return true; if (F.near==='district') return sameDistrict(l); if (F.near==='city') { const p = PROFILE.rec; return !!(p && p.city && (l.city||'').trim().toLowerCase()===p.city.trim().toLowerCase()); } const km = kmTo(l); return km!==null && km <= +F.near; };
     const pub = all.filter(l=>near(l) && (F.cat!=='★' || (COM.bookmarks||[]).some(b=>b.listing===l.id)) && (!F.cat || F.cat==='★' || (l.category||'Другое')===F.cat) && (!F.city || (l.city||'').trim()===F.city) && (!q || (l.title+' '+l.note+' '+l.city+' '+l.pickup).toLowerCase().includes(q)));
     if (!filters.contains(document.activeElement)) filters.replaceChildren(daromFilters(all));
+    if (!viewBar.firstChild) viewBar.replaceChildren(daromViewSwitch(userGrid, mapBox));
+    mapBox.hidden = !DAROM.mapOn; userGrid.hidden = !!DAROM.mapOn;
     DAROM.shown = pub; if (DAROM.mapOn) paintDaromMap();
     // nearest first when we know where you are
     if (PROFILE.rec && (PROFILE.rec.lat || PROFILE.rec.district)) pub.sort((a,b)=>(sameDistrict(b)-sameDistrict(a)) || ((kmTo(a)??1e9)-(kmTo(b)??1e9)) || (b.ts-a.ts));
@@ -2608,31 +2618,34 @@ function marketSection(opts){
     });
     userGrid.replaceChildren(h('div',{class:'grid g3'}, els));
   });
-  const addBtn = h('div');
-  live(()=>{ const st = accState(); addBtn.replaceChildren(st==='member' ? h('button',{type:'button',class:'btn',onclick:()=>openAccount('things')},'Выставить свою вещь') : joinHint('выставить свою вещь','things')); });
-  return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
-    head,
-    h('div',{class:'grid g3',style:'margin-bottom:28px'},
-      [['1','Выставьте вещь','В личном кабинете: фото и описание. Объявление появится после проверки.'],
-       ['2','Даритель выбирает','Нажмите «Хочу забрать» и напишите пару слов. Даритель сам решит, кому отдать: кто первый — не важно.'],
-       ['3','Передайте из рук в руки','Встреча или доставка — как удобно. Всё бесплатно: вещи здесь не продают.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
-    daromCounter(),
-    pickedBlock(),
-    thanksFeed(),
-    h('h3',{style:'margin-bottom:14px'},'От Даши'),
-    items.length ? h('div',{class:'grid g3'}, items.map(it=>h('article',{class:'card'},
+  const dashaCard = it => h('article',{class:'card'},
       delBtn('market',it.id), exMark(it),
       h('span',{class:'tag',style:kindStyle()},'Даром'),
       h('h3',{style:'font-size:20px'},it.title),
       h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
       it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
       it.note ? h('p',{style:'font-size:15px;flex:1'},it.note) : null,
-      dealBtn({site:it.id}, it.title, '', it.kind),
-      commentsBlock('market:'+it.id)
-    ))) : h('div',{class:'empty'},'Сейчас ничего нет, загляните позже.'),
+      it.example ? null : dealBtn({site:it.id}, it.title, '', it.kind),
+      it.example ? null : commentsBlock('market:'+it.id));
+  return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
+    h('div',{class:'darom-hero'}, head, actions),
+    daromCounter(),
+    // the catalogue right under the first screen
+    h('div',{id:'darom-catalog',class:'darom-catalog'},
+      h('h2',{class:'darom-cat-t'},'Вещи участников'),
+      pickedBlock(),
+      filters, viewBar, mapBox, userGrid),
+    own.length ? h('div',{class:'darom-dasha'}, h('h3',{style:'margin-bottom:14px'},'От Даши'), h('div',{class:'grid g3'}, own.map(dashaCard))) : null,
     addForm('market','Новое объявление от Даши'),
-    h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:40px 0 14px'}, h('h3',null,'От участников'), addBtn),
-    filters, daromMapBox(), userGrid,
+    // how it works — after the catalogue, short
+    h('div',{class:'darom-how'},
+      h('h2',{class:'darom-cat-t'},'Как это работает'),
+      h('div',{class:'grid g3'},
+        [['1','Размести вещь','Фото и пара слов. Даша проверит объявление.'],
+         ['2','Выбери получателя','Желающие пишут тебе, а кому отдать — решаешь ты.'],
+         ['3','Передай бесплатно','Встреча или доставка — как удобно. Без денег.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
+      examples.length ? h('div',{class:'darom-example'}, h('div',{class:'eyebrow'},'Пример объявления'), h('div',{class:'grid g3'}, examples.map(dashaCard))) : null),
+    thanksFeed(),
     wantsBlock(), daromSubCard(), friendCard()
   ));
 }
@@ -2744,20 +2757,22 @@ function loadLeaflet(){
   });
   return LEAFLET;
 }
+// list or map: the list by default, the map on request (the choice is remembered in this browser)
 function daromMapBox(){
-  // open by default; whoever hides it gets it hidden next time too
-  if (DAROM.mapOn === undefined){ let off = false; try{ off = localStorage.getItem('db-map-off')==='1'; }catch(e){} DAROM.mapOn = !off; }
-  const wrap = h('div',{class:'darom-map-wrap'});
-  const btn = h('button',{type:'button',class:'btn ghost small'});
+  if (DAROM.mapOn === undefined){ let v = ''; try{ v = localStorage.getItem('db-darom-view')||''; }catch(e){} DAROM.mapOn = v==='map'; }
   const holder = h('div',{class:'darom-map'});
   const note = h('p',{class:'hint darom-map-note'});
-  const show = ()=>{ holder.hidden = note.hidden = !DAROM.mapOn; btn.textContent = DAROM.mapOn ? '✕ Скрыть карту' : '🗺 Показать на карте';
-    if (DAROM.mapOn){ DAROM.mapEl = holder; DAROM.mapNote = note; setTimeout(paintDaromMap); } };
-  btn.addEventListener('click', ()=>{ DAROM.mapOn = !DAROM.mapOn; try{ DAROM.mapOn ? localStorage.removeItem('db-map-off') : localStorage.setItem('db-map-off','1'); }catch(e){}
-    if (DAROM.mapOn) goal('darom_map'); show(); });
-  show();
-  wrap.append(btn, holder, note);
-  return wrap;
+  DAROM.mapEl = holder; DAROM.mapNote = note;
+  return h('div',{class:'darom-map-wrap',hidden:''}, holder, note);
+}
+function daromViewSwitch(list, mapBox){
+  const btn = (mode, label) => h('button',{type:'button',role:'tab','aria-selected':String(!!DAROM.mapOn === (mode==='map')),onclick:e=>{
+    DAROM.mapOn = mode==='map'; try{ localStorage.setItem('db-darom-view', mode); }catch(e){}
+    if (DAROM.mapOn) goal('darom_map');
+    bar.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected', String(b===e.currentTarget)));
+    mapBox.hidden = !DAROM.mapOn; list.hidden = !!DAROM.mapOn; if (DAROM.mapOn) setTimeout(paintDaromMap); }}, label);
+  const bar = h('div',{class:'tabs darom-view',role:'tablist','aria-label':'Как показать вещи'}, btn('list','☰ Список'), btn('map','🗺 Карта'));
+  return bar;
 }
 function paintDaromMap(){
   const el = DAROM.mapEl; if (!el || !el.isConnected) return;
