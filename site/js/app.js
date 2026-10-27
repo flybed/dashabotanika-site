@@ -2665,11 +2665,17 @@ function loadLeaflet(){
   return LEAFLET;
 }
 function daromMapBox(){
+  // open by default; whoever hides it gets it hidden next time too
+  if (DAROM.mapOn === undefined){ let off = false; try{ off = localStorage.getItem('db-map-off')==='1'; }catch(e){} DAROM.mapOn = !off; }
   const wrap = h('div',{class:'darom-map-wrap'});
-  const btn = h('button',{type:'button',class:'btn ghost small'},'🗺 Показать на карте');
-  const holder = h('div',{class:'darom-map',hidden:''});
-  const note = h('p',{class:'hint darom-map-note',hidden:''});
-  btn.addEventListener('click', ()=>{ DAROM.mapOn = !DAROM.mapOn; holder.hidden = note.hidden = !DAROM.mapOn; btn.textContent = DAROM.mapOn ? '✕ Скрыть карту' : '🗺 Показать на карте'; if (DAROM.mapOn){ DAROM.mapEl = holder; DAROM.mapNote = note; goal('darom_map'); paintDaromMap(); } });
+  const btn = h('button',{type:'button',class:'btn ghost small'});
+  const holder = h('div',{class:'darom-map'});
+  const note = h('p',{class:'hint darom-map-note'});
+  const show = ()=>{ holder.hidden = note.hidden = !DAROM.mapOn; btn.textContent = DAROM.mapOn ? '✕ Скрыть карту' : '🗺 Показать на карте';
+    if (DAROM.mapOn){ DAROM.mapEl = holder; DAROM.mapNote = note; setTimeout(paintDaromMap); } };
+  btn.addEventListener('click', ()=>{ DAROM.mapOn = !DAROM.mapOn; try{ DAROM.mapOn ? localStorage.removeItem('db-map-off') : localStorage.setItem('db-map-off','1'); }catch(e){}
+    if (DAROM.mapOn) goal('darom_map'); show(); });
+  show();
   wrap.append(btn, holder, note);
   return wrap;
 }
@@ -2686,7 +2692,7 @@ function paintDaromMap(){
     DAROM.layer.clearLayers();
     // how a thing gets onto the map: the giver's city and district, roughly
     const off = (DAROM.shown||[]).filter(l=>!(l.lat && l.lon)).length;
-    if (DAROM.mapNote) DAROM.mapNote.textContent = 'Вещь встаёт на карту по городу и району дарителя — примерно, с точностью около километра.'+(off ? ' Ещё без места: '+off+' — точка появится в течение часа.' : '');
+    if (DAROM.mapNote) DAROM.mapNote.textContent = 'Вещь встаёт на карту по городу и району, указанным в объявлении, — примерно, с точностью около километра.'+(off ? ' Ещё без места: '+off+' — точка появится в течение часа.' : '');
     // things from the same rough place go into one point
     const groups = {};
     (DAROM.shown||[]).filter(l=>l.lat && l.lon).forEach(l=>{ const k = l.lat+','+l.lon; (groups[k] = groups[k] || []).push(l); });
