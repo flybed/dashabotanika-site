@@ -518,7 +518,7 @@ function mythsTeaser(){
       h('div',{class:'eyebrow'},'Мифы о переработке'),
       h('h2',{class:'mt-title'},'Развеем мифы?'),
       h('p',{class:'lead'},'Правда ли, что один человек ничего не изменит, а сортировка бесполезна? Разберём 10 популярных мифов с фактами и без нравоучений.'),
-      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Проверить мифы'))),
+      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы'))),
     h('a',{class:'mt-art',href:'/mify','aria-label':'10 мифов о переработке и экологии'},
       h('span',{class:'mt-q','aria-hidden':'true'},'?'),
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
@@ -1941,7 +1941,7 @@ window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max
 function homePage(){
   // for someone who came by chance: first what you get (in 5 seconds), then how to start, then who Dasha is, then the deep end
   // first steps (the game-like guide) belong to the beginner block, so they follow it
-  return [hero(), interestsSection(), daromSpotlight(), startSection(), firstSteps(), dashaIntro(), journalSection(true), worldTeaser(), mythsTeaser(), feedbackTeaser()];
+  return [hero(), interestsSection(), mythsTeaser(), daromSpotlight(), startSection(), firstSteps(), dashaIntro(), journalSection(true), worldTeaser(), feedbackTeaser()];
 }
 /* for a beginner: no knowledge needed, one small step at a time */
 const START_STEPS = [
