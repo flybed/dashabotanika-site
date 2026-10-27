@@ -2659,7 +2659,7 @@ function marketSection(opts){
          ['3','Передай бесплатно','Встреча или доставка — как удобно. Без денег.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
       examples.length ? h('div',{class:'darom-example'}, h('div',{class:'eyebrow'},'Пример объявления'), h('div',{class:'grid g3'}, examples.map(dashaCard))) : null),
     thanksFeed(),
-    wantsBlock(), daromSubCard(), friendCard()
+    wantsBlock(), daromSubCard(), FRIEND_PROGRAM ? friendCard() : null
   ));
 }
 
@@ -2789,6 +2789,8 @@ function daromSubCard(){
     else paint(); });
   return box;
 }
+// «Друг проекта» is hidden until there is a working support link and agreed terms (owner's decision); the code stays for the launch
+const FRIEND_PROGRAM = false;
 /* «Друг проекта»: everything stays free; support is voluntary and does not change who gets a thing (the giver chooses) */
 function friendCard(){
   const box = h('div',{class:'card friend-card'});
@@ -4057,7 +4059,8 @@ function authForms(mode){
         try{ localStorage.removeItem(REF_KEY); }catch(e){}
         if (news.checked){ try{ await pb.collection('notify').create({user:auth.record.id, email_topics:['comeback'], hour:20, tz:-new Date().getTimezoneOffset()}); }catch(e){} }
         pb.collection('users').requestVerification(email.value.trim()).catch(()=>{});
-        try{ sessionStorage.setItem('db-ask-place','1'); }catch(e){}
+        // who came to give a thing goes straight to the form: the city is asked there, not in one more window
+        if (new URLSearchParams(location.search).get('next')!=='things'){ try{ sessionStorage.setItem('db-ask-place','1'); }catch(e){} }
         done('Добро пожаловать, '+v+'! Мы прислали письмо для подтверждения почты — если не найдёте, проверьте «Спам»');
 
       }catch(err){
