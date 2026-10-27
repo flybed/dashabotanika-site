@@ -106,12 +106,16 @@ function content(app, tpl) {
 
 function listings(app) {
   try {
-    return app.findRecordsByFilter("listings", "moderation = 'approved' && status != 'gone'", "-created", 200, 0).map((r) => ({
-      title: r.getString("title"), kind: r.getString("kind"), price: r.getString("price"),
-      condition: r.getString("condition"), city: r.getString("city"), note: r.getString("note"),
+    return app.findRecordsByFilter("listings", "moderation = 'approved' && status != 'gone' && status != 'archived'", "-created", 300, 0).map((r) => ({
+      id: r.id, title: r.getString("title"), kind: r.getString("kind"), price: r.getString("price"), category: r.getString("category"),
+      condition: r.getString("condition"), city: r.getString("city").trim(), district: r.getString("district"), note: r.getString("note"),
+      photo: r.getString("photo") ? `/api/files/${r.collection().id}/${r.id}/${r.getString("photo")}` : "",
     }))
   } catch (err) { return [] }
 }
+// города, где сейчас есть вещи даром, — у каждого своя страница /darom/<город>
+const daromCities = (app) => [...new Set(listings(app).map((l) => l.city).filter(Boolean))]
+const daromCard = (it) => `<article><h3><a href="/darom/v/${it.id}">${esc(it.title)}</a></h3><p>Даром${it.category ? " · " + esc(it.category) : ""}${it.city ? " · " + esc(it.city) : ""}${it.district ? ", " + esc(it.district) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`
 
 const priceLabel = () => "Бесплатно"
 
@@ -243,7 +247,37 @@ function page(path, d, k, app) {
       description: "Вещи даром на DashaBotanika: отдавайте бесплатно то, что ещё послужит другим, и забирайте нужное рядом с домом. Без продажи — каждое объявление проверяет модератор.",
       crumbs: [["Вещи даром", "/darom"]],
       body: sec("market", "Вторая жизнь вещей", "Вещи даром", "Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно.",
-        items.map((it) => `<article><h3>${esc(it.title)}</h3><p>Даром · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).join("\n"), true),
+        items.map((it) => it.id ? daromCard(it) : `<article><h3>${esc(it.title)}</h3><p>Даром · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).join("\n") +
+        (daromCities(app).length ? `<h2>Вещи даром по городам</h2><p>${daromCities(app).map((c) => `<a href="/darom/${slugify(c)}">Отдам даром ${esc(inCity(c))}</a>`).join(" · ")}</p>` : ""), true),
+    })
+  }
+  // одна вещь: своя страница, чтобы ею можно было поделиться (превью с фото) и найти в поиске
+  const mv = path.match(/^\/darom\/v\/([a-z0-9]{15})$/)
+  if (mv) {
+    const it = listings(app).find((l) => l.id === mv[1])
+    if (!it) return null
+    const where = [it.city, it.district].filter(Boolean).join(", ")
+    return Object.assign(base, {
+      title: `Отдам даром: ${it.title}${where ? " — " + where : ""} — DashaBotanika`,
+      description: cut(`Бесплатно, без продажи и обмена: ${it.title}${where ? " (" + where + ")" : ""}. ${it.note || "Напишите дарителю на DashaBotanika — он сам выберет, кому отдать."}`, 200),
+      image: it.photo ? ORIGIN + it.photo : null, canonical: path,
+      crumbs: [["Вещи даром", "/darom"], [it.title, path]],
+      body: sec("market", "Вещи даром", it.title, `Бесплатно${where ? " · " + where : ""}${it.category ? " · " + it.category : ""}`,
+        `${it.photo ? `<img src="${esc(it.photo)}" alt="${esc(it.title)}">` : ""}${it.note ? `<p>${esc(it.note)}</p>` : ""}<p><a href="/darom">Все вещи даром</a>${it.city ? ` · <a href="/darom/${slugify(it.city)}">Отдам даром ${esc(inCity(it.city))}</a>` : ""}</p>`, true),
+    })
+  }
+  // город: «Отдам даром Новосибирск» — живые вещи этого города
+  const mdc = path.match(/^\/darom\/([a-z0-9-]+)$/)
+  if (mdc) {
+    const city = daromCities(app).find((c) => slugify(c) === mdc[1])
+    if (!city) return null
+    const items = listings(app).filter((l) => l.city === city)
+    return Object.assign(base, {
+      title: `Отдам даром ${inCity(city)}: вещи бесплатно — DashaBotanika`,
+      description: cut(`Вещи даром ${inCity(city)}: ${items.slice(0, 4).map((l) => l.title).join(", ")}. Отдавайте ненужное и забирайте нужное бесплатно, рядом с домом.`, 200),
+      crumbs: [["Вещи даром", "/darom"], [city, path]],
+      body: sec("market", "Вещи даром", `Отдам даром ${inCity(city)}`, `Соседи ${inCity(city)} отдают бесплатно то, что им больше не нужно. Без продажи и обмена — даритель сам выбирает, кому отдать.`,
+        items.map(daromCard).join("\n") + `<p><a href="/darom">Все вещи даром</a></p>`, true),
     })
   }
   if (path === "/eko-test") {
@@ -405,6 +439,8 @@ function sitemap(app) {
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
   constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
+  daromCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c)}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>`))
+  listings(app).slice(0, 200).forEach((l) => urls.push(`  <url><loc>${ORIGIN}/darom/v/${l.id}</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>`))
   serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {
     urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
