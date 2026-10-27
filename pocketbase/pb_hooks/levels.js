@@ -86,6 +86,7 @@ function actionsOf(app, user, hb) {
     invited: count(app, "referrals", { invited: id }),
     invite_friend: friendsInvited(app, id),
     thanks_received: count(app, "thanks", { giver: id }),
+    darom_badge: (() => { try { return require(`${__hooks}/darom.js`).badgesOf(app, id).length } catch (e) { return 0 } })(),
   }
 }
 

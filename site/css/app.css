@@ -1378,3 +1378,21 @@ html,body{overflow-x:clip}
 .darom-inset a.btn{color:var(--on-moss);text-decoration:none}
 .darom-inset a.btn.ghost{color:var(--ink)}
 .darom-inset a.di-item{color:var(--ink);text-decoration:none}
+/* «Вещи даром», wave 3: share, lots, badges, the thing's page */
+.card-link{color:inherit;text-decoration:none}
+.card-link:hover{text-decoration:underline}
+.share-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.share-b{font:inherit;font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;cursor:pointer}
+.share-b:hover{border-color:var(--moss)}
+.lot{display:grid;gap:6px}
+.lot>.tag{justify-self:start}
+.lot ul{margin:0;padding-left:18px;font-size:15px}
+.lot-ph{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.lot-ph img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px}
+.badge-d{color:var(--clay);font-weight:800}
+.item-page{align-items:start}
+.darom-map-wrap{display:grid;gap:10px;margin:0 0 18px}
+.darom-map-wrap>.btn{justify-self:start}
+.darom-map{height:380px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--soft)}
+.map-pin span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--sun,#C9932E);color:#2A1C05;font-weight:800;font-size:16px;box-shadow:0 4px 10px rgba(0,0,0,.3);border:2px solid #fff}
+@media (max-width:640px){.darom-map{height:300px}}

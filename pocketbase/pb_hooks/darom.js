@@ -18,14 +18,25 @@ function stats(app, ids) {
       got: Math.max(count(app, "thanks", "from = {:u}", { u: id }), count(app, "listings", "chosen = {:u} && (status = 'gone' || status = 'lent')", { u: id })),
       thanks: count(app, "thanks", "giver = {:u}", { u: id }),
       profile: L.profileComplete ? L.profileComplete(app, id) === 1 : false,
+      badges: badgesOf(app, id),
     }
   }
   return out
 }
+// значки дарителя (за каждый — очки роста, правило darom_badge)
+const BADGES = [["first", 1, "given"], ["ten", 10, "given"], ["neighbor", 5, "thanks"]]
+function badgesOf(app, id) {
+  const n = { given: count(app, "listings", "seller = {:u} && status = 'gone'", { u: id }), thanks: count(app, "thanks", "giver = {:u}", { u: id }) }
+  return BADGES.filter(([, need, what]) => n[what] >= need).map(([k]) => k)
+}
+// надёжный даритель: 5 и больше отданных вещей и ни одного отклонённого объявления — публикуем без ожидания проверки
+function trusted(app, id) {
+  return count(app, "listings", "seller = {:u} && status = 'gone'", { u: id }) >= 5 && count(app, "listings", "seller = {:u} && moderation = 'rejected'", { u: id }) === 0
+}
 // личный счётчик для кабинета
 function mine(app, userId) {
   const gone = list(app, "listings", "seller = {:u} && status = 'gone'", { u: userId })
-  return { given: gone.length, kg: Math.round(gone.reduce((s, r) => s + kgOf(r.getString("category")), 0) * 10) / 10 }
+  return { given: gone.length, kg: Math.round(gone.reduce((s, r) => s + kgOf(r.getString("category")), 0) * 10) / 10, trusted: trusted(app, userId), badges: badgesOf(app, userId) }
 }
 
 // «спасибо» можно сказать только за вещь, о которой вы переписывались с дарителем, и только когда она отдана
@@ -76,6 +87,7 @@ function choose(app, sellerId, claimId) {
   if (l.getString("seller") !== sellerId) throw new ForbiddenError("Выбирать получателя может только тот, кто отдаёт вещь.")
   const to = c.getString("user"), title = l.getString("title")
   l.set("chosen", to)
+  l.set("reserved_until", new Date(Date.now() + 48 * 3600000).toISOString().replace("T", " "))
   if (l.getString("status") === "active" || !l.getString("status")) l.set("status", "reserved")
   app.save(l)
   // переписка с выбранным — та же, что по «Хочу забрать»
@@ -87,7 +99,7 @@ function choose(app, sellerId, claimId) {
     chat.set("last_from", sellerId); chat.set("last_at", Date.now()); chat.set("read_by", {}); app.save(chat)
   }
   personal(app, to, `Вам решили отдать «${title}» — DashaBotanika`, "Вещь ваша!",
-    `<p><b>${safe(userName(app, sellerId))}</b> выбрал(а) вас, чтобы отдать «${safe(title)}». Договоритесь о встрече в сообщениях.</p>`,
+    `<p><b>${safe(userName(app, sellerId))}</b> выбрал(а) вас, чтобы отдать «${safe(title)}». Договоритесь о встрече в сообщениях. Вещь ждёт вас 48 часов — потом перейдёт следующему желающему.</p>`,
     "Открыть переписку", `${SITE}/kabinet?tab=chats&t=${chat.id}`)
   for (const o of list(app, "claims", "listing = {:l} && user != {:u}", { l: l.id, u: to })) {
     personal(app, o.getString("user"), `«${title}» отдают другому человеку — DashaBotanika`, "В этот раз не получилось",
@@ -95,6 +107,36 @@ function choose(app, sellerId, claimId) {
       "Смотреть вещи", `${SITE}/darom`)
   }
   return { chat: chat.id }
+}
+// бронь на 48 часов: не забрали — вещь переходит следующему желающему (по порядку заявок), а если желающих нет — снова в ленте
+function reservations(app) {
+  const nowS = new Date().toISOString().replace("T", " ")
+  let moved = 0, freed = 0
+  for (const l of list(app, "listings", "status = 'reserved' && reserved_until != '' && reserved_until < {:n}", { n: nowS })) {
+    const was = l.getString("chosen"), title = l.getString("title")
+    try { const c = app.findFirstRecordByFilter("claims", "listing = {:l} && user = {:u}", { l: l.id, u: was }); c.set("skipped", true); app.saveNoValidate(c) } catch (e) {}
+    const next = list(app, "claims", "listing = {:l} && skipped = false && user != {:u}", { l: l.id, u: was }).sort((a, b) => a.getString("created") < b.getString("created") ? -1 : 1)[0]
+    if (was) personal(app, was, `Бронь на «${title}» закончилась — DashaBotanika`, "Бронь закончилась",
+      `<p>За 48 часов не получилось договориться о «${safe(title)}», поэтому вещь переходит следующему желающему. Если всё же нужна — напишите дарителю.</p>`, "Смотреть вещи", `${SITE}/darom`)
+    if (next) {
+      l.set("chosen", next.getString("user")); l.set("reserved_until", new Date(Date.now() + 48 * 3600000).toISOString().replace("T", " ")); app.saveNoValidate(l); moved++
+      try { choose(app, l.getString("seller"), next.id) } catch (e) {}
+    } else {
+      l.set("chosen", ""); l.set("reserved_until", ""); l.set("status", "active"); app.saveNoValidate(l); freed++
+      personal(app, l.getString("seller"), `«${title}» снова свободна — DashaBotanika`, "Вещь снова в ленте",
+        `<p>Бронь на «${safe(title)}» закончилась, а других желающих пока нет, — вещь снова видна всем.</p>`, "Открыть кабинет", `${SITE}/kabinet?tab=things`)
+    }
+  }
+  return { moved, freed }
+}
+// даритель продлевает бронь на сутки (например, договорились на выходные)
+function hold(app, sellerId, listingId) {
+  let l; try { l = app.findRecordById("listings", listingId) } catch (e) { throw new BadRequestError("Вещь не найдена.") }
+  if (l.getString("seller") !== sellerId) throw new ForbiddenError("Продлить бронь может только тот, кто отдаёт вещь.")
+  if (l.getString("status") !== "reserved") throw new BadRequestError("Вещь не забронирована.")
+  const base = Math.max(Date.now(), Date.parse(String(l.getString("reserved_until")).replace(" ", "T")) || 0)
+  l.set("reserved_until", new Date(base + 24 * 3600000).toISOString().replace("T", " ")); app.saveNoValidate(l)
+  return { reserved_until: l.getString("reserved_until") }
 }
 // «Одолжу»: когда автор отмечает «Одолжено», срок возврата считается сам
 function onLent(app, rec, orig) {
@@ -111,7 +153,7 @@ function onApproved(app, l) {
     if (city && norm(w.getString("city")) && norm(w.getString("city")) !== city) continue
     personal(app, w.getString("author"), `Похоже, нашлось: «${title}» — DashaBotanika`, "Кто-то отдаёт то, что вы ищете",
       `<p>Вы искали «${safe(w.getString("title"))}». В «Вещах даром» появилось «${safe(title)}»${city ? " (" + safe(l.getString("city")) + ")" : ""}. Посмотрите — вдруг подойдёт.</p>`,
-      "Посмотреть", `${SITE}/darom`)
+      "Посмотреть", `${SITE}/darom/v/${l.id}`)
   }
   for (const sub of list(app, "darom_subs", "user != {:s}", { s: seller })) {
     const cats = sub.getStringSlice("cats")
@@ -185,4 +227,4 @@ function expire(app) {
   return { reminded, archived, returns, closed }
 }
 
-module.exports = { stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend }
+module.exports = { stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend, badgesOf, trusted, reservations, hold }
