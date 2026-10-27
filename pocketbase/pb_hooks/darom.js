@@ -268,7 +268,8 @@ function fromTelegram(app, msg) {
   try {
     const p = app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: userId })
     l.set("city", p.getString("city")); l.set("district", p.getString("district"))
-    if (p.get("lat") && p.get("lon")) { l.set("lat", Math.round(Number(p.get("lat")) * 100) / 100); l.set("lon", Math.round(Number(p.get("lon")) * 100) / 100) }
+    const pt = require(`${__hooks}/geo.js`).profilePoint(app, p)
+    if (pt) { l.set("lat", pt.lat); l.set("lon", pt.lon) }
   } catch (e) {}
   let photoOk = !photo
   if (photo) { const bytes = T.fileBytes(photo.file_id); if (bytes) { l.set("photo", $filesystem.fileFromBytes(bytes, "tg.jpg")); photoOk = true } }

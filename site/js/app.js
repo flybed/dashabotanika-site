@@ -2668,8 +2668,9 @@ function daromMapBox(){
   const wrap = h('div',{class:'darom-map-wrap'});
   const btn = h('button',{type:'button',class:'btn ghost small'},'🗺 Показать на карте');
   const holder = h('div',{class:'darom-map',hidden:''});
-  btn.addEventListener('click', ()=>{ DAROM.mapOn = !DAROM.mapOn; holder.hidden = !DAROM.mapOn; btn.textContent = DAROM.mapOn ? '✕ Скрыть карту' : '🗺 Показать на карте'; if (DAROM.mapOn){ DAROM.mapEl = holder; goal('darom_map'); paintDaromMap(); } });
-  wrap.append(btn, holder);
+  const note = h('p',{class:'hint darom-map-note',hidden:''});
+  btn.addEventListener('click', ()=>{ DAROM.mapOn = !DAROM.mapOn; holder.hidden = note.hidden = !DAROM.mapOn; btn.textContent = DAROM.mapOn ? '✕ Скрыть карту' : '🗺 Показать на карте'; if (DAROM.mapOn){ DAROM.mapEl = holder; DAROM.mapNote = note; goal('darom_map'); paintDaromMap(); } });
+  wrap.append(btn, holder, note);
   return wrap;
 }
 function paintDaromMap(){
@@ -2683,6 +2684,9 @@ function paintDaromMap(){
       DAROM.layer = L.layerGroup().addTo(DAROM.map);
     }
     DAROM.layer.clearLayers();
+    // how a thing gets onto the map: the giver's city and district, roughly
+    const off = (DAROM.shown||[]).filter(l=>!(l.lat && l.lon)).length;
+    if (DAROM.mapNote) DAROM.mapNote.textContent = 'Вещь встаёт на карту по городу и району дарителя — примерно, с точностью около километра.'+(off ? ' Ещё без места: '+off+' — точка появится в течение часа.' : '');
     // things from the same rough place go into one point
     const groups = {};
     (DAROM.shown||[]).filter(l=>l.lat && l.lon).forEach(l=>{ const k = l.lat+','+l.lon; (groups[k] = groups[k] || []).push(l); });
@@ -4186,6 +4190,22 @@ async function geocodePlace(city, district){
   try{ const r = await fetch(NOMI+'/search?format=jsonv2&limit=1&accept-language=ru&q='+encodeURIComponent(q)).then(x=>x.json());
     return r && r[0] ? {lat:r2(+r[0].lat), lon:r2(+r[0].lon)} : null; }catch(e){ return null; }
 }
+// suggestions as you type (Photon — OpenStreetMap search made for this); a street keeps no house number
+const PHOTON = 'https://photon.komoot.io';
+async function suggestPlaces(q, city, country){
+  try{
+    const r = await fetch(PHOTON+'/api/?limit=6&q='+encodeURIComponent([q, city, country].filter(Boolean).join(', '))).then(x=>x.json());
+    const seen = new Set();
+    return (r.features||[]).map(f=>{ const a = f.properties||{}, c = (f.geometry||{}).coordinates||[];
+      const metro = a.osm_value==='station' || a.osm_value==='subway_entrance' || /метро|subway/i.test(a.osm_value+' '+(a.name||''));
+      const street = a.osm_key==='highway' || (!a.name && a.street);
+      const name = street ? (a.street || a.name) : a.name;
+      if (!name || !c.length) return null;
+      const label = metro && !/^м\.?\s/i.test(name) ? 'м. '+name.replace(/^(станция|метро)\s+/i,'') : name;
+      return {label, city:a.city || (a.osm_value==='city' ? '' : a.state) || '', hint:[a.district || a.locality, a.city].filter(x=>x && x!==name).join(', '), lat:r2(c[1]), lon:r2(c[0])};
+    }).filter(x=>x && !seen.has(x.label+x.hint) && seen.add(x.label+x.hint));
+  }catch(e){ return []; }
+}
 // the picker: one button for automatic, two fields for by hand; save() writes the profile
 function placePicker(onSaved, opts){
   const o = opts||{}, p = PROFILE.rec || {};
@@ -4193,9 +4213,25 @@ function placePicker(onSaved, opts){
   const country = h('input',{id:'loc-country',maxlength:'60',value:p.country||'Россия',list:'loc-countries',autocomplete:'country-name',placeholder:'Начните вводить'});
   const countries = h('datalist',{id:'loc-countries'}, COUNTRIES.map(c=>h('option',{value:c})));
   const city = h('input',{id:'loc-city',maxlength:'80',value:p.city||'',placeholder:'Например, Новосибирск',autocomplete:'address-level2'});
-  const district = h('input',{id:'loc-district',maxlength:'80',value:p.district||'',placeholder:'Район, микрорайон или метро'});
+  const district = h('input',{id:'loc-district',maxlength:'80',value:p.district||'',placeholder:'Начните вводить: метро, район или улица',autocomplete:'off',role:'combobox','aria-autocomplete':'list','aria-expanded':'false','aria-controls':'loc-sugg'});
   const note = h('p',{class:'hint',style:'margin:0'});
   [country, city, district].forEach(x=>x.addEventListener('input', ()=>{ coords = null; }));
+  // suggestions while typing: pick one and the point is exactly there (then rounded to ~1 km)
+  const sugg = h('ul',{id:'loc-sugg',class:'loc-sugg',role:'listbox',hidden:''});
+  const closeSugg = ()=>{ sugg.hidden = true; district.setAttribute('aria-expanded','false'); };
+  const pick = s => { district.value = s.label; if (s.city && !city.value.trim()) city.value = s.city; coords = {lat:s.lat, lon:s.lon}; closeSugg();
+    note.textContent = 'Отметили: '+[s.label, s.city].filter(Boolean).join(', ')+'. Точный адрес не сохраняем.'; };
+  let sTimer = 0, sSeq = 0;
+  district.addEventListener('input', ()=>{ clearTimeout(sTimer); const q = district.value.trim();
+    if (q.length < 3){ closeSugg(); return; }
+    sTimer = setTimeout(async ()=>{ const my = ++sSeq; const list = await suggestPlaces(q, city.value.trim(), country.value.trim()); if (my !== sSeq) return;
+      if (!list.length){ closeSugg(); return; }
+      sugg.replaceChildren(...list.map(s=>{ const li = h('li',{role:'option',tabindex:'-1'}, h('b',null,s.label), s.hint ? h('span',null,' · '+s.hint) : null);
+        li.addEventListener('mousedown', e=>{ e.preventDefault(); pick(s); }); li.addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); pick(s); district.focus(); } }); return li; }));
+      sugg.hidden = false; district.setAttribute('aria-expanded','true'); }, 350); });
+  district.addEventListener('keydown', e=>{ if (e.key==='ArrowDown' && !sugg.hidden){ e.preventDefault(); sugg.firstChild && sugg.firstChild.focus(); } if (e.key==='Escape') closeSugg(); });
+  sugg.addEventListener('keydown', e=>{ const a = document.activeElement; if (e.key==='ArrowDown' && a.nextSibling){ e.preventDefault(); a.nextSibling.focus(); } if (e.key==='ArrowUp'){ e.preventDefault(); (a.previousSibling || district).focus(); } if (e.key==='Escape'){ closeSugg(); district.focus(); } });
+  district.addEventListener('blur', ()=>setTimeout(()=>{ if (!sugg.contains(document.activeElement)) closeSugg(); }, 150));
   const auto = h('button',{type:'button',class:'btn ghost small'},'📍 Определить автоматически');
   auto.addEventListener('click', async ()=>{ auto.disabled = true; auto.textContent = 'Определяем…';
     try{ const r = await detectPlace(); city.value = r.city; district.value = r.district; if (r.country) country.value = r.country; coords = {lat:r.lat, lon:r.lon};
@@ -4206,8 +4242,8 @@ function placePicker(onSaved, opts){
   const f = h('form',{class:'form loc-form',style:'margin:0;border-style:solid;border-color:var(--line)'},
     h('div',null, auto), note,
     h('div',{class:'fields'}, h('label',{for:'loc-country'},'Страна',country, countries), h('label',{for:'loc-city'},'Город',city)),
-    h('label',{for:'loc-district'},'Район (необязательно)',district),
-    h('p',{class:'hint',style:'margin:0'},'Точный адрес не нужен и не хранится: только город, район и примерное место (с точностью около километра) — чтобы показывать вещи рядом.'),
+    h('label',{for:'loc-district',class:'loc-dist'},'Метро, район или улица',district, sugg),
+    h('p',{class:'hint',style:'margin:0'},'Выберите из подсказок — так место определится верно. Номер дома не нужен: храним только район и примерную точку (около километра), чтобы показывать вещи рядом.'),
     h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'}, btn, o.skip ? h('button',{type:'button',class:'btn ghost',onclick:o.skip},'Позже') : null));
   f.addEventListener('submit', async e=>{ e.preventDefault();
     const c = city.value.trim(), d = district.value.trim();
