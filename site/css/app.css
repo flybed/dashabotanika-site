@@ -50,7 +50,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .nav a:hover{background:var(--soft);color:var(--ink)}
 
 /* hero */
-.hero{padding-block:clamp(40px,7vw,88px) clamp(32px,5vw,64px)}
+.hero{padding-block:clamp(28px,4.5vw,56px) clamp(24px,3.5vw,44px)}
 .hero .wrap{display:grid;grid-template-columns:1.25fr .9fr;gap:40px;align-items:center}
 .hero h1{font-size:clamp(40px,6.6vw,80px);font-weight:800;letter-spacing:-.01em}
 .hero h1 em{font-style:italic;font-weight:500;color:var(--moss)}
@@ -70,13 +70,13 @@ button,input,textarea,select{font:inherit;color:inherit}
 /* hero art: photo in a pebble, stones and a sprig */
 .brand{font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:.02em;color:var(--moss);margin-bottom:14px;display:flex;align-items:center;gap:10px}
 .brand::before{content:"";width:34px;height:2px;background:var(--sun);border-radius:2px}
-.hero-art{position:relative;width:100%;max-width:430px;justify-self:center;aspect-ratio:4/5}
+.hero-art{position:relative;width:100%;max-width:380px;justify-self:center;aspect-ratio:4/5}
 .pebble{position:absolute;inset:4% 3% 9% 7%;border-radius:58% 42% 52% 48% / 46% 55% 45% 54%;overflow:hidden;background:var(--sand-deep) var(--grain);box-shadow:0 34px 60px -34px color-mix(in srgb,var(--ink) 55%,transparent), inset 0 0 0 1px color-mix(in srgb,var(--ink) 8%,transparent);animation:breathe 14s ease-in-out infinite}
 .pebble img{width:100%;height:100%;object-fit:cover;display:block}
 .pebble svg{width:100%;height:100%;display:block}
 @keyframes breathe{50%{border-radius:50% 50% 46% 54% / 54% 47% 53% 46%}}
 .hero-art .stones{position:absolute;left:-7%;bottom:-1%;width:50%;z-index:1}
-.hero-art .sprig{position:absolute;right:-6%;top:-3%;width:36%;z-index:1;transform-origin:20% 90%;animation:sway 7s ease-in-out infinite}
+.hero-art .sprig{position:absolute;right:-13%;top:-7%;width:28%;z-index:1;transform-origin:20% 90%;animation:sway 7s ease-in-out infinite}
 .caption{position:absolute;right:2%;bottom:1%;z-index:2;font-family:var(--font-hand);font-size:26px;color:var(--clay);transform:rotate(-5deg)}
 .upl{position:absolute;left:50%;top:44%;transform:translateX(-50%);z-index:3;white-space:nowrap}
 .about-photo{width:200px;aspect-ratio:4/5;border-radius:58% 42% 52% 48% / 46% 55% 45% 54%;overflow:hidden;background:var(--sand-deep) var(--grain)}
@@ -1404,11 +1404,11 @@ html,body{overflow-x:clip}
 .loc-sugg li span{color:var(--muted)}
 .loc-sugg li:hover,.loc-sugg li:focus{background:var(--soft);outline:none}
 /* home for someone who came by chance: what you get → how to start → who Dasha is */
-.hero-start{margin-top:14px;font-size:16px;color:var(--muted)}
-.hero-start a{color:var(--moss);font-weight:700}
-.bf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.bf{display:grid;gap:8px;align-content:start;text-decoration:none;color:inherit;transition:transform .15s ease, box-shadow .15s ease}
-.bf:hover{transform:translateY(-2px)}
+.bf-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.bf{display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;align-content:start;justify-items:start}
+.bf-t{margin:0}
+.bf-d{margin:0}
+.bf-cta{margin-top:6px}
 .bf-ic{font-size:36px;line-height:1}
 .bf-t{font-size:19px;line-height:1.25}
 .bf-d{color:var(--muted);font-size:15px}
@@ -1422,4 +1422,4 @@ html,body{overflow-x:clip}
 @media (max-width:900px){.bf-grid,.start-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){.bf-grid,.start-steps{grid-template-columns:1fr}}
 .hero h1{font-size:clamp(38px,5.4vw,68px)}
-@media (max-width:600px){.bf-grid{gap:10px}.bf{grid-template-columns:auto minmax(0,1fr);column-gap:14px;row-gap:4px;padding:14px 16px}.bf-ic{grid-row:span 2;font-size:30px}.bf-t{font-size:17px}}
+@media (max-width:600px){.bf-grid{gap:10px}.bf{grid-template-columns:auto minmax(0,1fr);grid-template-rows:none;column-gap:14px;row-gap:4px;padding:14px 16px}.bf-ic{grid-row:span 3;font-size:30px}.bf-t{font-size:17px}.bf-cta{margin-top:4px}}
