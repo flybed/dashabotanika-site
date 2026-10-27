@@ -16,7 +16,10 @@ class H(http.server.BaseHTTPRequestHandler):
         q = up.parse_qs(up.urlparse(self.path).query).get('q', [''])[0]
         p = PLACES.get(q)
         self.send_response(200); self.send_header('content-type', 'application/json'); self.end_headers()
-        self.wfile.write(json.dumps([{'lat': p[0], 'lon': p[1]}] if p else []).encode())
+        out = [{'lat': p[0], 'lon': p[1], 'addresstype': 'suburb'}] if p else []
+        # первым — одноимённая улица далеко: брать надо район
+        if out and q.startswith('Академический'): out.insert(0, {'lat': '55.631', 'lon': '37.612', 'addresstype': 'road'})
+        self.wfile.write(json.dumps(out).encode())
 http.server.HTTPServer(('127.0.0.1', 8097), H).serve_forever()
 PY
 echo $! > "$T/mock"
@@ -42,7 +45,7 @@ def user(email, name):
 uid, tok = user('k@t.local', 'Кирилл')
 code, p = req('POST','/collections/profiles/records',{'owner':uid,'country':'Россия','city':'Москва','district':'Академический'},tok)
 prof = lambda: req('GET','/collections/profiles/records/'+p['id'],t=su)[1]
-check('a profile without a point gets one from the city and district', prof()['lat'] == 55.69 and prof()['lon'] == 37.57)
+check('a profile without a point gets one from the city and district (the district, not a street of the same name)', prof()['lat'] == 55.69 and prof()['lon'] == 37.57)
 item = lambda i: req('GET','/collections/listings/records/'+i,t=su)[1]
 base = {'seller':uid,'title':'Стул','kind':'Отдам даром','condition':'Хорошее','status':'active'}
 l1 = req('POST','/collections/listings/records',base,tok)[1]
@@ -68,6 +71,10 @@ tok2 = req('POST','/collections/users/auth-with-password',{'identity':'t@t.local
 req('PATCH','/collections/listings/records/'+l3[1]['id'],{'city':'Москва'},su)
 code, res = req('POST','/geo/backfill',{},tok2)
 check('the fill-in places things that had no point', code == 200 and res['done'] == 1 and res['left'] == 0 and item(l3[1]['id'])['lat'] == 55.75)
+# a point in the wrong place → redo it from the giver's city and district
+req('PATCH','/collections/profiles/records/'+p['id'],{'district':'Академический','lat':55.1,'lon':37.1},tok)
+code, res = req('POST','/geo/backfill',{'redo':l1['id']},tok2)
+check('redo puts the thing back by its district', code == 200 and prof()['lat'] == 55.69 and item(l1['id'])['lat'] == 55.69)
 if fails: raise SystemExit('FAILED: ' + ', '.join(fails))
 print('ALL OK')
 PY
