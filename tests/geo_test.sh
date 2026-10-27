@@ -9,14 +9,14 @@ T=$(mktemp -d)
 trap 'kill $(cat "$T/pid" "$T/mock" 2>/dev/null) 2>/dev/null || true; rm -rf "$T"' EXIT
 python3 - <<'PY' &
 import json, http.server, urllib.parse as up
-PLACES = {'Академический, Москва, Россия': ('55.687', '37.574'), 'Москва, Россия': ('55.751', '37.618'), 'Москва': ('55.751', '37.618'), 'Хамовники, Москва, Россия': ('55.731', '37.571'), 'Центральный, Тула': ('54.193', '37.617')}
+PLACES = {'Академический, Москва, Россия': ('55.687', '37.574'), 'Москва, Россия': ('55.751', '37.618'), 'Москва': ('55.751', '37.618'), 'Хамовники, Москва, Россия': ('55.731', '37.571'), 'Центральный, Тула': ('54.193', '37.617'), 'Ленинский район, Москва, Россия': ('55.611', '37.711'), 'метро Сокол, Москва, Россия': ('55.805', '37.515')}
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
         q = up.parse_qs(up.urlparse(self.path).query).get('q', [''])[0]
         p = PLACES.get(q)
         self.send_response(200); self.send_header('content-type', 'application/json'); self.end_headers()
-        out = [{'lat': p[0], 'lon': p[1], 'addresstype': 'suburb'}] if p else []
+        out = [{'lat': p[0], 'lon': p[1], 'addresstype': 'city' if q.startswith(('Москва', 'Нигдебург')) or ', ' not in q else 'suburb'}] if p else []
         # первым — одноимённая улица далеко: брать надо район
         if out and q.startswith('Академический'): out.insert(0, {'lat': '55.631', 'lon': '37.612', 'addresstype': 'road'})
         self.wfile.write(json.dumps(out).encode())
@@ -75,6 +75,13 @@ check('the fill-in places things that had no point', code == 200 and res['done']
 req('PATCH','/collections/profiles/records/'+p['id'],{'district':'Академический','lat':55.1,'lon':37.1},tok)
 code, res = req('POST','/geo/backfill',{'redo':l1['id']},tok2)
 check('redo puts the thing back by its district', code == 200 and prof()['lat'] == 55.69 and item(l1['id'])['lat'] == 55.69)
+# OSM knows «Ленинский район», not just «Ленинский»; «м. Сокол» is «метро Сокол»
+req('PATCH','/collections/profiles/records/'+p['id'],{'district':'Ленинский'},tok)
+check('«… район» is tried when the bare name is not found', prof()['lat'] == 55.61)
+req('PATCH','/collections/profiles/records/'+p['id'],{'district':'м. Сокол'},tok)
+check('«м. …» is looked up as a metro station', prof()['lat'] == 55.81 and item(l1['id'])['lat'] == 55.81)
+code, res = req('POST','/geo/backfill',{'q':'метро Сокол, Москва, Россия'},tok2)
+check('moderators can see what the map service answers', code == 200 and res['found'][0]['lat'] == '55.805')
 if fails: raise SystemExit('FAILED: ' + ', '.join(fails))
 print('ALL OK')
 PY

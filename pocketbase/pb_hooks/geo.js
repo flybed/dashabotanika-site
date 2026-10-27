@@ -5,22 +5,36 @@ const base = () => String($os.getenv("GEO_API") || "https://nominatim.openstreet
 const r2 = (x) => Math.round(Number(x) * 100) / 100
 
 let lastError = ""
-const PLACE_TYPES = ["suburb", "city_district", "borough", "quarter", "neighbourhood", "district", "station", "city", "town", "village"]
+// для района годится сам район, квартал или станция метро; город — только когда района нет
+const PLACE_TYPES = ["suburb", "city_district", "borough", "quarter", "neighbourhood", "district", "station", "railway", "residential", "road"]
+function search(q) {
+  try {
+    const res = $http.send({ url: `${base()}/search?format=jsonv2&limit=8&accept-language=ru&q=${encodeURIComponent(q)}`, method: "GET",
+      headers: { "user-agent": "DashaBotanikaBot/1.0 (https://dashabotanika.ru)" }, timeout: 6 })
+    if (res.statusCode !== 200) { lastError = "ответ " + res.statusCode; return [] }
+    return (res.json || []).filter((x) => Number(x.lat))
+  } catch (e) { lastError = "нет связи с сервисом карт"; return [] }
+}
 function lookup(country, city, district) {
-  const tries = [[district, city, country], [city, country]].map((a) => a.filter(Boolean).join(", "))
-  for (const q of tries) {
-    if (!q || !city) continue
-    try {
-      const res = $http.send({ url: `${base()}/search?format=jsonv2&limit=8&accept-language=ru&q=${encodeURIComponent(q)}`, method: "GET",
-        headers: { "user-agent": "DashaBotanikaBot/1.0 (https://dashabotanika.ru)" }, timeout: 6 })
-      const j = res.json
-      // одноимённых мест много (улица, институт, посёлок) — для района берём сам район или станцию метро
-      const rank = (x) => { const i = PLACE_TYPES.indexOf(x.addresstype || x.type); return i < 0 ? 99 : i }
-      const pick = (j || []).slice().sort((a, b) => rank(a) - rank(b))[0]
-      if (res.statusCode === 200 && pick && Number(pick.lat)) return { lat: r2(pick.lat), lon: r2(pick.lon) }
-      lastError = res.statusCode === 200 ? "не нашли: " + q : "ответ " + res.statusCode
-    } catch (e) { lastError = "нет связи с сервисом карт" }
+  if (!city) return null
+  const d = String(district || "").trim(), tail = [city, country].filter(Boolean).join(", ")
+  // «Академический» в OSM — «Академический район»; «м. Академическая» — «метро Академическая»
+  const names = []
+  if (d) {
+    const m = d.match(/^(м\.?|метро)\s*(.+)$/i)
+    if (m) names.push("метро " + m[2], m[2])
+    else { names.push(d); if (!/район/i.test(d)) names.push(d + " район") }
   }
+  for (const n of names) {
+    const j = search(n + ", " + tail)
+    // одноимённых мест много (институт, посёлок, сам город) — берём район, квартал, станцию; ближе к началу списка — лучше
+    const rank = (x) => { const i = PLACE_TYPES.indexOf(x.addresstype || x.type); return i < 0 ? 99 : i }
+    const ok = j.filter((x) => rank(x) < 99).sort((a, b) => rank(a) - rank(b))
+    if (ok[0]) return { lat: r2(ok[0].lat), lon: r2(ok[0].lon) }
+    if (!lastError || lastError.indexOf("связи") < 0) lastError = "не нашли: " + n + ", " + tail
+  }
+  const j = search(tail)
+  if (j[0]) return { lat: r2(j[0].lat), lon: r2(j[0].lon) }
   return null
 }
 
@@ -57,4 +71,4 @@ function backfill(app, max) {
   return done
 }
 
-module.exports = { lookup, profilePoint, syncListings, backfill, lastError: () => lastError }
+module.exports = { search, lookup, profilePoint, syncListings, backfill, lastError: () => lastError }
