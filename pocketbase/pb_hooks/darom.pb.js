@@ -67,3 +67,29 @@ onRecordCreateRequest((e) => {
   e.next()
 }, "listings")
 onRecordAfterCreateSuccess((e) => { e.next(); if (e.record.getString("moderation") === "approved") require(`${__hooks}/darom.js`).onApproved(e.app, e.record) }, "listings")
+
+// ---------- письмо дарителю после проверки ----------
+// служебные поля писем меняет только сервер (и суперпользователь при проверках), не запрос автора или модератора
+onRecordUpdateRequest((e) => {
+  if (!e.hasSuperuserAuth()) { const o = e.record.original(); for (const f of ["mod_due", "mod_mail", "mod_tries", "mod_next"]) e.record.set(f, o.get(f)) }
+  e.next()
+}, "listings")
+// сменился статус проверки (или причина отказа) — письмо в очередь; то же самое ещё раз — нет
+onRecordUpdate((e) => {
+  const o = e.record.original()
+  if (o.getString("moderation") !== e.record.getString("moderation") || o.getString("reason") !== e.record.getString("reason")) require(`${__hooks}/darom.js`).modChanged(e.record)
+  e.next()
+}, "listings")
+// опубликовано сразу (надёжный даритель) — человек видит это сам, письма не нужно
+onRecordCreate((e) => { if (e.record.getString("moderation")) e.record.set("mod_mail", require(`${__hooks}/darom.js`).modMark(e.record)); e.next() }, "listings")
+cronAdd("darom-mod-mail", "* * * * *", () => { require(`${__hooks}/darom.js`).modMail($app, 20) })
+routerAdd("POST", "/api/darom/mod-mail", (e) => {
+  if (!e.auth || e.auth.getString("role") !== "admin") return e.json(403, { message: "Только для администратора" })
+  return e.json(200, require(`${__hooks}/darom.js`).modMail(e.app, 20))
+}, $apis.requireAuth("users"))
+
+// ---------- «Отключить уведомления» из сообщения в Telegram ----------
+routerAdd("GET", "/api/darom/tg-off", (e) => {
+  const D = require(`${__hooks}/darom.js`), r = D.tgOff(e.app, String(e.request.url.query().get("t") || ""))
+  return e.html(r === "unknown" ? 404 : 200, D.tgOffPage(r))
+})
