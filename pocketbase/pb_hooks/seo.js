@@ -218,16 +218,14 @@ function homeHtml(d, k) {
   const arts = d.articles || []
   return [
     `<section id="top"><div class="wrap"><h1>Меньше лишнего. Больше жизни.</h1><p>Разумные покупки, вещи даром, сезонная еда и простые экопривычки. Всё, чтобы жить комфортнее, тратить осознаннее и заботиться о планете без фанатизма.</p></div></section>`,
-    sec("benefits", "Зачем тебе это", "Что ты получишь здесь", "",
-      `<ul><li><a href="/zhurnal/kak-ekonomit-elektroenergiyu-doma-sposoby-kotorye-realno-umenshayut-schet">Научишься экономить на бытовых мелочах</a></li><li><a href="/darom">Отдашь ненужное и найдёшь нужное — вещи даром</a></li><li><a href="/zhurnal/ekologichnaya-bytovaya-himiya-kak-chitat-sostav-i-ne-popastsya-na-eko-na-etiketk">Перестанешь переплачивать за бытовую химию</a></li><li><a href="/sortirovka">Поймёшь, куда что выбрасывать</a></li><li><a href="/eda">Найдёшь сезонные рецепты</a></li><li><a href="/servisy">Найдёшь полезные места рядом</a></li></ul>`),
+    sec("interests", "Что есть на сайте", "Что тебе интересно", "",
+      `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/darom">Вещи даром</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
     sec("darom-spot", "Вещи даром", "Отдай то, что тебе больше не нужно. Найди то, что пригодится тебе. Бесплатно", "Так вещи получают новую жизнь, а на свалку попадает меньше.", `<p><a href="/darom">Найти вещь рядом</a></p>`),
     sec("start", "Для новичка", "Ничего не знаешь про экологию? Отлично. Начнём вместе", "Не нужно сразу всё менять. Выбери один маленький шаг.",
       `<ol><li><a href="/darom">Отдай одну ненужную вещь</a></li><li><a href="/sortirovka">Начни сортировать с двух вёдер</a></li><li><a href="/eda#menu">Приготовь ужин из того, что есть</a></li></ol>`),
-    sec("myths-teaser", "Прежде чем начать", "Сначала развеем мифы?", "«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами.", `<p><a href="/mify">Развеять мифы</a></p>`),
-    sec("interests", "Все темы", "Что тебе интересно", "",
-      `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/darom">Вещи даром</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
-    sec("journal", "Журнал", "Свежее в журнале", "", arts.slice(0, 3).map(articleLink).join("\n") + `<p><a href="/zhurnal">Все статьи</a></p>`),
     sec("about", "Кто стоит за DashaBotanika", "Привет, я " + ((d.about || {}).name || "Даша"), "", paras((d.about || {}).text)),
+    sec("journal", "Журнал", "Свежее в журнале", "", arts.slice(0, 3).map(articleLink).join("\n") + `<p><a href="/zhurnal">Все статьи</a></p>`),
+    sec("myths-teaser", "Мифы о переработке", "Развеем мифы?", "«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами.", `<p><a href="/mify">Развеять мифы</a></p>`),
   ].join("\n")
 }
 
