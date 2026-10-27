@@ -9,7 +9,7 @@ T=$(mktemp -d)
 trap 'kill $(cat "$T/pid" "$T/mock" 2>/dev/null) 2>/dev/null || true; rm -rf "$T"' EXIT
 python3 - <<'PY' &
 import json, http.server, urllib.parse as up
-PLACES = {'Академический, Москва, Россия': ('55.687', '37.574'), 'Москва, Россия': ('55.751', '37.618'), 'Хамовники, Москва, Россия': ('55.731', '37.571'), 'Центральный, Тула': ('54.193', '37.617')}
+PLACES = {'Академический, Москва, Россия': ('55.687', '37.574'), 'Москва, Россия': ('55.751', '37.618'), 'Москва': ('55.751', '37.618'), 'Хамовники, Москва, Россия': ('55.731', '37.571'), 'Центральный, Тула': ('54.193', '37.617')}
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
@@ -59,6 +59,15 @@ check('without a profile the thing is placed by its own city', item(l2['id'])['l
 # a city the service does not know → no point, no error
 l3 = req('POST','/collections/listings/records',dict(base, seller=uid2, city='Нигдебург'),tok2)
 check('an unknown city still saves the thing, just without a point', l3[0] == 200 and item(l3[1]['id'])['lat'] == 0)
+# a thing left without a point gets one later: «run now» for admins and moderators only
+c0 = req('POST','/geo/backfill',{},tok2)[0]
+check('only admins and moderators can run the fill-in', c0 == 403)
+r = u.Request(B+'/collections/users/records/'+uid2, method='PATCH', data=json.dumps({'role':'moderator'}).encode(), headers={'Content-Type':'application/json','Authorization':su}); u.urlopen(r)
+import time; time.sleep(3)
+tok2 = req('POST','/collections/users/auth-with-password',{'identity':'t@t.local','password':'secret12'})[1]['token']
+req('PATCH','/collections/listings/records/'+l3[1]['id'],{'city':'Москва'},su)
+code, res = req('POST','/geo/backfill',{},tok2)
+check('the fill-in places things that had no point', code == 200 and res['done'] == 1 and res['left'] == 0 and item(l3[1]['id'])['lat'] == 55.75)
 if fails: raise SystemExit('FAILED: ' + ', '.join(fails))
 print('ALL OK')
 PY

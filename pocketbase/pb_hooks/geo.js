@@ -4,6 +4,7 @@
 const base = () => String($os.getenv("GEO_API") || "https://nominatim.openstreetmap.org").replace(/\/+$/, "")
 const r2 = (x) => Math.round(Number(x) * 100) / 100
 
+let lastError = ""
 function lookup(country, city, district) {
   const tries = [[district, city, country], [city, country]].map((a) => a.filter(Boolean).join(", "))
   for (const q of tries) {
@@ -13,7 +14,8 @@ function lookup(country, city, district) {
         headers: { "user-agent": "DashaBotanikaBot/1.0 (https://dashabotanika.ru)" }, timeout: 6 })
       const j = res.json
       if (res.statusCode === 200 && j && j[0] && Number(j[0].lat)) return { lat: r2(j[0].lat), lon: r2(j[0].lon) }
-    } catch (e) {}
+      lastError = res.statusCode === 200 ? "не нашли: " + q : "ответ " + res.statusCode
+    } catch (e) { lastError = "нет связи с сервисом карт" }
   }
   return null
 }
@@ -51,4 +53,4 @@ function backfill(app, max) {
   return done
 }
 
-module.exports = { lookup, profilePoint, syncListings, backfill }
+module.exports = { lookup, profilePoint, syncListings, backfill, lastError: () => lastError }
