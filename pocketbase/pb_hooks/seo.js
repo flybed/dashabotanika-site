@@ -217,7 +217,7 @@ const faqLd = (g) => (g.faq && g.faq.length ? [{ "@type": "FAQPage", mainEntity:
 function homeHtml(d, k) {
   const arts = d.articles || []
   return [
-    `<section id="top"><div class="wrap"><h1>Трать меньше. Сортируй больше. Живи дольше!</h1><p>Простые привычки, вещи даром, сезонная еда, разумные покупки и полезные находки — без фанатизма и чувства вины.</p></div></section>`,
+    `<section id="top"><div class="wrap"><h1>Меньше лишнего. Больше жизни.</h1><p>Разумные покупки, вещи даром, сезонная еда и простые экопривычки. Всё, чтобы жить комфортнее, тратить осознаннее и заботиться о планете без фанатизма.</p></div></section>`,
     sec("benefits", "Зачем тебе это", "Что ты получишь здесь", "",
       `<ul><li><a href="/zhurnal/kak-ekonomit-elektroenergiyu-doma-sposoby-kotorye-realno-umenshayut-schet">Научишься экономить на бытовых мелочах</a></li><li><a href="/darom">Отдашь ненужное и найдёшь нужное — вещи даром</a></li><li><a href="/zhurnal/ekologichnaya-bytovaya-himiya-kak-chitat-sostav-i-ne-popastsya-na-eko-na-etiketk">Перестанешь переплачивать за бытовую химию</a></li><li><a href="/sortirovka">Поймёшь, куда что выбрасывать</a></li><li><a href="/eda">Найдёшь сезонные рецепты</a></li><li><a href="/servisy">Найдёшь полезные места рядом</a></li></ul>`),
     sec("darom-spot", "Вещи даром", "Отдай то, что тебе больше не нужно. Найди то, что пригодится тебе. Бесплатно", "Так вещи получают новую жизнь, а на свалку попадает меньше.", `<p><a href="/darom">Найти вещь рядом</a></p>`),
@@ -234,7 +234,7 @@ function homeHtml(d, k) {
 // Описание каждой страницы: заголовок, описание, текст, хлебные крошки. null — такой страницы нет.
 function page(path, d, k, app) {
   const arts = d.articles || []
-  const base = { title: "DashaBotanika — трать меньше, сортируй больше, живи дольше", description: null, image: null, type: "website", crumbs: null, ld: [] }
+  const base = { title: "DashaBotanika — меньше лишнего, больше жизни", description: null, image: null, type: "website", crumbs: null, ld: [] }
   if (path === "/") return Object.assign(base, { body: homeHtml(d, k) })
   if (path === "/tovary") {
     return Object.assign(base, {

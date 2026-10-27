@@ -224,7 +224,7 @@ function comeback(app, force, onlyUser) {
       const items = list.length ? list : [["🎁", "Новые вещи даром", "соседи отдают бесплатно — загляни, вдруг там то, что тебе нужно", `${site(app)}/darom`], ["📖", "Свежие статьи", "как тратить меньше и жить проще", `${site(app)}/zhurnal`]]
       const html = p(`${name}, тебя не было на сайте несколько дней — а здесь много полезного. ${list.length ? "Вот что ты ещё не пробовал(а):" : "Вот что нового:"}`) +
         `<ol style="margin:0 0 12px;padding-left:22px;font-size:16px;line-height:1.6">${items.map(([ic, t, d, u]) => `<li style="margin-bottom:8px">${ic} <a href="${u}" style="color:#3A6234;font-weight:bold">${esc(t)}</a> — ${esc(d)}</li>`).join("")}</ol>` +
-        p("Трать меньше. Сортируй больше. Живи дольше! 🌿")
+        p("Меньше лишнего. Больше жизни. 🌿")
       if (send(app, rec, "comeback", "ОН ТЕБЯ ОЧЕНЬ ЖДЕТ...", "DashaBotanika тебя очень ждёт!", html, "Вернуться на сайт", `${site(app)}/`)) {
         rec.set("last_comeback", new Date().toISOString().replace("T", " ")); app.save(rec); sent++
       }

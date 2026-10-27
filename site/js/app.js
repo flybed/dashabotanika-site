@@ -33,10 +33,12 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 
 /* ---------- static content ---------- */
 // menu in three groups; the server reads this list too (pb_hooks/seo.js) to give search engines the links
+// «Вещи даром» sits above the groups as the hot link, so it is not repeated here
 const NAV_GROUPS = [
-  ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/darom','Вещи даром'],['/o-proekte','О проекте и обратная связь']]],
-  ['Учиться и играть', [['/kabinet?tab=challenges#cabinet-tabs','Эко-челленджи'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»'],['/sortirovka','Сортировка и переработка'],['/mify','Мифы о переработке']]],
-  ['Жить экологично', [['/servisy','Полезные сервисы'],['/tovary','Товары'],['/eda','Еда и рецепты'],['/eda#menu','Конструктор меню'],['/eda#cafes','Кафе'],['/moda','Мода'],['/vozduh','Чистота воздуха']]]
+  ['Каждый день', [['/eda','Еда и рецепты'],['/eda#menu','Меню на неделю'],['/sortirovka','Сортировка и переработка'],['/servisy','Куда сдать: полезные сервисы'],['/kabinet?tab=challenges#cabinet-tabs','Эко-челленджи']]],
+  ['Дом и стиль', [['/moda','Мода и вещи'],['/tovary','Товары'],['/eda#cafes','Кафе'],['/vozduh','Чистота воздуха']]],
+  ['Узнать и проверить себя', [['/mify','Мифы о переработке'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»']]],
+  ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/o-proekte','О проекте и обратная связь']]]
 ];
 // the home page is a crossroads: six interests, each leads to its own pages; 1 marks the hottest link of the card
 const INTERESTS = [
@@ -416,7 +418,7 @@ function render(){
       h('span',{style:'flex:1'}),
       socialLinks(),
       // «Вещи даром» is the community's main thing: always one tap away
-      h('a',{class:'darom-btn',href:'/darom','aria-label':'Вещи даром','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',{class:'darom-btn-t'},'Даром')),
+      h('a',{class:'darom-btn',href:'/darom','aria-label':'Вещи даром','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',{class:'darom-btn-t'},'Вещи даром')),
       accountButton(),
       siteMenu(path)
     )),
@@ -463,10 +465,9 @@ function hero(){
   return h('section',{class:'hero',id:'top'}, h('div',{class:'wrap'},
     h('div',null,
       h('div',{class:'brand'},'DashaBotanika'),
-      h('h1',{html:'Трать меньше. Сортируй больше. <em>Живи дольше!</em>'}),
-      h('p',{class:'hero-intro'},'Простые привычки, вещи даром, сезонная еда, разумные покупки и полезные находки — без фанатизма и чувства вины.'),
-      heroCta(),
-      h('p',{class:'hero-start'},'Не знаешь, с чего начать? ', h('a',{href:'/#start',onclick:()=>goal('home_start_link')},'Я проведу тебя шаг за шагом →'))
+      h('h1',{html:'Меньше лишнего. <em>Больше жизни.</em>'}),
+      h('p',{class:'hero-intro'},'Разумные покупки, вещи даром, сезонная еда и простые экопривычки. Всё, чтобы жить комфортнее, тратить осознаннее и заботиться о планете без фанатизма.'),
+      heroCta()
     ),
     heroArt()
   ));
@@ -474,11 +475,12 @@ function hero(){
 
 function heroCta(){
   const box = h('div',{class:'hero-cta'});
-  live(()=>{ box.replaceChildren(...(accState()==='member'
-    ? [h('a',{class:'btn',href:'/kabinet'},'Мой кабинет'), firstStepsList().every(x=>x[3])
-        ? h('a',{class:'btn ghost',href:'/kabinet'},'Мой эко-путь')
-        : h('a',{class:'btn ghost',href:'/#steps',onclick:openSteps},'Первые шаги')]
-    : [h('a',{class:'btn',href:'/#start',onclick:()=>goal('home_try')},'Хочу попробовать'), h('a',{class:'btn ghost',href:'/darom'},'🎁 Вещи даром')])); });
+  // one clear start for everyone: a member with first steps left goes to them, anyone else to the beginner block
+  live(()=>{
+    const steps = accState()==='member' && !firstStepsList().every(x=>x[3]);
+    box.replaceChildren(
+      h('a',{class:'btn',href:steps ? '/#steps' : '/#start',onclick:e=>{ goal('home_start'); if (steps) openSteps(e); }},'С чего начать'),
+      h('a',{class:'btn ghost',href:'/#benefits',onclick:()=>goal('home_what')},'Что есть на сайте')); });
   return box;
 }
 // a row wider than the screen: arrows at the edges and a bar below show it scrolls, and where you are
@@ -660,7 +662,6 @@ function heroArt(){
   const id = STATE.photos.hero;
   return h('div',{class:'hero-art'},
     h('div',{class:'pebble'}, id ? photoImg(id, STATE.about.name||'Фото', CAIRN_SCENE, {eager:true}) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
-    h('div',{html:STONES,style:'display:contents'}),
     h('div',{html:SPRIG,style:'display:contents'}),
     id && STATE.about.name ? h('span',{class:'caption'},STATE.about.name) : null,
     uploadBtn(id ? 'Заменить фото' : 'Загрузить фото Даши', nid=>{ STATE.photos.hero = nid; }, 'upl')
@@ -1858,7 +1859,7 @@ function mythsSection(){
 
 /* ---------- pages: real addresses for every page, no reloads between them ---------- */
 const PAGES = {
-  '/': {title:'DashaBotanika — трать меньше, сортируй больше, живи дольше', render:()=>homePage()},
+  '/': {title:'DashaBotanika — меньше лишнего, больше жизни', render:()=>homePage()},
   '/kabinet': {title:'Личный кабинет — DashaBotanika', render:()=>cabinetPage()},
   '/tovary': {title:'Товары, которые делают мир чище — DashaBotanika', render:()=>{ SEC_H1 = true; return [goodsSection(false)]; }},
   '/darom': {title:'Вещи даром: отдать ненужное тем, кому пригодится — DashaBotanika', render:()=>{ SEC_H1 = true; DAROM.filter.city = ''; return [marketSection()]; }},
@@ -1940,20 +1941,19 @@ function homePage(){
   // for someone who came by chance: first what you get (in 5 seconds), then how to start, then who Dasha is, then the deep end
   return [hero(), benefitsSection(), daromSpotlight(), startSection(), mythsTeaser(), dashaIntro(), interestsSection(), journalSection(true), worldTeaser(), firstSteps(), feedbackTeaser()];
 }
-/* «Что ты получишь здесь»: benefits for a person, not the sections of the project */
+/* «Что ты получишь здесь»: four things you can do here, each with its own action */
 const BENEFITS = [
-  ['💸','Научишься экономить на бытовых мелочах','Свет, вода, продукты, химия: что реально снижает счета.','/zhurnal/kak-ekonomit-elektroenergiyu-doma-sposoby-kotorye-realno-umenshayut-schet'],
-  ['🎁','Отдашь ненужное и найдёшь нужное','Вещи даром от соседей — без продажи и торга.','/darom'],
-  ['🧴','Перестанешь переплачивать','Какие средства реально нужны дома, а за какие мы платим рекламе.','/zhurnal/ekologichnaya-bytovaya-himiya-kak-chitat-sostav-i-ne-popastsya-na-eko-na-etiketk'],
-  ['♻️','Поймёшь, куда что выбрасывать','Простая сортировка: что и куда сдавать в твоём городе.','/sortirovka'],
-  ['🥗','Найдёшь сезонные рецепты','Меню на неделю и что приготовить из остатков.','/eda'],
-  ['📍','Найдёшь полезные места рядом','Пункты приёма, эко-кафе и сервисы в твоём городе.','/servisy']
+  ['🎁','Вещи даром','Отдавай ненужное и находи полезные вещи бесплатно — у соседей рядом.','/darom','Посмотреть вещи'],
+  ['🥗','Еда и рецепты','Готовь вкусно, выбирай сезонные продукты и планируй меню на неделю.','/eda','Найти рецепт'],
+  ['🌱','Экопривычки','Начни с простых изменений дома: челлендж на 7–30 дней с напоминаниями.','/kabinet?tab=challenges#cabinet-tabs','Попробовать'],
+  ['♻️','Сортировка и переработка','Узнай, что можно переработать и куда это сдать в твоём городе.','/sortirovka','Разобраться']
 ];
 function benefitsSection(){
   return h('section',{class:'band benefits',id:'benefits'}, h('div',{class:'wrap'},
-    sectionHead('Зачем тебе это','Что ты получишь здесь'),
-    h('div',{class:'bf-grid'}, BENEFITS.map(([ic,t,d,href],i)=>h('a',{class:'bf card',href,onclick:()=>goal('home_benefit_'+(i+1))},
-      h('span',{class:'bf-ic','aria-hidden':'true'},ic), h('b',{class:'bf-t'},t), h('span',{class:'bf-d'},d))))));
+    sectionHead('Что есть на сайте','Что ты получишь здесь'),
+    h('div',{class:'bf-grid'}, BENEFITS.map(([ic,t,d,href,cta],i)=>h('article',{class:'bf card'},
+      h('span',{class:'bf-ic','aria-hidden':'true'},ic), h('h3',{class:'bf-t'},t), h('p',{class:'bf-d'},d),
+      h('a',{class:'btn small ghost bf-cta',href,onclick:()=>goal('home_benefit_'+(i+1))},cta,' →'))))));
 }
 /* for a beginner: no knowledge needed, one small step at a time */
 const START_STEPS = [
@@ -4641,7 +4641,8 @@ function acceptSugg(s){
   toast('Добавлено в журнал. Нажмите «Сохранить изменения»');
 }
 function accountButton(){
-  const b = h('a',{class:'btn small acc-btn',href:'/kabinet'});
+  // quieter than the main action of the page: an outline button
+  const b = h('a',{class:'btn ghost small acc-btn',href:'/kabinet'});
   live(()=>{
     const st = accState();
     if (st==='member'){
