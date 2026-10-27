@@ -14,8 +14,9 @@ function letter(app, title, html, button, url, unsub) {
 ${html}
 ${button ? `<p style="margin:22px 0"><a href="${url}" style="display:inline-block;background:#3A6234;color:#fff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">${esc(button)}</a></p>` : ""}
 <p style="margin:18px 0 0;font-size:13px;color:#61655A">Разумный человек — счастливая планета 🌿<br>Даша, DashaBotanika</p>
-<p style="margin:16px 0 0;font-size:12px;color:#8A8C80;line-height:1.5">Вы получили это письмо, потому что выбрали его при регистрации или в личном кабинете.
-<a href="${unsub}" style="color:#8A8C80">Отписаться</a> · <a href="${site(app)}/kabinet?tab=profile#notify" style="color:#8A8C80">Настроить уведомления</a></p>
+${unsub ? `<p style="margin:16px 0 0;font-size:12px;color:#8A8C80;line-height:1.5">Вы получили это письмо, потому что выбрали его при регистрации или в личном кабинете.
+<a href="${unsub}" style="color:#8A8C80">Отписаться</a> · <a href="${site(app)}/kabinet?tab=profile#notify" style="color:#8A8C80">Настроить уведомления</a></p>`
+  : `<p style="margin:16px 0 0;font-size:12px;color:#8A8C80;line-height:1.5">Это письмо о вашем объявлении на DashaBotanika — оно приходит один раз, когда объявление проверили.</p>`}
 </div></div>`
 }
 
@@ -255,4 +256,4 @@ function unsubRoute(e) {
     : e.html(400, unsubPage("Ссылка устарела", "Не получилось найти подписку. Настроить письма можно в личном кабинете."))
 }
 
-module.exports = { comeback, untried, onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site, wanting, send }
+module.exports = { letter, comeback, untried, onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site, wanting, send }

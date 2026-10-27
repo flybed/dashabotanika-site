@@ -36,7 +36,8 @@ function fileBytes(fileId) {
 }
 function send(chatId, html, button) {
   const p = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true }
-  if (button) p.reply_markup = { inline_keyboard: [[{ text: button[0], url: button[1] }]] }
+  // one button [text, url] or several [[text, url], …] — each on its own row
+  if (button) p.reply_markup = { inline_keyboard: (Array.isArray(button[0]) ? button : [button]).map((b) => [{ text: b[0], url: b[1] }]) }
   return call("sendMessage", p)
 }
 

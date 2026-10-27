@@ -189,7 +189,9 @@ function flushOne(app, sub) {
         `<p>По вашей подписке появилось:</p><ul>${names.map((n) => `<li>${safe(n)}</li>`).join("")}</ul>`, "Посмотреть", `${SITE}/darom`)
     }
     if (sub.getBool("tg") && T.token()) {
-      try { for (const s of list(app, "tg_subs", "user = {:u} && enabled = true", { u })) T.send(s.getString("chat_id"), "🎁 <b>Новые вещи даром</b>\n\n" + names.map((n) => "• " + safe(n)).join("\n"), ["Посмотреть", `${SITE}/darom`]) } catch (e) {}
+      // «Отключить уведомления» выключает только эту подписку; в ссылке — случайный ключ, без id и данных человека
+      const off = `${N.site(app)}/api/darom/tg-off?t=${unsubToken(app, sub)}`
+      try { for (const s of list(app, "tg_subs", "user = {:u} && enabled = true", { u })) T.send(s.getString("chat_id"), "🎁 <b>Новые вещи даром</b>\n\n" + names.map((n) => "• " + safe(n)).join("\n"), [["Посмотреть", `${SITE}/darom`], ["🔕 Отключить уведомления", off]]) } catch (e) {}
     }
     return true
   }
@@ -283,4 +285,83 @@ function fromTelegram(app, msg) {
     "\n\nЖелающие напишут вам на сайте, а вы сами выберете, кому отдать.", trust ? ["Открыть объявление", `${SITE}/darom/v/${l.id}`] : ["Мои вещи", `${SITE}/kabinet?tab=things`])
 }
 
-module.exports = { fromTelegram, guessCat, stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend, badgesOf, trusted, reservations, hold }
+// ---------- отписка от Telegram-уведомлений о новых вещах ----------
+function unsubToken(app, sub) {
+  let t = sub.getString("tg_unsub")
+  if (!t) { t = $security.randomString(40); sub.set("tg_unsub", t); app.saveNoValidate(sub) }
+  return t
+}
+// повторное нажатие — безопасно: «уже отключены»; запланированное не уйдёт — flushOne смотрит на tg в момент отправки
+function tgOff(app, token) {
+  if (!/^[A-Za-z0-9]{20,64}$/.test(token || "")) return "unknown"
+  let sub
+  try { sub = app.findFirstRecordByFilter("darom_subs", "tg_unsub = {:t}", { t: token }) } catch (e) { return "unknown" }
+  if (!sub.getBool("tg")) return "already"
+  sub.set("tg", false); app.saveNoValidate(sub)
+  return sub.getBool("email") ? "off-email-stays" : "off"
+}
+
+// страница после нажатия кнопки (без входа на сайт)
+function tgOffPage(r) {
+  const [title, text] = r === "unknown" ? ["Ссылка устарела", "Не нашли такую подписку. Настроить уведомления можно на странице «Вещи даром»."]
+    : r === "already" ? ["Уже отключено", "Уведомления о новых вещах в Telegram уже отключены — больше не пришлём."]
+    : ["Уведомления отключены", "Больше не пришлём в Telegram сообщения о новых вещах даром." + (r === "off-email-stays" ? " Письма на почту по этой подписке остаются — их можно выключить на странице «Вещи даром» или по ссылке в письме." : "")]
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title} — DashaBotanika</title></head>
+<body style="margin:0;background:#EDE6D6;font-family:Arial,Helvetica,sans-serif;color:#232A1E"><div style="max-width:520px;margin:12vh auto;background:#F7F3EA;border:1px solid #D8CEB9;border-radius:16px;padding:28px">
+<h1 style="font-family:Georgia,serif;color:#3A6234;font-size:26px;margin:0 0 12px">${title}</h1><p style="font-size:16px;line-height:1.5">${text}</p>
+<p><a href="/darom#darom-sub" style="color:#3A6234;font-weight:bold">Настроить подписку</a> · <a href="/darom" style="color:#3A6234">Вещи даром</a></p></div></body></html>`
+}
+
+// ---------- письмо дарителю после проверки объявления ----------
+// Очередь — поля объявления: mod_due ждёт, mod_mail — что уже отправлено. Письмо считается отправленным,
+// только если почтовый сервер принял его; иначе попытка повторится с паузой (до 6 раз).
+const modMark = (l) => l.getString("moderation") === "rejected" ? "rejected|" + l.getString("reason") : l.getString("moderation")
+function modChanged(l) {
+  if (!l.getString("moderation") || modMark(l) === l.getString("mod_mail")) return
+  l.set("mod_due", true); l.set("mod_tries", 0); l.set("mod_next", "")
+}
+const MOD_PAUSE = [1, 5, 15, 60, 180, 720] // минут до следующей попытки
+function modMail(app, limit) {
+  const N = require(`${__hooks}/notify.js`)
+  const now = new Date().toISOString().replace("T", " ")
+  let sent = 0, failed = 0
+  for (const l of list(app, "listings", "mod_due = true && (mod_next = '' || mod_next <= {:now})", { now }).slice(0, limit || 20)) {
+    const mark = modMark(l)
+    if (!l.getString("moderation") || mark === l.getString("mod_mail")) { l.set("mod_due", false); app.saveNoValidate(l); continue } // повторное сохранение того же статуса
+    let user
+    try { user = app.findRecordById("users", l.getString("seller")) } catch (e) { l.set("mod_due", false); app.saveNoValidate(l); continue }
+    const to = user.getString("email")
+    if (!to) { l.set("mod_due", false); app.saveNoValidate(l); continue }
+    const ok = l.getString("moderation") === "approved"
+    const title = ok ? "Ваше объявление опубликовано" : "Объявление не прошло проверку"
+    const html = ok
+      ? `<p style="margin:0 0 12px;font-size:16px;line-height:1.55">«${safe(l.getString("title"))}» теперь в «Вещах даром». Те, кому вещь нужна, напишут вам, а кому отдать — решаете вы.</p>`
+      : `<p style="margin:0 0 12px;font-size:16px;line-height:1.55">«${safe(l.getString("title"))}» пока не опубликовано.</p>` +
+        (l.getString("reason") ? `<p style="margin:0 0 12px;font-size:16px;line-height:1.55"><b>Причина:</b> ${safe(l.getString("reason"))}</p>` : "") +
+        `<p style="margin:0 0 12px;font-size:16px;line-height:1.55">Исправьте и отправьте объявление заново — форма в личном кабинете.</p>`
+    const url = ok ? `${N.site(app)}/darom/v/${l.id}` : `${N.site(app)}/kabinet?tab=things#cabinet-tabs`
+    let done = false
+    try {
+      const meta = app.settings().meta
+      app.newMailClient().send(new MailerMessage({
+        from: { address: meta.senderAddress, name: meta.senderName || "DashaBotanika" },
+        to: [{ address: to, name: user.getString("name") }],
+        subject: ok ? `Опубликовано: ${l.getString("title")} — DashaBotanika` : `Объявление не прошло проверку — DashaBotanika`,
+        html: N.letter(app, title, html, ok ? "Посмотреть объявление" : "Исправить и отправить заново", url, ""),
+      }))
+      done = true
+    } catch (e) { app.logger().warn("moderation mail failed", "listing", l.id, "error", String(e)) }
+    if (done) { l.set("mod_mail", mark); l.set("mod_due", false); l.set("mod_tries", 0); l.set("mod_next", ""); sent++ }
+    else {
+      const tries = l.getInt("mod_tries") + 1
+      l.set("mod_tries", tries)
+      if (tries >= MOD_PAUSE.length) l.set("mod_due", false) // сдаёмся: в журнале — предупреждения о каждой попытке
+      else l.set("mod_next", new Date(Date.now() + MOD_PAUSE[tries] * 60000).toISOString().replace("T", " "))
+      failed++
+    }
+    app.saveNoValidate(l)
+  }
+  return { sent, failed }
+}
+
+module.exports = { tgOff, tgOffPage, unsubToken, modChanged, modMark, modMail, fromTelegram, guessCat, stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend, badgesOf, trusted, reservations, hold }
