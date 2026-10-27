@@ -224,8 +224,6 @@ function homeHtml(d, k) {
     sec("start", "Для новичка", "Ничего не знаешь про экологию? Отлично. Начнём вместе", "Не нужно сразу всё менять. Выбери один маленький шаг.",
       `<ol><li><a href="/darom">Отдай одну ненужную вещь</a></li><li><a href="/sortirovka">Начни сортировать с двух вёдер</a></li><li><a href="/eda#menu">Приготовь ужин из того, что есть</a></li></ol>`),
     sec("myths-teaser", "Прежде чем начать", "Сначала развеем мифы?", "«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами.", `<p><a href="/mify">Развеять мифы</a></p>`),
-    sec("uborka", "Дом и уборка", "Тебе правда нужны 12 бутылок для уборки дома?", "Что действительно нужно, где реклама заставляет покупать лишнее и какие варианты подойдут для дома с детьми и животными.",
-      `<p><a href="/zhurnal/ekologichnaya-uborka-chem-zamenit-bytovuyu-himiyu-soda-uksus-limonnaya-kislota">Разобраться</a></p>`),
     sec("interests", "Все темы", "Что тебе интересно", "",
       `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/darom">Вещи даром</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
     sec("journal", "Журнал", "Свежее в журнале", "", arts.slice(0, 3).map(articleLink).join("\n") + `<p><a href="/zhurnal">Все статьи</a></p>`),

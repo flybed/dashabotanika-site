@@ -1418,13 +1418,8 @@ html,body{overflow-x:clip}
 .start-n{position:absolute;top:14px;right:16px;font-family:var(--font-display);font-size:34px;font-weight:800;color:var(--moss);opacity:.25}
 .start-ic{font-size:32px;line-height:1}
 .start-cta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:22px}
-.clean-teaser > div:first-child{flex:1 1 420px}
-.bottles{flex:0 0 auto;width:220px;margin-inline:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px 4px;justify-items:center;font-size:36px;line-height:1.15}
-.bottles span{filter:grayscale(1);opacity:.35}
-.bottles span.keep{filter:none;opacity:1}
-.bottles small{grid-column:1/-1;font-family:var(--font-hand);font-size:28px;color:var(--clay);margin-top:6px}
 .about-more{display:grid;gap:14px}
 @media (max-width:900px){.bf-grid,.start-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:600px){.bf-grid,.start-steps{grid-template-columns:1fr}.bottles{font-size:30px;width:190px}}
+@media (max-width:600px){.bf-grid,.start-steps{grid-template-columns:1fr}}
 .hero h1{font-size:clamp(38px,5.4vw,68px)}
 @media (max-width:600px){.bf-grid{gap:10px}.bf{grid-template-columns:auto minmax(0,1fr);column-gap:14px;row-gap:4px;padding:14px 16px}.bf-ic{grid-row:span 2;font-size:30px}.bf-t{font-size:17px}}
