@@ -1394,5 +1394,12 @@ html,body{overflow-x:clip}
 .darom-map-wrap{display:grid;gap:10px;margin:0 0 18px}
 .darom-map-wrap>.btn{justify-self:start}
 .darom-map{height:380px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--soft)}
+.darom-map-note{margin:8px 0 0;font-size:14px}
 .map-pin span{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--sun,#C9932E);color:#2A1C05;font-weight:800;font-size:16px;box-shadow:0 4px 10px rgba(0,0,0,.3);border:2px solid #fff}
 @media (max-width:640px){.darom-map{height:300px}}
+/* place suggestions while typing */
+.loc-dist{position:relative}
+.loc-sugg{position:absolute;left:0;right:0;top:100%;z-index:30;margin:4px 0 0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.12);max-height:260px;overflow:auto}
+.loc-sugg li{padding:9px 12px;border-radius:8px;cursor:pointer;font-size:15px;font-weight:400}
+.loc-sugg li span{color:var(--muted)}
+.loc-sugg li:hover,.loc-sugg li:focus{background:var(--soft);outline:none}
