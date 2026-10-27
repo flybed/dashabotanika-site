@@ -217,20 +217,26 @@ const faqLd = (g) => (g.faq && g.faq.length ? [{ "@type": "FAQPage", mainEntity:
 function homeHtml(d, k) {
   const arts = d.articles || []
   return [
-    `<section id="top"><div class="wrap"><h1>Эко: еда, быт, мода, образ жизни!</h1><p>Разумный человек — счастливая планета</p><p>Сообщество людей, которые делают жизнь вкуснее, красивее и чище — маленькими шагами, без занудства и чувства вины.</p></div></section>`,
-    sec("myths-teaser", "Прежде чем начать", "Сначала развеем мифы?", "«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами.",
-      `<p><a href="/mify">Развеять мифы о переработке</a></p>`),
-    sec("interests", "С чего начнём?", "Что вам интересно", "",
+    `<section id="top"><div class="wrap"><h1>Трать меньше. Сортируй больше. Живи дольше!</h1><p>Простые привычки, вещи даром, сезонная еда, разумные покупки и полезные находки — без фанатизма и чувства вины.</p></div></section>`,
+    sec("benefits", "Зачем тебе это", "Что ты получишь здесь", "",
+      `<ul><li><a href="/zhurnal/kak-ekonomit-elektroenergiyu-doma-sposoby-kotorye-realno-umenshayut-schet">Научишься экономить на бытовых мелочах</a></li><li><a href="/darom">Отдашь ненужное и найдёшь нужное — вещи даром</a></li><li><a href="/zhurnal/ekologichnaya-bytovaya-himiya-kak-chitat-sostav-i-ne-popastsya-na-eko-na-etiketk">Перестанешь переплачивать за бытовую химию</a></li><li><a href="/sortirovka">Поймёшь, куда что выбрасывать</a></li><li><a href="/eda">Найдёшь сезонные рецепты</a></li><li><a href="/servisy">Найдёшь полезные места рядом</a></li></ul>`),
+    sec("darom-spot", "Вещи даром", "Отдай то, что тебе больше не нужно. Найди то, что пригодится тебе. Бесплатно", "Так вещи получают новую жизнь, а на свалку попадает меньше.", `<p><a href="/darom">Найти вещь рядом</a></p>`),
+    sec("start", "Для новичка", "Ничего не знаешь про экологию? Отлично. Начнём вместе", "Не нужно сразу всё менять. Выбери один маленький шаг.",
+      `<ol><li><a href="/darom">Отдай одну ненужную вещь</a></li><li><a href="/sortirovka">Начни сортировать с двух вёдер</a></li><li><a href="/eda#menu">Приготовь ужин из того, что есть</a></li></ol>`),
+    sec("uborka", "Дом и уборка", "Тебе правда нужны 12 бутылок для уборки дома?", "Что действительно нужно, где реклама заставляет покупать лишнее и какие варианты подойдут для дома с детьми и животными.",
+      `<p><a href="/zhurnal/ekologichnaya-uborka-chem-zamenit-bytovuyu-himiyu-soda-uksus-limonnaya-kislota">Разобраться</a></p>`),
+    sec("interests", "Все темы", "Что тебе интересно", "",
       `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/darom">Вещи даром</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
     sec("journal", "Журнал", "Свежее в журнале", "", arts.slice(0, 3).map(articleLink).join("\n") + `<p><a href="/zhurnal">Все статьи</a></p>`),
-    sec("about", "Про меня", (d.about || {}).name || "Даша", "", paras((d.about || {}).text)),
+    sec("about", "Кто стоит за DashaBotanika", "Привет, я " + ((d.about || {}).name || "Даша"), "", paras((d.about || {}).text)),
+    sec("myths-teaser", "Мифы", "Развеем мифы о переработке", "«Я один ничего не изменю», «всё равно всё смешивают»… 10 коротких ответов с фактами.", `<p><a href="/mify">Развеять мифы</a></p>`),
   ].join("\n")
 }
 
 // Описание каждой страницы: заголовок, описание, текст, хлебные крошки. null — такой страницы нет.
 function page(path, d, k, app) {
   const arts = d.articles || []
-  const base = { title: "DashaBotanika — эко: еда, быт, мода, образ жизни", description: null, image: null, type: "website", crumbs: null, ld: [] }
+  const base = { title: "DashaBotanika — трать меньше, сортируй больше, живи дольше", description: null, image: null, type: "website", crumbs: null, ld: [] }
   if (path === "/") return Object.assign(base, { body: homeHtml(d, k) })
   if (path === "/tovary") {
     return Object.assign(base, {
