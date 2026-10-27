@@ -1404,14 +1404,6 @@ html,body{overflow-x:clip}
 .loc-sugg li span{color:var(--muted)}
 .loc-sugg li:hover,.loc-sugg li:focus{background:var(--soft);outline:none}
 /* home for someone who came by chance: what you get → how to start → who Dasha is */
-.bf-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.bf{display:grid;grid-template-rows:auto auto 1fr auto;gap:8px;align-content:start;justify-items:start}
-.bf-t{margin:0}
-.bf-d{margin:0}
-.bf-cta{margin-top:6px}
-.bf-ic{font-size:36px;line-height:1}
-.bf-t{font-size:19px;line-height:1.25}
-.bf-d{color:var(--muted);font-size:15px}
 .start-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .start-steps li{position:relative;display:grid;gap:8px;align-content:start;justify-items:start}
 .start-steps li p{margin:0;font-size:15px}
@@ -1419,7 +1411,6 @@ html,body{overflow-x:clip}
 .start-ic{font-size:32px;line-height:1}
 .start-cta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:22px}
 .about-more{display:grid;gap:14px}
-@media (max-width:900px){.bf-grid,.start-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:600px){.bf-grid,.start-steps{grid-template-columns:1fr}}
+@media (max-width:900px){.start-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.start-steps{grid-template-columns:1fr}}
 .hero h1{font-size:clamp(38px,5.4vw,68px)}
-@media (max-width:600px){.bf-grid{gap:10px}.bf{grid-template-columns:auto minmax(0,1fr);grid-template-rows:none;column-gap:14px;row-gap:4px;padding:14px 16px}.bf-ic{grid-row:span 3;font-size:30px}.bf-t{font-size:17px}.bf-cta{margin-top:4px}}

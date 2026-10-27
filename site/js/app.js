@@ -40,19 +40,19 @@ const NAV_GROUPS = [
   ['Узнать и проверить себя', [['/mify','Мифы о переработке'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»']]],
   ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/o-proekte','О проекте и обратная связь']]]
 ];
-// the home page is a crossroads: six interests, each leads to its own pages; 1 marks the hottest link of the card
+// the home page: one block «Что тебе интересно» — six topics, each says what you get and leads to real features; 1 marks the hottest link
 const INTERESTS = [
-  ['🥗','Еда','/eda','Сезонные продукты, рецепты без отходов, меню на неделю и кафе',[['Кафе','/eda#cafes',1],['Меню на неделю','/eda#menu'],['ИИ по фото','/eda#helper']]],
-  ['♻️','Сортировка','/sortirovka','Что куда сдавать, как готовить вторсырьё и сколько пользы это даёт',[['Мифы','/mify',1],['Калькулятор','/sortirovka#calc'],['Куда сдать в городе','/servisy']]],
-  ['👗','Мода и вещи','/moda','Капсульный гардероб, ткани, уход, вторая жизнь вещей',[['Вещи даром','/darom',1],['Эко-товары','/tovary']]],
-  ['🌤️','Мой город','/vozduh','Чистота воздуха сейчас и пункты приёма вторсырья рядом',[['Сервисы','/servisy',1],['Воздух','/vozduh']]],
-  ['🎮','Учиться и играть','/eko-test','Эко-тест с сертификатом, игра и челленджи с привычками',[['Челленджи','/kabinet?tab=challenges#cabinet-tabs',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
-  ['🌍','Сообщество','/mir','«Счастливый мир» участников, журнал и обратная связь',[['Мир','/mir',1],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
+  ['🥗','Еда и рецепты','/eda','Готовь вкусно и без лишних трат: сезонные продукты, меню на неделю и рецепты из остатков.',[['Меню на неделю','/eda#menu',1],['Кафе','/eda#cafes'],['ИИ по фото','/eda#helper']]],
+  ['♻️','Сортировка и переработка','/sortirovka','Узнай, что можно переработать и куда это сдать, — без пяти вёдер на кухне.',[['Куда сдать в городе','/servisy',1],['Маркировка','/markirovka'],['Калькулятор','/sortirovka#calc']]],
+  ['👗','Мода и вещи','/moda','Отдавай ненужное, находи нужное бесплатно и собери гардероб, который не надоест.',[['Вещи даром','/darom',1],['Эко-товары','/tovary']]],
+  ['🌤️','Мой город','/vozduh','Чем ты дышишь сегодня и где рядом пункты приёма и полезные сервисы.',[['Сервисы','/servisy',1],['Воздух','/vozduh']]],
+  ['🎮','Учиться и играть','/eko-test','Начни с простых привычек: челленджи с напоминаниями, эко-тест с сертификатом и игра.',[['Челленджи','/kabinet?tab=challenges#cabinet-tabs',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
+  ['🌍','Сообщество','/mir','Соседи по «Счастливому миру», журнал и прямая связь с Дашей.',[['Мир','/mir',1],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
 ];
 // sections used to live on the home page: old links like /#food now open their own pages
 const OLD_ANCHORS = {'#food':'/eda','#menu':'/eda#menu','#cafes':'/eda#cafes','#helper':'/eda#helper','#sort':'/sortirovka','#calc':'/sortirovka#calc',
   '#fashion':'/moda','#air':'/vozduh','#game':'/igra','#world':'/mir','#journal':'/zhurnal','#feedback':'/o-proekte#feedback','#contacts':'/o-proekte#contacts',
-  '#goods':'/tovary','#market':'/darom','#exam':'/eko-test','#sections':'/#interests'};
+  '#goods':'/tovary','#market':'/darom','#exam':'/eko-test','#sections':'/#interests','#benefits':'/#interests'};
 
 const MATERIALS = [
   {k:'paper', name:'Бумага и картон', mark:'PAP 20–22', unit:'кг в неделю', per:52, w:1, step:.5, def:1.5, co2:.9, kwh:4.1, water:26, trees:.017,
@@ -480,7 +480,7 @@ function heroCta(){
     const steps = accState()==='member' && !firstStepsList().every(x=>x[3]);
     box.replaceChildren(
       h('a',{class:'btn',href:steps ? '/#steps' : '/#start',onclick:e=>{ goal('home_start'); if (steps) openSteps(e); }},'С чего начать'),
-      h('a',{class:'btn ghost',href:'/#benefits',onclick:()=>goal('home_what')},'Что есть на сайте')); });
+      h('a',{class:'btn ghost',href:'/#interests',onclick:()=>goal('home_what')},'Что есть на сайте')); });
   return box;
 }
 // a row wider than the screen: arrows at the edges and a bar below show it scrolls, and where you are
@@ -505,7 +505,7 @@ function scrollCues(row, label, withBack){
 }
 function interestsSection(){
   return h('section',{class:'band interests',id:'interests','aria-label':'Разделы сайта'}, h('div',{class:'wrap'},
-    sectionHead('Все темы','Что тебе интересно','Выбери тему — всё остальное всегда в меню ☰ справа вверху.'),
+    sectionHead('Что есть на сайте','Что тебе интересно','Выбери тему — а всё остальное всегда в меню ☰ справа вверху.'),
     h('div',{class:'int-grid'}, INTERESTS.map(([ic,t,href,d,subs])=>h('div',{class:'int card'},
       h('a',{class:'int-main',href}, h('span',{class:'int-ic','aria-hidden':'true'},ic), h('span',{class:'int-t'},t), h('span',{class:'int-d'},d)),
       h('div',{class:'int-subs'}, subs.map(([st,sh,hot])=>h('a',{class:'chip'+(hot ? ' hot' : ''),href:sh}, hot ? h('span',{'aria-hidden':'true'},'🔥 ') : null, st))))))));
@@ -515,10 +515,10 @@ const MYTH_BITS = ['я один ничего не изменю','всё равн
 function mythsTeaser(){
   return h('section',{class:'band mt',id:'myths-teaser','aria-label':'Мифы о переработке'}, h('div',{class:'wrap mt-wrap'},
     h('div',{class:'mt-text'},
-      h('div',{class:'eyebrow'},'Прежде чем начать'),
-      h('h2',{class:'mt-title'},'Сначала развеем мифы?'),
+      h('div',{class:'eyebrow'},'Мифы о переработке'),
+      h('h2',{class:'mt-title'},'Развеем мифы?'),
       h('p',{class:'lead'},'«Я один ничего не изменю», «всё равно всё смешивают»… Из-за таких мифов многие бросают, даже не начав. 10 коротких ответов с фактами — пара минут.'),
-      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#about'},'Сомнений нет — к делу'))),
+      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#interests'},'Сомнений нет — к делу'))),
     h('a',{class:'mt-art',href:'/mify','aria-label':'10 мифов о переработке и экологии'},
       h('span',{class:'mt-q','aria-hidden':'true'},'?'),
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
@@ -1939,21 +1939,8 @@ window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max
 
 function homePage(){
   // for someone who came by chance: first what you get (in 5 seconds), then how to start, then who Dasha is, then the deep end
-  return [hero(), benefitsSection(), daromSpotlight(), startSection(), mythsTeaser(), dashaIntro(), interestsSection(), journalSection(true), worldTeaser(), firstSteps(), feedbackTeaser()];
-}
-/* «Что ты получишь здесь»: four things you can do here, each with its own action */
-const BENEFITS = [
-  ['🎁','Вещи даром','Отдавай ненужное и находи полезные вещи бесплатно — у соседей рядом.','/darom','Посмотреть вещи'],
-  ['🥗','Еда и рецепты','Готовь вкусно, выбирай сезонные продукты и планируй меню на неделю.','/eda','Найти рецепт'],
-  ['🌱','Экопривычки','Начни с простых изменений дома: челлендж на 7–30 дней с напоминаниями.','/kabinet?tab=challenges#cabinet-tabs','Попробовать'],
-  ['♻️','Сортировка и переработка','Узнай, что можно переработать и куда это сдать в твоём городе.','/sortirovka','Разобраться']
-];
-function benefitsSection(){
-  return h('section',{class:'band benefits',id:'benefits'}, h('div',{class:'wrap'},
-    sectionHead('Что есть на сайте','Что ты получишь здесь'),
-    h('div',{class:'bf-grid'}, BENEFITS.map(([ic,t,d,href,cta],i)=>h('article',{class:'bf card'},
-      h('span',{class:'bf-ic','aria-hidden':'true'},ic), h('h3',{class:'bf-t'},t), h('p',{class:'bf-d'},d),
-      h('a',{class:'btn small ghost bf-cta',href,onclick:()=>goal('home_benefit_'+(i+1))},cta,' →'))))));
+  // first steps (the game-like guide) belong to the beginner block, so they follow it
+  return [hero(), interestsSection(), daromSpotlight(), startSection(), firstSteps(), dashaIntro(), journalSection(true), worldTeaser(), mythsTeaser(), feedbackTeaser()];
 }
 /* for a beginner: no knowledge needed, one small step at a time */
 const START_STEPS = [
@@ -5244,7 +5231,7 @@ async function savePromos(list){
 const TOUR_KEY = 'db-tour-done';
 const TOUR = [
   ['.burger','Все разделы — в меню','Еда, сортировка, вещи даром, журнал и всё остальное — здесь, в любой момент.'],
-  ['#benefits .bf-grid','Что ты здесь получишь','Нажми на любую карточку — там всё по делу: как тратить меньше, куда что выбрасывать, где взять нужное бесплатно.'],
+  ['#interests .int-grid','Что тебе интересно','Каждая карточка ведёт на свою страницу, а маленькие кнопки — сразу к нужной функции.'],
   ['.acc-btn', ()=>accState()==='member' ? 'Твой кабинет' : 'Присоединяйтесь', ()=>accState()==='member' ? 'Здесь твой путь, челленджи, сообщения и настройки.' : 'Регистрация за минуту: отдавай и забирай вещи, проходи челленджи и копи очки роста.'],
   ['#start','Не знаешь, с чего начать?','Три маленьких шага для новичка — выбери любой. Знать про экологию ничего не нужно.']
 ];
