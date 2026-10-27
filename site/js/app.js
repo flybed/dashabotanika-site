@@ -2332,31 +2332,44 @@ function myItems(){ return COM.listings.filter(l=>l.seller===COM.uid); }
 function setMyItemStatus(id, status){ return write('listings/'+id, ()=>pb.collection('listings').update(id,{status})).catch(writeErr); }
 function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', district:r.district||'', lat:r.lat||0, lon:r.lon||0, reserved_until:r.reserved_until||'', lot:!!r.lot, items:r.items||'', more:(r.more_photos||[]).map(f=>'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+'?thumb=600x450'), chosen:r.chosen||'', claims:r.claims||0, lend_days:r.lend_days||0, return_by:r.return_by||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
-function userListingCard(it){
+// a thing at a glance: photo, what it is, can you still get it, condition and where, who gives, what to do next.
+// In the feed the card stays light; sharing, comments and the full description live on the page of the thing (full = true).
+function availability(it){
+  if (it.status==='lent') return ['busy','На руках'+(it.return_by ? ' до '+fmtDate(String(it.return_by).slice(0,10)) : '')+' — можно встать в очередь'];
+  if (it.status==='reserved') return ['busy','Забронирована — если не заберут, перейдёт следующему желающему'];
+  return ['free', it.kind==='Одолжу' ? 'Можно взять на время' : 'Свободна — можно забрать'];
+}
+function userListingCard(it, full){
   const mine = it.seller === COM.uid;
   // the 600 px thumb for ordinary screens, the original (up to 1200 px) for Retina
-  const img = it.photo ? h('img',{src:it.photo,srcset:it.photoFull ? it.photo+' 600w, '+it.photoFull+' 1200w' : null,sizes:'(max-width: 560px) 100vw, 380px',alt:it.title,loading:'lazy',decoding:'async',style:'width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block'}) : null;
-  if (img) img.addEventListener('error',()=>img.remove());
+  const img = it.photo ? h('img',{src:it.photo,srcset:it.photoFull ? it.photo+' 600w, '+it.photoFull+' 1200w' : null,sizes:'(max-width: 560px) 100vw, 380px',alt:it.title,loading:'lazy',decoding:'async',class:'lc-img'}) : null;
+  const ph = img || h('div',{class:'lc-img lc-noimg','aria-hidden':'true'}, catIcon(it.category));
+  if (img) img.addEventListener('error',()=>img.replaceWith(h('div',{class:'lc-img lc-noimg','aria-hidden':'true'}, catIcon(it.category))));
   const bm = (COM.bookmarks||[]).find(b=>b.listing===it.id);
   const star = isFriend(COM.uid) && !mine ? h('button',{type:'button',class:'bm-star'+(bm?' on':''),'aria-label':bm ? 'Убрать из закладок' : 'В закладки',title:bm ? 'Убрать из закладок' : 'В закладки',
     onclick:()=>(bm ? pb.collection('bookmarks').delete(bm.id).then(()=>{ COM.bookmarks = COM.bookmarks.filter(x=>x.id!==bm.id); })
       : pb.collection('bookmarks').create({user:COM.uid, listing:it.id}).then(r=>{ COM.bookmarks = (COM.bookmarks||[]).concat([{id:r.id, listing:it.id}]); })).then(refresh).catch(writeErr)}, bm ? '★' : '☆') : null;
-  return h('article',{class:'card',style:'position:relative'},
-    star, img,
-    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:kindStyle()},'Даром'), h('span',{class:'tag'}, catIcon(it.category),' ',it.category||'Другое'),
-      it.kind==='Одолжу' ? h('span',{class:'tag',style:'background:var(--sky,#8FC3D6);color:#123'},'🔁 На время'+(it.lend_days ? ' · '+it.lend_days+' дн.' : '')) : null,
-      it.status==='lent' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'На руках'+(it.return_by ? ' до '+fmtDate(String(it.return_by).slice(0,10)) : '')) : null, it.status==='reserved' ? h('span',{class:'tag',style:'background:var(--clay);color:#fff'},'Забронировано') : null),
-    h('h3',{style:'font-size:20px'}, h('a',{href:daromUrl(it),class:'card-link'},it.title)),
-    h('p',{style:'font-weight:800;font-size:20px;font-variant-numeric:tabular-nums'}, priceLabel(it)),
+  const [av, avText] = availability(it);
+  const place = [it.city, it.district].filter(Boolean).join(', ');
+  return h('article',{class:'card lcard'+(full ? ' full' : '')},
+    star, full ? ph : h('a',{href:daromUrl(it),tabindex:'-1','aria-hidden':'true',class:'lc-imglink'}, ph),
+    h('div',{class:'lc-tags'}, h('span',{class:'tag',style:kindStyle()},'Даром'), h('span',{class:'tag'}, catIcon(it.category),' ',it.category||'Другое'),
+      it.kind==='Одолжу' ? h('span',{class:'tag',style:'background:var(--sky,#8FC3D6);color:#123'},'🔁 На время'+(it.lend_days ? ' · '+it.lend_days+' дн.' : '')) : null),
+    h(full ? 'h2' : 'h3',{class:'lc-title'}, full ? it.title : h('a',{href:daromUrl(it),class:'card-link'},it.title)),
+    h('p',{class:'lc-av '+av}, avText),
+    h('ul',{class:'lc-facts'},
+      it.condition ? h('li',null, h('span',{class:'lc-k'},'Состояние'), it.condition) : null,
+      place || nearLabel(it) ? h('li',null, h('span',{class:'lc-k'},'Где'), place, nearLabel(it) ? h('b',{class:'near'}, (place ? ' · ' : '')+nearLabel(it)) : null) : null,
+      it.pickup ? h('li',null, h('span',{class:'lc-k'},'Передача'), it.pickup) : null),
     it.lot ? lotBlock(it) : null,
-    it.condition ? h('p',{class:'muted',style:'font-size:14px'},'Состояние: ',it.condition) : null,
-    it.city || it.district || it.pickup ? h('p',{class:'muted',style:'font-size:14px'},'📍 ',[it.city, it.district].filter(Boolean).join(', '), it.pickup ? ' · '+it.pickup : '', nearLabel(it) ? h('b',{class:'near'},' · '+nearLabel(it)) : null) : null,
-    it.note ? h('p',{style:'font-size:15px;flex:1;white-space:pre-line'},it.note) : null,
-    h('p',{class:'hint'},'Отдаёт: ', nameSpan(it.seller)), trustLine(it.seller),
-    shareRow(it),
-    it.claims && !mine ? h('p',{class:'hint'},'🙋 Желающих: ',h('b',null,it.claims),' · даритель выберет сам, кто написал первым — не важно') : null,
-    mine ? h('p',{class:'hint',style:'font-weight:800'},'Это ваша вещь. Желающие и их сообщения — в кабинете.') : it.status==='lent' ? null : claimBtn(it),
-    commentsBlock('mk:'+it.id)
+    it.note ? h('p',{class:'lc-note'+(full ? '' : ' clamp')},it.note) : null,
+    h('div',{class:'lc-giver'}, h('span',{class:'hint'},'Отдаёт: ', nameSpan(it.seller)), trustLine(it.seller)),
+    it.claims && !mine ? h('p',{class:'hint lc-claims'},'🙋 Желающих: ',h('b',null,it.claims),' — даритель выберет сам, кто первый — не важно') : null,
+    h('div',{class:'lc-actions'},
+      mine ? h('p',{class:'hint',style:'font-weight:800;margin:0'},'Это ваша вещь. Желающие и их сообщения — в кабинете.') : it.status==='lent' ? null : claimBtn(it),
+      full ? null : h('a',{class:'btn ghost small',href:daromUrl(it)},'Подробнее')),
+    full ? shareRow(it) : null,
+    full ? commentsBlock('mk:'+it.id) : null
   );
 }
 
@@ -2418,10 +2431,10 @@ function daromItemPage(path){
       if (!it){ box.replaceChildren(h('p',{class:'lead'}, accState()==='loading' ? 'Загружаем…' : 'Эту вещь уже отдали или убрали. Посмотрите другие — вдруг найдётся похожая.'), h('a',{class:'btn',href:'/darom'},'Все вещи даром')); return; }
       document.title = 'Отдам даром: '+it.title+(it.city ? ' — '+it.city : '')+' — DashaBotanika';
       const more = publicListings().filter(l=>l.id!==id && (l.category===it.category || l.city===it.city)).slice(0,3);
-      box.replaceChildren(h('div',{class:'grid g2 item-page'}, userListingCard(it), h('div',{style:'display:grid;gap:12px;align-content:start'},
+      box.replaceChildren(h('div',{class:'grid g2 item-page'}, userListingCard(it, true), h('div',{style:'display:grid;gap:12px;align-content:start'},
           h('div',{class:'card'}, h('b',null,'Как забрать'), h('p',{class:'muted',style:'margin:0'},'Нажмите «Хочу забрать» и напишите пару слов о себе. Даритель сам выберет, кому отдать, — кто написал первым, не важно. Вещь бесплатная: здесь ничего не продают.')),
           it.city ? h('a',{class:'btn ghost',href:'/darom/'+slugify(it.city)},'Все вещи даром '+inCity(it.city)) : null, h('a',{class:'btn ghost',href:'/darom'},'Все вещи даром'))),
-        more.length ? h('div',null, h('h3',{style:'margin:28px 0 14px'},'Похожие вещи'), h('div',{class:'grid g3'}, more.map(userListingCard))) : null);
+        more.length ? h('div',null, h('h3',{style:'margin:28px 0 14px'},'Похожие вещи'), h('div',{class:'grid g3'}, more.map(x=>userListingCard(x)))) : null);
     });
     return [h('section',{class:'band'}, h('div',{class:'wrap'}, sectionHead('Вещи даром','Вещь в добрые руки',''), box))];
   }};
@@ -2441,7 +2454,7 @@ function claimBtn(it){
   return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openClaim(it)}, it.kind==='Одолжу' ? 'Хочу взять на время' : 'Хочу забрать');
 }
 function openClaim(it){
-  if (accState() !== 'member'){ openAccount(); toast('Сначала войдите или зарегистрируйтесь, это быстро'); return; }
+  if (accState() !== 'member'){ try{ sessionStorage.setItem('db-return', daromUrl(it)); }catch(e){} go('/kabinet?tab=register'); toast('Сначала войдите или зарегистрируйтесь — это минута. Потом вернём вас к этой вещи'); return; }
   openModal(sheet=>{
     const ta = h('textarea',{id:'claim-note',maxlength:'300',placeholder:'Например: дочке 5 лет, как раз её размер. Могу забрать в выходные.',style:'min-height:90px'});
     const btn = h('button',{type:'submit',class:'btn'},'Отправить');
@@ -2668,8 +2681,12 @@ async function offerWant(w){
   }catch(e){ writeErr(e); }
 }
 function wantsBlock(){
-  const list = h('div'), formSlot = h('div');
-  let lastSt = '';
+  const list = h('div'), formSlot = h('div',{hidden:''}), cta = h('div');
+  let lastSt = '', opened = false;
+  const open_ = ()=>{ opened = true; formSlot.hidden = false; cta.hidden = true; const t = formSlot.querySelector('input'); if (t) t.focus(); else formSlot.scrollIntoView({behavior:'smooth', block:'center'}); };
+  cta.append(h('div',{class:'card want-cta'}, h('div',{style:'flex:1;min-width:200px'}, h('b',null,'Не нашли нужную вещь? Оставьте запрос'),
+      h('p',{class:'hint',style:'margin:2px 0 0'},'У кого есть — откликнутся. А когда такая вещь появится в «Вещах даром», мы сообщим.')),
+    h('button',{type:'button',class:'btn',onclick:open_},'Разместить запрос')));
   live(()=>{ const open = (COM.wants||[]).filter(w=>w.status==='open');
     list.replaceChildren(...(open.length ? [h('div',{class:'grid g3'}, open.slice(0,30).map(w=>h('article',{class:'card want-card'},
       h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'}, h('span',{class:'tag',style:'background:var(--sun);color:#2A1C05'}, w.borrow ? '🔁 Возьму на время' : '🔍 Ищу'), w.category ? h('span',{class:'tag'},catIcon(w.category),' ',w.category) : null),
@@ -2679,12 +2696,12 @@ function wantsBlock(){
       w.author===COM.uid ? h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
           h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('wants').update(w.id,{status:'found'}).then(()=>toast('Отлично, что нашлось!')).catch(writeErr)},'Нашлось'),
           h('button',{type:'button',class:'btn ghost small',onclick:()=>delDoc('wants',w.id)},'Удалить'))
-        : h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>offerWant(w)},'🎁 У меня есть'))))] : [h('p',{class:'hint'},'Пока никто ничего не ищет. Напишите первым — вдруг у кого-то это пылится на балконе.')]));
-    const st = accState(); if (st!==lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? wantForm() : joinHint('написать, что вы ищете')); }
+        : h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>offerWant(w)},'🎁 У меня есть'))))] : []));
+    const st = accState(); if (st!==lastSt){ lastSt = st; formSlot.replaceChildren(st==='member' ? wantForm(()=>{ formSlot.hidden = true; cta.hidden = false; }) : h('div',{class:'card'}, joinHint('оставить запрос'))); if (opened) formSlot.hidden = false; }
   });
-  return h('div',{class:'wants',id:'ishu'}, h('h3',{style:'margin:40px 0 6px'},'🔍 Ищу'), h('p',{class:'muted',style:'margin:0 0 14px'},'Напишите, что вам нужно, — у кого есть, откликнутся. Когда такая вещь появится в «Вещах даром», мы сообщим.'), list, formSlot);
+  return h('div',{class:'wants',id:'ishu'}, h('h3',{style:'margin:40px 0 14px'},'🔍 Ищу'), list, cta, formSlot);
 }
-function wantForm(){
+function wantForm(onDone){
   const title = h('input',{id:'want-title',maxlength:'100',placeholder:'Например: детское автокресло 9–18 кг'});
   const cat = h('select',{id:'want-cat'}, [h('option',{value:''},'Выберите…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
   const city = h('input',{id:'want-city',maxlength:'80',placeholder:'Город',value:(PROFILE.rec && PROFILE.rec.city)||''});
@@ -2692,59 +2709,102 @@ function wantForm(){
   const borrow = h('input',{id:'want-borrow',type:'checkbox'});
   const btn = h('button',{type:'submit',class:'btn'},'Опубликовать запрос');
   const f = h('form',{class:'form',style:'margin-top:16px'}, h('div',{class:'fields'},
-      h('label',{for:'want-title',style:'grid-column:1/-1'},'Что ищете',title), h('label',{for:'want-cat'},'Категория',cat), h('label',{for:'want-city'},'Город',city)),
-    h('label',{for:'want-note'},'Подробнее (необязательно)',note), h('label',{class:'consent',for:'want-borrow'}, borrow, 'Достаточно взять на время'), h('div',null,btn));
+      h('label',{for:'want-title',style:'grid-column:1/-1'},'Что ищете *',title), h('label',{for:'want-cat'},'Категория *',cat), h('label',{for:'want-city'},'Город',city)),
+    h('label',{for:'want-note'},'Подробнее (необязательно)',note), h('label',{class:'consent',for:'want-borrow'}, borrow, 'Достаточно взять на время'),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, btn, onDone ? h('button',{type:'button',class:'btn ghost',onclick:onDone},'Отмена') : null));
   f.addEventListener('submit', async e=>{ e.preventDefault();
-    const t = title.value.trim(); if (t.length < 3){ title.focus(); return; }
+    const t = title.value.trim(); if (t.length < 3){ title.focus(); toast('Напишите, что ищете — хотя бы пару слов'); return; }
     if (!cat.value){ cat.focus(); toast('Выберите категорию — так мы сообщим, когда такое появится'); return; }
     btn.disabled = true;
     try{ const r = await pb.collection('wants').create({author:COM.uid, title:t, category:cat.value, city:city.value.trim(), note:note.value.trim(), borrow:borrow.checked, status:'open'});
-      COM.wants = [wantOf(r)].concat((COM.wants||[]).filter(x=>x.id!==r.id)); f.reset(); refresh(); toast('Запрос опубликован. Сообщим, когда такое появится'); }
+      COM.wants = [wantOf(r)].concat((COM.wants||[]).filter(x=>x.id!==r.id)); f.reset(); refresh(); toast('Запрос опубликован. Сообщим, когда такое появится'); if (onDone) onDone(); }
     catch(err){ writeErr(err); }
     btn.disabled = false;
   });
   return f;
 }
-/* subscription: new things in chosen categories and city — by mail or Telegram */
+/* subscription: new things in chosen categories and city — by mail or Telegram.
+   How the server sends it (pb_hooks/darom.js): one message for several new things, every 30 minutes (to friends of the project — at once);
+   a city filter skips things from other cities, things without a city come to everyone; every letter has «Отписаться». */
 function daromSubCard(){
   const box = h('div',{class:'card darom-sub',id:'darom-sub'});
-  let rec = null, loaded = false, lastSt = '';
+  let rec = null, loaded = false, lastSt = '', tgOn = null, editing = false, err = '';
+  const catLine = c => c && c.length ? c.map(x=>catIcon(x)+' '+x).join(', ') : 'все категории';
   const paint = ()=>{
-    if (accState()!=='member'){ box.replaceChildren(h('h3',{style:'font-size:20px'},'🔔 Сообщать о новых вещах'), joinHint('получать уведомления о новых вещах')); return; }
+    const head = h('h3',{style:'font-size:20px'},'🔔 Сообщать о новых вещах');
+    if (accState()!=='member'){ box.replaceChildren(head, h('p',{class:'muted',style:'margin:0'},'Пришлём письмо или сообщение в Telegram, когда в «Вещах даром» появится то, что вам интересно.'), joinHint('подписаться')); return; }
+    const on = rec && (rec.email || rec.tg);
+    // subscribed: a short summary with «Изменить» and «Отписаться»
+    if (on && !editing){
+      box.replaceChildren(head,
+        h('p',{class:'sub-on',style:'margin:0'},'✓ Вы подписаны'),
+        h('ul',{class:'sub-sum'},
+          h('li',null, h('b',null,'Что: '), catLine(rec.cats)),
+          h('li',null, h('b',null,'Где: '), rec.city ? rec.city+' (и вещи, где город не указан)' : 'все города'),
+          h('li',null, h('b',null,'Куда: '), [rec.email ? 'на почту' : '', rec.tg ? 'в Telegram' : ''].filter(Boolean).join(' и ')),
+          h('li',null, h('b',null,'Как часто: '), isFriend(COM.uid) ? 'сразу, как вещь опубликуют' : 'одним сообщением на несколько вещей, не чаще раза в полчаса')),
+        h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>{ editing = true; paint(); }},'Изменить'),
+          h('button',{type:'button',class:'btn ghost small',onclick:()=>store({user:COM.uid, cats:rec.cats||[], city:rec.city||'', email:false, tg:false}, 'Вы отписались. Подписаться снова можно здесь же')},'Отписаться')),
+        h('p',{class:'hint',style:'margin:0'},'Отписаться можно и по ссылке «Отписаться» в любом письме.'));
+      return; }
     const cats = new Set(rec ? rec.cats||[] : []);
-    const city = h('input',{maxlength:'80',placeholder:'Город (пусто — любой)',value:rec ? rec.city||'' : ((PROFILE.rec && PROFILE.rec.city)||''),'aria-label':'Город'});
-    const em = h('input',{type:'checkbox',checked:rec ? !!rec.email : true}), tg = h('input',{type:'checkbox',checked:rec ? !!rec.tg : false});
+    const city = h('input',{id:'sub-city',maxlength:'80',placeholder:'Например, Тула',value:rec ? rec.city||'' : ((PROFILE.rec && PROFILE.rec.city)||'')});
+    const em = h('input',{type:'checkbox',id:'sub-em',checked:rec ? !!rec.email : true});
+    const tg = h('input',{type:'checkbox',id:'sub-tg',checked:rec ? !!rec.tg : false,disabled:tgOn===false ? '' : null});
     const chips = DAROM_CATS.map(([c,ic])=>{ const b = h('button',{type:'button',class:'chip'+(cats.has(c)?' on':''),'aria-pressed':cats.has(c)?'true':'false'}, ic+' '+c);
       b.addEventListener('click', ()=>{ cats.has(c) ? cats.delete(c) : cats.add(c); b.classList.toggle('on'); b.setAttribute('aria-pressed', cats.has(c)?'true':'false'); }); return b; });
-    const save = h('button',{type:'button',class:'btn small',onclick:async ()=>{
-      const data = {user:COM.uid, cats:[...cats], city:city.value.trim(), email:em.checked, tg:tg.checked};
-      try{ rec = rec ? await pb.collection('darom_subs').update(rec.id, data) : await pb.collection('darom_subs').create(data);
-        toast(em.checked || tg.checked ? 'Подписка сохранена: сообщим о новых вещах' : 'Уведомления о новых вещах выключены'); paint(); }
-      catch(err){ writeErr(err); } }}, rec ? 'Сохранить' : 'Подписаться');
-    box.replaceChildren(h('h3',{style:'font-size:20px'},'🔔 Сообщать о новых вещах'),
-      h('p',{class:'muted',style:'margin:0'},'Выберите категории (ничего не выбрано — все) и город. Пришлём одно письмо или сообщение на несколько новых вещей, не чаще раза в полчаса.'),
-      h('div',{class:'chips',style:'margin-top:4px'}, chips), city,
-      h('div',{style:'display:flex;gap:18px;flex-wrap:wrap'}, h('label',{class:'consent'}, em, 'На почту'), h('label',{class:'consent'}, tg, 'В Telegram (если подключён в профиле)')),
-      h('div',null, save));
+    const save = h('button',{type:'button',class:'btn',onclick:()=>{
+      if (!em.checked && !tg.checked){ err = 'Отметьте, куда присылать: на почту или в Telegram.'; paintErr(); return; }
+      err = ''; paintErr(); store({user:COM.uid, cats:[...cats], city:city.value.trim(), email:em.checked, tg:tg.checked}, 'Готово! Сообщим о новых вещах', msg=>{ err = msg; paintErr(); }); }}, rec && (rec.email || rec.tg) ? 'Сохранить' : 'Подписаться');
+    const errBox = h('p',{class:'field-err',role:'alert',hidden:''});
+    const paintErr = ()=>{ errBox.textContent = err; errBox.hidden = !err; };
+    box.replaceChildren(head,
+      h('p',{class:'muted',style:'margin:0'},'Пришлём одно письмо или сообщение на несколько новых вещей — не чаще раза в полчаса.'),
+      h('div',null, h('div',{class:'sub-l'},'Какие вещи'), h('p',{class:'hint',style:'margin:0 0 6px'},'Отметьте категории. Не отметите ни одной — пришлём все.'), h('div',{class:'chips'}, chips)),
+      h('label',{for:'sub-city'}, h('span',{class:'sub-l'},'Город'), city, h('span',{class:'hint'},'Только вещи из этого города (и те, где город не указан). Оставьте пустым — пришлём из всех городов.')),
+      h('div',null, h('div',{class:'sub-l'},'Куда присылать'),
+        h('div',{style:'display:flex;gap:18px;flex-wrap:wrap'}, h('label',{class:'consent',for:'sub-em'}, em, 'На почту'),
+          h('label',{class:'consent',for:'sub-tg'}, tg, 'В Telegram')),
+        tgOn===false ? h('p',{class:'hint',style:'margin:4px 0 0'},'Telegram пока не подключён. ', h('a',{href:'/kabinet?tab=profile#notify'},'Подключить в профиле'),' — это минута.') : null),
+      errBox,
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, save, editing ? h('button',{type:'button',class:'btn ghost',onclick:()=>{ editing = false; err = ''; paint(); }},'Отмена') : null),
+      h('p',{class:'hint',style:'margin:0'},'Отписаться можно в любой момент — здесь же или по ссылке в письме.'));
+    paintErr();
   };
+  // on an error the choices stay as they are: only the message appears
+  async function store(data, ok, onErr){
+    // the owner is set once, on create; the server does not accept it again on update
+    const { user, ...change } = data;
+    try{ rec = rec ? await pb.collection('darom_subs').update(rec.id, change) : await pb.collection('darom_subs').create(data);
+      editing = false; err = ''; toast(ok); paint(); }
+    catch(e){ const msg = 'Не получилось сохранить — проверьте интернет и попробуйте ещё раз.'; if (onErr) onErr(msg); else toast(msg); }
+  }
   live(()=>{ const st = accState(); if (st===lastSt) return; lastSt = st;
-    if (st==='member' && !loaded){ loaded = true; pb.collection('darom_subs').getFirstListItem(pb.filter('user = {:u}',{u:COM.uid}),{requestKey:null}).then(r=>{ rec = r; }).catch(()=>{}).then(paint); }
+    if (st==='member' && !loaded){ loaded = true;
+      Promise.all([
+        pb.collection('darom_subs').getFirstListItem(pb.filter('user = {:u}',{u:COM.uid}),{requestKey:null}).then(r=>{ rec = r; }).catch(()=>{}),
+        pb.collection('tg_subs').getFullList({requestKey:null}).then(l=>{ tgOn = !!l[0]; }).catch(()=>{ tgOn = false; })
+      ]).then(paint); }
     else paint(); });
   return box;
 }
-/* «Друг проекта»: everything stays free; those who support the project get small extras */
+/* «Друг проекта»: everything stays free; support is voluntary and does not change who gets a thing (the giver chooses) */
 function friendCard(){
   const box = h('div',{class:'card friend-card'});
   let url = null;
   fetch('/api/darom/support').then(r=>r.json()).then(r=>{ url = r.url||''; refresh(); }).catch(()=>{ url = ''; refresh(); });
   live(()=>{ const me = COM.members[COM.uid], on = isFriend(COM.uid);
-    box.replaceChildren(h('div',{class:'eyebrow'},'💚 Друг проекта'), h('h3',{style:'font-size:22px'},'Всё здесь бесплатно — и так и останется'),
-      h('p',{class:'muted',style:'margin:0'},'Сайт живёт на энтузиазме Даши. Если хотите помочь ему расти, станьте другом проекта. В благодарность:'),
-      h('ul',{class:'friend-list'}, h('li',null,'💚 значок «Друг проекта» в карточке — вам больше доверяют'), h('li',null,'⭐ закладки на вещи, чтобы не потерять'), h('li',null,'⚡ новые вещи по подписке — сразу, а не раз в полчаса')),
-      on ? h('p',{style:'font-weight:800;color:var(--moss);margin:0'},'Вы друг проекта до ', fmtDate(String(me.friendUntil).slice(0,10)), '. Спасибо!')
-        : h('div',{style:'display:grid;gap:8px'},
-          url ? h('a',{class:'btn',href:url,target:'_blank',rel:'noopener',style:'justify-self:start'},'Поддержать проект') : h('p',{class:'hint',style:'margin:0'},'Ссылка для поддержки скоро появится.'),
-          h('p',{class:'hint',style:'margin:0'},'После поддержки напишите Даше через ✨ «Улучшим сайт вместе» — она включит статус. Любая сумма — уже помощь.'))); });
+    const perks = h('details',{class:'friend-more'}, h('summary',null,'Что получают друзья проекта'),
+      h('ul',{class:'friend-list'}, h('li',null,'💚 значок «Друг проекта» в карточке'), h('li',null,'⭐ закладки на вещи, чтобы не потерять'), h('li',null,'⚡ уведомления о новых вещах сразу, а не раз в полчаса')),
+      h('p',{class:'hint',style:'margin:0'},'Это благодарность, а не преимущество: кому отдать вещь, решает только даритель. После поддержки напишите Даше через ✨ «Улучшим сайт вместе» — она включит статус.'));
+    box.replaceChildren(
+      h('div',{class:'friend-row'},
+        h('div',{style:'flex:1;min-width:220px;display:grid;gap:4px'}, h('b',null,'💚 Здесь всё бесплатно — и так останется'),
+          h('p',{class:'hint',style:'margin:0'},'Сайт живёт на энтузиазме Даши. Поддержка добровольная и не влияет на то, кто получит вещь.')),
+        on ? h('p',{style:'font-weight:800;color:var(--moss);margin:0'},'Вы друг проекта до ', fmtDate(String(me.friendUntil).slice(0,10)), '. Спасибо!')
+          : url ? h('a',{class:'btn ghost',href:url,target:'_blank',rel:'noopener'},'Поддержать проект') : null),
+      on ? null : perks); });
   return box;
 }
 /* the map: things nearby as points (each place is rough, ~1 km); OpenStreetMap via Leaflet, loaded only when opened */
@@ -2862,13 +2922,14 @@ function openThanks(t){
 
 /* cabinet panels for the market */
 function thingsPanel(lists){
-  const title = h('input',{id:'mk-title',maxlength:'100',placeholder:'Например, детский велосипед'});
-  const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Как новое'});
-  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город',value:(PROFILE.rec && PROFILE.rec.city)||''});
-  const mkDistrict = h('input',{id:'mk-district',maxlength:'80',placeholder:'Район',value:(PROFILE.rec && PROFILE.rec.district)||''});
+  // order for a phone: what → photo → category → where; the rest is optional and folded under «Дополнительно»
+  const title = h('input',{id:'mk-title',maxlength:'100',placeholder:'Например, детский велосипед',required:'','aria-required':'true',autocomplete:'off'});
+  const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Например: как новое, есть царапины'});
+  const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город',value:(PROFILE.rec && PROFILE.rec.city)||'',autocomplete:'address-level2'});
+  const mkDistrict = h('input',{id:'mk-district',maxlength:'80',placeholder:'Район или метро',value:(PROFILE.rec && PROFILE.rec.district)||''});
   // the profile may still be loading: fill in the place when it comes
   if (!PROFILE.loaded && COM.uid) loadProfile().then(p=>{ if (p){ if (!city.value) city.value = p.city||''; if (!mkDistrict.value) mkDistrict.value = p.district||''; } });
-  const cat = h('select',{id:'mk-cat',required:''}, [h('option',{value:''},'Выберите…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
+  const cat = h('select',{id:'mk-cat',required:'','aria-required':'true'}, [h('option',{value:''},'Выберите категорию…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
   const pickup = h('input',{id:'mk-pickup',maxlength:'120',placeholder:'Например: м. Чкаловская, будни после 19:00'});
   const lot = h('input',{id:'mk-lot',type:'checkbox'});
   const lotItems = h('textarea',{id:'mk-items',maxlength:'2000',placeholder:'Каждая вещь с новой строки: кастрюля, 3 тарелки, торшер…',style:'min-height:90px'});
@@ -2880,44 +2941,72 @@ function thingsPanel(lists){
   const lendBox = h('label',{for:'mk-lend',hidden:''},'На сколько дней одалживаете',lendDays);
   how.addEventListener('change', ()=>{ lendBox.hidden = how.value!=='Одолжу'; });
   const days = h('select',{id:'mk-days'}, [['7','неделю'],['14','2 недели'],['30','месяц']].map(([v,t])=>h('option',{value:v,selected:v==='14'},t)));
-  const note = h('textarea',{id:'mk-note',maxlength:'1500'});
-  const file = h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp'});
-  // the photo goes through the frame editor right after choosing; the finished frame is what we upload
+  const note = h('textarea',{id:'mk-note',maxlength:'1500',placeholder:'Размер, бренд, особенности — то, что поможет решить, подходит ли вещь'});
+  // the photo: a big friendly button instead of the browser's «Choose file»; the frame editor opens right after choosing
+  const file = h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp',class:'sr-only'});
   let framed = null;
   const photoBox = h('div',{class:'mk-photo-box'});
-  const showFramed = ()=>{ photoBox.replaceChildren(...(framed ? [h('img',{src:URL.createObjectURL(framed),alt:'Кадр для объявления',class:'mk-thumb'}),
+  const pickLabel = h('label',{for:'mk-photo',class:'btn ghost mk-photo-pick'},'📷 Добавить фото');
+  const showFramed = ()=>{ pickLabel.textContent = framed ? '📷 Другое фото' : '📷 Добавить фото';
+    photoBox.replaceChildren(...(framed ? [h('img',{src:URL.createObjectURL(framed),alt:'Кадр для объявления',class:'mk-thumb'}),
     h('button',{type:'button',class:'btn ghost small',onclick:editFrame},'✂️ Изменить кадр')] : [])); };
   async function editFrame(){ const fl = file.files && file.files[0]; if (!fl) return; const r = await cropPhoto(fl); if (r){ framed = r; showFramed(); } else if (!framed){ file.value = ''; } }
-  file.addEventListener('change', ()=>{ framed = null; showFramed(); editFrame(); });
+  file.addEventListener('change', ()=>{ framed = null; showFramed(); clearErr(file); const fl = file.files && file.files[0]; if (fl && fl.size > 15*1024*1024){ fieldErr(file, 'Фото больше 15 МБ — выберите поменьше.'); file.value = ''; return; } editFrame(); });
+  // inline errors next to the field (and the reason read out by screen readers)
+  const errs = new Map();
+  function fieldErr(el, msg){ clearErr(el); const id = el.id+'-err'; const e = h('p',{class:'field-err',id,role:'alert'},msg); errs.set(el, e); el.setAttribute('aria-invalid','true'); el.setAttribute('aria-describedby', id); (el.closest('label')||el.parentElement).append(e); }
+  function clearErr(el){ const e = errs.get(el); if (e){ e.remove(); errs.delete(el); } el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); }
+  [title, cat, lotItems].forEach(el=>el.addEventListener('input', ()=>clearErr(el)));
+  cat.addEventListener('change', ()=>clearErr(cat));
   const btn = h('button',{type:'submit',class:'btn'},'Отправить на проверку');
-  const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
-    h('div',{class:'fields'},
-      h('label',{for:'mk-title',style:'grid-column:1/-1'},'Что за вещь',title),
-      h('label',{for:'mk-how'},'Как отдаёте',how), lendBox,
-      h('label',{for:'mk-cat'},'Категория',cat), h('label',{for:'mk-cond'},'Состояние',cond),
-      h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-district'},'Район',mkDistrict), h('label',{for:'mk-pickup'},'Где и когда забрать (без точного адреса)',pickup),
-      h('label',{for:'mk-days'},'Объявление актуально',days)),
-    h('label',{class:'consent',for:'mk-lot'}, lot, '📦 Это лот: отдаю много вещей сразу (переезд, расхламление)'), lotBox,
-    h('label',{for:'mk-note'},'Описание: размер, бренд, особенности',note),
-    h('label',{for:'mk-photo'},'Фото (необязательно)',file), photoBox,
+  const req = h('span',{class:'req','aria-hidden':'true'},' *');
+  const more = h('details',{class:'mk-more'}, h('summary',null,'Дополнительно: отдать на время, срок объявления, много вещей сразу'),
+    h('div',{class:'fields'}, h('label',{for:'mk-how'},'Как отдаёте',how), lendBox, h('label',{for:'mk-days'},'Объявление актуально',days)),
+    h('label',{class:'consent',for:'mk-lot'}, lot, '📦 Это лот: отдаю много вещей сразу (переезд, расхламление)'), lotBox);
+  const f = h('form',{class:'form mk-form',novalidate:'',style:'margin:0;border-style:solid;border-color:var(--line)'},
+    h('p',{class:'hint',style:'margin:0'},'Поля со звёздочкой', req.cloneNode(true), ' — обязательные. Остальное по желанию.'),
+    h('label',{for:'mk-title'}, h('span',null,'Что отдаёте',req.cloneNode(true)), title),
+    h('div',{class:'mk-photo'}, h('div',{class:'mk-photo-l'},'Фото'), h('div',{class:'mk-photo-row'}, pickLabel, file, photoBox),
+      h('p',{class:'hint',style:'margin:0'},'С фото вещь забирают быстрее. Снимите её целиком при дневном свете. JPG, PNG или WebP до 15 МБ. Можно и без фото.')),
+    h('label',{for:'mk-cat'}, h('span',null,'Категория',req.cloneNode(true)), cat, h('span',{class:'hint'},'По ней вещь найдут в фильтре и пришлют тем, кто подписан.')),
+    h('label',{for:'mk-cond'},'Состояние',cond),
+    h('div',{class:'fields'}, h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-district'},'Район',mkDistrict)),
+    h('p',{class:'hint',style:'margin:-4px 0 0'},'Только город и район — точный адрес не нужен и никому не показывается. На карте вещь будет примерно, с точностью около километра.'),
+    h('label',{for:'mk-pickup'},'Где и когда удобно передать',pickup),
+    h('label',{for:'mk-note'},'Описание',note),
+    more,
     h('div',null,btn));
+  // after sending: a clear confirmation instead of the form, and a way to put out one more thing
+  const done = h('div',{class:'card mk-done',hidden:'',role:'status'});
+  const showDone = published => { done.replaceChildren(
+      h('b',{class:'mk-done-t'}, published ? '✓ Опубликовано!' : '✓ Отправлено на проверку'),
+      h('p',{style:'margin:0'}, published ? 'Вы надёжный даритель — вещь сразу в «Вещах даром». Желающие напишут вам, а кому отдать — выбираете вы.' : 'Даша проверяет объявления обычно в течение дня. Статус видно ниже, в «Мои объявления». Когда вещь опубликуют, желающие смогут вам написать.'),
+      h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+        h('button',{type:'button',class:'btn',onclick:()=>{ done.hidden = true; f.hidden = false; title.focus(); }},'Выставить ещё одну вещь'),
+        h('button',{type:'button',class:'btn ghost',onclick:()=>{ const l = lists.things; if (l) l.scrollIntoView({behavior:'smooth', block:'start'}); }},'Мои объявления')));
+    toast(published ? 'Опубликовано! Вы надёжный даритель — без ожидания проверки' : 'Отправлено! Объявление появится после проверки');
+    f.hidden = true; done.hidden = false; done.scrollIntoView({behavior:'smooth', block:'center'}); };
   f.addEventListener('submit', async e=>{
     e.preventDefault();
-    const t = title.value.trim(); if (t.length < 2){ title.focus(); return; }
-    if (!cat.value){ cat.focus(); toast('Выберите категорию — так вещь быстрее найдут'); return; }
-    if (lot.checked && !lotItems.value.trim()){ lotItems.focus(); toast('Перечислите, что в лоте'); return; }
-    const more = Array.from(lotPhotos.files||[]);
-    if (more.length > 5){ toast('Дополнительных фото — до 5'); return; }
+    let bad = null;
+    const t = title.value.trim();
+    if (t.length < 2){ fieldErr(title, 'Напишите, что отдаёте — хотя бы пару слов.'); bad = bad || title; }
+    if (!cat.value){ fieldErr(cat, 'Выберите категорию — так вещь быстрее найдут.'); bad = bad || cat; }
+    if (lot.checked && !lotItems.value.trim()){ more.open = true; fieldErr(lotItems, 'Перечислите, что в лоте.'); bad = bad || lotItems; }
+    const extra = Array.from(lotPhotos.files||[]);
+    if (extra.length > 5){ more.open = true; toast('Дополнительных фото — до 5'); bad = bad || lotPhotos; }
+    if (bad){ bad.focus(); return; }
     const fl = file.files && file.files[0];
-    if (fl && fl.size > 15*1024*1024){ toast('Фото больше 15 МБ'); return; }
     btn.disabled = true; btn.textContent = 'Отправляю…';
     try{
       const fd = new FormData();
       Object.entries({seller:COM.uid, title:t, kind:how.value, price:'', lend_days:how.value==='Одолжу' ? Math.max(1,Math.min(90,+lendDays.value||14)) : 0, category:cat.value, condition:cond.value.trim(), city:city.value.trim(), district:mkDistrict.value.trim(), pickup:pickup.value.trim(), until:plusDays(+days.value), note:note.value.trim(), status:'active'}).forEach(([k,v])=>fd.append(k,v));
       if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
-      if (lot.checked){ fd.append('lot','true'); fd.append('items', lotItems.value.trim().slice(0,2000)); for (const x of more) fd.append('more_photos', await fitPhoto(x, 1200)); }
-      await pb.collection('listings').create(fd);
-      f.reset(); framed = null; showFramed(); lotBox.hidden = true; toast(DAROM.mine && DAROM.mine.trusted ? 'Опубликовано! Вы надёжный даритель — без ожидания проверки' : 'Отправлено! Объявление появится после проверки');
+      if (lot.checked){ fd.append('lot','true'); fd.append('items', lotItems.value.trim().slice(0,2000)); for (const x of extra) fd.append('more_photos', await fitPhoto(x, 1200)); }
+      const r = await pb.collection('listings').create(fd);
+      f.reset(); framed = null; showFramed(); lotBox.hidden = true; lendBox.hidden = true; more.open = false;
+      if (PROFILE.rec){ city.value = PROFILE.rec.city||''; mkDistrict.value = PROFILE.rec.district||''; }
+      showDone(!!(r && r.moderation==='approved') || !!(DAROM.mine && DAROM.mine.trusted));
     }catch(err){ writeErr(err); }
     btn.disabled = false; btn.textContent = 'Отправить на проверку';
   });
@@ -2928,7 +3017,7 @@ function thingsPanel(lists){
     h('div',null, h('b',null,r.given), h('span',null,'вы отдали '+plural(r.given,'вещь','вещи','вещей'))),
     h('div',null, h('b',null,'≈ '+String(r.kg).replace('.',',')+' кг'), h('span',null,'не попало на свалку благодаря вам')),
     h('div',null, h('b',null,(r.badges||[]).map(b=>(BADGE_T[b]||[''])[0].split(' ')[0]).join(' ') || '—'), h('span',null, (r.badges||[]).length ? (r.badges||[]).map(b=>(BADGE_T[b]||['',''])[0].replace(/^\S+\s/,'')).join(', ') : 'значков пока нет — первый за первую отданную вещь'))); }).catch(()=>{});
-  return [myCount, h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в «Вещах даром», и те, кому вещь нужна, смогут написать вам.'), h('p',{class:'hint tg-hint'},'📲 Быстрее через Telegram: подключите бота в «Профиль и настройки» → «Уведомления» и просто пришлите ему фото вещи с подписью — объявление создастся само. ', h('a',{href:'/kabinet?tab=profile#notify'},'Подключить')), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
+  return [myCount, h('ol',{class:'mk-steps'}, h('li',null,'Заполните форму — минута.'), h('li',null,'Даша проверит объявление, обычно в течение дня. Надёжные дарители публикуются сразу.'), h('li',null,'Желающие напишут вам, а кому отдать — решаете вы.')), h('p',{class:'hint tg-hint'},'📲 Быстрее через Telegram: подключите бота в «Профиль и настройки» → «Уведомления» и просто пришлите ему фото вещи с подписью — объявление создастся само. ', h('a',{href:'/kabinet?tab=profile#notify'},'Подключить')), f, done, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
 }
 function paintThings(el){
   const items = myItems().slice().sort((a,b)=>b.ts-a.ts);
@@ -3911,7 +4000,11 @@ function authForms(mode){
     wrap.replaceChildren(tabs, ...(mode==='register' ? registerForm() : loginForm()));
   }
   // after sign-up or sign-in the visitor lands where they were going (?next=things — the «give a thing» form), otherwise the page reloads
-  function done(msg){ try{ sessionStorage.setItem('db-welcome', msg); }catch(e){} const nx = new URLSearchParams(location.search).get('next'); if (CAB_TABS.includes(nx)) location.replace('/kabinet?tab='+nx+'#cabinet-tabs'); else location.reload(); }
+  function done(msg){ try{ sessionStorage.setItem('db-welcome', msg); }catch(e){}
+    let back = ''; try{ back = sessionStorage.getItem('db-return')||''; sessionStorage.removeItem('db-return'); }catch(e){}
+    const nx = new URLSearchParams(location.search).get('next');
+    if (/^\/darom\/v\/[a-z0-9]{15}$/.test(back)) location.replace(back);
+    else if (CAB_TABS.includes(nx)) location.replace('/kabinet?tab='+nx+'#cabinet-tabs'); else location.reload(); }
   function loginForm(){
     const email = h('input',{id:'li-email',type:'email',autocomplete:'email',required:''});
     const pass = h('input',{id:'li-pass',type:'password',autocomplete:'current-password',required:''});
@@ -4362,6 +4455,9 @@ function placePicker(onSaved, opts){
     if (coords){ data.lat = coords.lat; data.lon = coords.lon; }
     try{
       PROFILE.rec = PROFILE.rec ? await pb.collection('profiles').update(PROFILE.rec.id, data) : await pb.collection('profiles').create(Object.assign({owner:COM.uid}, data));
+      // the «give a thing» form may be open under this window: fill its empty city and district too
+      const mc = document.getElementById('mk-city'), md = document.getElementById('mk-district');
+      if (mc && !mc.value) mc.value = c; if (md && !md.value) md.value = d;
       toast('Место сохранено: '+[k, c, d].filter(Boolean).join(', ')); refresh(); if (onSaved) onSaved();
     }catch(err){ writeErr(err); btn.disabled = false; }
   });
