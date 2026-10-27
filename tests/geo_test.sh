@@ -12,7 +12,12 @@ import json, http.server, urllib.parse as up
 PLACES = {'Академический, Москва, Россия': ('55.687', '37.574'), 'Москва, Россия': ('55.751', '37.618'), 'Москва': ('55.751', '37.618'), 'Хамовники, Москва, Россия': ('55.731', '37.571'), 'Центральный, Тула': ('54.193', '37.617'), 'Ленинский район, Москва, Россия': ('55.611', '37.711'), 'метро Сокол, Москва, Россия': ('55.805', '37.515')}
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
+    down = False
     def do_GET(self):
+        if self.path == '/toggle':
+            H.down = not H.down; self.send_response(200); self.end_headers(); return
+        if H.down:
+            self.send_response(503); self.end_headers(); return
         q = up.parse_qs(up.urlparse(self.path).query).get('q', [''])[0]
         p = PLACES.get(q)
         self.send_response(200); self.send_header('content-type', 'application/json'); self.end_headers()
@@ -69,12 +74,24 @@ r = u.Request(B+'/collections/users/records/'+uid2, method='PATCH', data=json.du
 import time; time.sleep(3)
 tok2 = req('POST','/collections/users/auth-with-password',{'identity':'t@t.local','password':'secret12'})[1]['token']
 req('PATCH','/collections/listings/records/'+l3[1]['id'],{'city':'Москва'},su)
+check('a new city of the thing → its point follows', item(l3[1]['id'])['lat'] == 55.75)
+toggle = lambda: u.urlopen('http://127.0.0.1:8097/toggle').read()
+toggle()
+l4 = req('POST','/collections/listings/records',dict(base, seller=uid2, city='Тула', district='Центральный'),tok2)[1]
+before = item(l4['id'])['lat']
+toggle()
 code, res = req('POST','/geo/backfill',{},tok2)
-check('the fill-in places things that had no point', code == 200 and res['done'] == 1 and res['left'] == 0 and item(l3[1]['id'])['lat'] == 55.75)
-# a point in the wrong place → redo it from the giver's city and district
-req('PATCH','/collections/profiles/records/'+p['id'],{'district':'Академический','lat':55.1,'lon':37.1},tok)
-code, res = req('POST','/geo/backfill',{'redo':l1['id']},tok2)
-check('redo puts the thing back by its district', code == 200 and prof()['lat'] == 55.69 and item(l1['id'])['lat'] == 55.69)
+check('the map service was down → the fill-in places the thing later', before == 0 and code == 200 and res['done'] == 1 and item(l4['id'])['lat'] == 54.19)
+check('… and nothing is left without a point', res.get('left') == 0)
+# a thing with its own place (pick it up at another metro) keeps it when the profile moves
+own = req('POST','/collections/listings/records',dict(base, city='Москва', district='Академический'),tok)[1]
+check('a thing in its own district gets the point of that district, not of the profile', item(own['id'])['lat'] == 55.69 and prof()['lat'] == 55.7)
+req('PATCH','/collections/profiles/records/'+p['id'],{'district':'Хамовники','lat':55.1,'lon':37.1},tok)
+check('… and stays there when the profile moves', item(own['id'])['lat'] == 55.69 and item(own['id'])['district'] == 'Академический')
+# a point in the wrong place → redo it from the thing's own city and district
+req('PATCH','/collections/listings/records/'+own['id'],{'lat':55.2},su)
+code, res = req('POST','/geo/backfill',{'redo':own['id']},tok2)
+check('redo puts the thing back by its district', code == 200 and item(own['id'])['lat'] == 55.69)
 # OSM knows «Ленинский район», not just «Ленинский»; «м. Сокол» is «метро Сокол»
 req('PATCH','/collections/profiles/records/'+p['id'],{'district':'Ленинский'},tok)
 check('«… район» is tried when the bare name is not found', prof()['lat'] == 55.61)
