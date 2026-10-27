@@ -517,8 +517,8 @@ function mythsTeaser(){
     h('div',{class:'mt-text'},
       h('div',{class:'eyebrow'},'Мифы о переработке'),
       h('h2',{class:'mt-title'},'Развеем мифы?'),
-      h('p',{class:'lead'},'«Я один ничего не изменю», «всё равно всё смешивают»… Из-за таких мифов многие бросают, даже не начав. 10 коротких ответов с фактами — пара минут.'),
-      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#interests'},'Сомнений нет — к делу'))),
+      h('p',{class:'lead'},'Правда ли, что один человек ничего не изменит, а сортировка бесполезна? Разберём 10 популярных мифов с фактами и без нравоучений.'),
+      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Проверить мифы'))),
     h('a',{class:'mt-art',href:'/mify','aria-label':'10 мифов о переработке и экологии'},
       h('span',{class:'mt-q','aria-hidden':'true'},'?'),
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
@@ -534,8 +534,9 @@ function worldTeaser(){
     const all = worldIds();
     mini.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...all.slice(0,60).map((id,i)=>{ const [x,y] = worldPos(i, all.length);
       return h('span',{class:'wt-dw'+(isDasha(id)?' first':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%'}, emojiOf(id)); }));
-    count.textContent = ids.length ? 'Жителей в мире: '+ids.length+'. Каждый участник — животное или растение, которое растёт вместе с его эко-привычками.' : 'Каждый участник — животное или растение, которое растёт вместе с его эко-привычками.';
-    cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Поселиться'));
+    count.textContent = 'Создай своего жителя — животное или растение. Выполняй экопривычки, помогай ему расти и наблюдай, как развивается общий мир участников.'+(ids.length ? ' Жителей в мире: '+ids.length+'.' : '');
+    // a newcomer sees how to join: the resident is chosen at sign-up
+    cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Создать своего жителя'));
   });
   return h('section',{class:'band alt',id:'world-teaser'}, h('div',{class:'wrap wt'},
     h('div',null, sectionHead('А ещё здесь можно играть','Свой Счастливый мир'), row, count, cta),
@@ -1950,8 +1951,9 @@ const START_STEPS = [
 ];
 function startSection(){
   const cta = h('div',{class:'start-cta'});
+  // challenges live in the cabinet (there is no public catalogue): a guest signs up first, a member opens or starts their own
   live(()=>{ cta.replaceChildren(...(accState()==='member'
-    ? [h('a',{class:'btn ghost',href:'/kabinet?tab=challenges#cabinet-tabs'},'Мои челленджи')]
+    ? [h('a',{class:'btn ghost',href:'/kabinet?tab=challenges#cabinet-tabs'}, challenges().length ? 'Мои челленджи' : 'Начать челлендж')]
     : [h('a',{class:'btn',href:'/kabinet?tab=register',onclick:()=>goal('home_start_join')},'Начать вместе'), h('span',{class:'hint'},'Регистрация за минуту — дальше подскажу каждый шаг.')])); });
   return h('section',{class:'band alt start',id:'start'}, h('div',{class:'wrap'},
     sectionHead('Для новичка','Ничего не знаешь про экологию? Отлично. Начнём вместе','Не нужно сразу всё менять. Выбери один маленький шаг — остальное подскажу по ходу.'),
@@ -2005,7 +2007,7 @@ function daromSpotlight(){
     // no counters here for now (owner's decision, 27.10.2026): while there are few things, zeros look sad
     grid.replaceChildren(...(list.length ? list.map(it=>h('a',{class:'ds-item',href:'/darom'},
       it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',decoding:'async'}) : h('div',{class:'ds-ph','aria-hidden':'true'},catIcon(it.category)),
-      h('b',null,it.title), h('span',{class:'hint'}, nearLabel(it) || [it.city, it.district].filter(Boolean).join(', ') || (it.category||'')))) : [h('p',{class:'hint'},'Пока здесь пусто — стань первым, кто отдаст вещь, и она появится на главной странице.')]));
+      h('b',null,it.title), h('span',{class:'hint'}, nearLabel(it) || [it.city, it.district].filter(Boolean).join(', ') || (it.category||'')))) : [h('p',{class:'hint'},'Стань одним из первых участников — размести вещь бесплатно.')]));
   });
   const give = h('span');
   live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:accState()==='member' ? '/kabinet?tab=things#cabinet-tabs' : '/kabinet?tab=register',onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
