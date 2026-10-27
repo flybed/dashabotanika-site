@@ -2,7 +2,7 @@
 // Отправляются через почтовые настройки PocketBase (Unisender Go). В каждом письме — «Отписаться» в один клик.
 const SITE = "https://dashabotanika.ru"
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", signups: "новые участники", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж", darom: "новые вещи даром" }
+const TOPIC_NAME = { messages: "личные сообщения", articles: "новые статьи", weekly: "письмо недели", signups: "новые участники", challenge: "напоминания о челлендже", nudge: "приглашения начать челлендж", darom: "новые вещи даром", comeback: "письма, если давно не заходили" }
 
 function site(app) { const u = String(app.settings().meta.appURL || "").replace(/\/+$/, ""); return /^https?:\/\//.test(u) && !/localhost|127\.0\.0\.1/.test(u) ? u : SITE }
 
@@ -14,7 +14,7 @@ function letter(app, title, html, button, url, unsub) {
 ${html}
 ${button ? `<p style="margin:22px 0"><a href="${url}" style="display:inline-block;background:#3A6234;color:#fff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:999px">${esc(button)}</a></p>` : ""}
 <p style="margin:18px 0 0;font-size:13px;color:#61655A">Разумный человек — счастливая планета 🌿<br>Даша, DashaBotanika</p>
-<p style="margin:16px 0 0;font-size:12px;color:#8A8C80;line-height:1.5">Вы получили это письмо, потому что выбрали его в личном кабинете.
+<p style="margin:16px 0 0;font-size:12px;color:#8A8C80;line-height:1.5">Вы получили это письмо, потому что выбрали его при регистрации или в личном кабинете.
 <a href="${unsub}" style="color:#8A8C80">Отписаться</a> · <a href="${site(app)}/kabinet?tab=profile#notify" style="color:#8A8C80">Настроить уведомления</a></p>
 </div></div>`
 }
@@ -188,6 +188,51 @@ function flushSignups(app) {
   return sent
 }
 
+// ---------- «ОН ТЕБЯ ОЧЕНЬ ЖДЕТ...»: не заходил больше 3 дней — что ещё не пробовал ----------
+// одно письмо на одно отсутствие: следующее — только если человек вернулся (last_seen позже письма) и снова пропал
+const DAY = 86400000
+const parseDate = (s) => { const t = Date.parse(String(s || "").replace(" ", "T")); return isNaN(t) ? 0 : t }
+function lastVisit(app, user) {
+  let seen = 0
+  try { seen = parseDate(app.findFirstRecordByFilter("presence", "user = {:u}", { u: user.id }).getString("last_seen")) } catch (e) {}
+  return Math.max(seen, parseDate(user.getString("created")))
+}
+function hasAny(app, coll, filter, params) { try { return app.countRecords(coll, $dbx.exp(filter, params)) > 0 } catch (e) { return false } }
+function untried(app, userId) {
+  const s = site(app), out = []
+  const darom = hasAny(app, "listings", "seller = {:u}", { u: userId }) || hasAny(app, "claims", "user = {:u}", { u: userId })
+  if (!darom) out.push(["🎁", "Проект «Даром»", "забери или отдай вещь бесплатно — соседям рядом с тобой", `${s}/darom`])
+  let challenges = []
+  try { challenges = (JSON.parse(toString(app.findFirstRecordByFilter("habits", "owner = {:u}", { u: userId }).get("data"))) || {}).challenges || [] } catch (e) {}
+  if (!challenges.length) out.push(["🌱", "Запусти свой челлендж", "за 1 минуту, с напоминанием в Telegram", `${s}/kabinet?tab=challenges#cabinet-tabs`])
+  if (!hasAny(app, "ai_uses", "user = {:u}", { u: userId })) out.push(["✨", "Используй наш встроенный ИИ", "сфотографируй еду или упаковку — он подскажет, что приготовить и куда сдать", `${s}/eda#helper`])
+  return out
+}
+function comeback(app, force, onlyUser) {
+  const now = Date.now()
+  let sent = 0
+  for (const rec of wanting(app, "comeback", onlyUser || "")) {
+    try {
+      const user = app.findRecordById("users", rec.getString("user"))
+      if (user.getBool("hidden")) continue
+      const last = lastVisit(app, user)
+      if (!force && now - last < 3 * DAY) continue
+      const was = parseDate(rec.getString("last_comeback"))
+      if (was && was >= last) continue // уже писали в это отсутствие
+      const name = esc(user.getString("name") || "Привет")
+      const list = untried(app, user.id)
+      const items = list.length ? list : [["🎁", "Новые вещи даром", "соседи отдают бесплатно — загляни, вдруг там то, что тебе нужно", `${site(app)}/darom`], ["📖", "Свежие статьи", "как тратить меньше и жить проще", `${site(app)}/zhurnal`]]
+      const html = p(`${name}, тебя не было на сайте несколько дней — а здесь много полезного. ${list.length ? "Вот что ты ещё не пробовал(а):" : "Вот что нового:"}`) +
+        `<ol style="margin:0 0 12px;padding-left:22px;font-size:16px;line-height:1.6">${items.map(([ic, t, d, u]) => `<li style="margin-bottom:8px">${ic} <a href="${u}" style="color:#3A6234;font-weight:bold">${esc(t)}</a> — ${esc(d)}</li>`).join("")}</ol>` +
+        p("Трать меньше. Сортируй больше. Живи дольше! 🌿")
+      if (send(app, rec, "comeback", "ОН ТЕБЯ ОЧЕНЬ ЖДЕТ...", "DashaBotanika тебя очень ждёт!", html, "Вернуться на сайт", `${site(app)}/`)) {
+        rec.set("last_comeback", new Date().toISOString().replace("T", " ")); app.save(rec); sent++
+      }
+    } catch (e) {}
+  }
+  return sent
+}
+
 function unsubscribe(app, id, token, topic) {
   let rec
   try { rec = app.findRecordById("notify", id) } catch (e) { return null }
@@ -210,4 +255,4 @@ function unsubRoute(e) {
     : e.html(400, unsubPage("Ссылка устарела", "Не получилось найти подписку. Настроить письма можно в личном кабинете."))
 }
 
-module.exports = { onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site, wanting, send }
+module.exports = { comeback, untried, onChatMessage, onNewArticles, flushArticles, weekly, remindAll, onSignup, flushSignups, unsubscribe, unsubRoute, site, wanting, send }

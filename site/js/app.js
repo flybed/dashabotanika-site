@@ -2982,7 +2982,7 @@ const DID = [
   ['invite','🤝 Пригласил(а) друзей', a=>a.done.invite_friend>0],
   ['ai','🤖 Спрашивал(а) ИИ-помощника', a=>a.ai.food+a.ai.pack>0],
   ['nothing','😴 Пока ничего не делал(а)', a=>!DID.some(([k,,f])=>k!=='nothing' && k!=='exam_ok' && f(a))]];
-const TOPIC_RU = {messages:'сообщения', articles:'статьи', weekly:'письмо недели', challenge:'челлендж', nudge:'напоминания'};
+const TOPIC_RU = {messages:'сообщения', articles:'статьи', weekly:'письмо недели', challenge:'челлендж', nudge:'напоминания', comeback:'если давно не заходил'};
 const DAY = 86400000;
 function loadPeople(el){
   if (PEOPLE.loading || !COM.owner) return;
@@ -3899,6 +3899,8 @@ function authForms(mode){
     const nick = h('input',{id:'rg-nick',maxlength:'30',placeholder:'Например, Лиза из Москвы',autocomplete:'nickname',required:''});
     const pick = characterPicker('rg-char');
     const consent = h('input',{type:'checkbox',id:'rg-consent',required:''});
+    // «ОН ТЕБЯ ОЧЕНЬ ЖДЕТ...»: one letter if you have not come for more than 3 days; ticked by default, can be unticked
+    const news = h('input',{type:'checkbox',id:'rg-news',checked:''});
     const btn = h('button',{type:'submit',class:'btn'},'Зарегистрироваться');
     const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
       h('div',{class:'fields'}, h('label',{for:'rg-email'},'Почта',email), h('label',{for:'rg-pass'},'Пароль (от 6 символов)',pass)),
@@ -3906,6 +3908,7 @@ function authForms(mode){
       h('div',null, h('div',{style:'font-weight:700;margin-bottom:6px'},'Кем вы будете в «Счастливом мире»?'), pick),
       h('p',{class:'hint'},'Имя и персонажа видят все посетители сайта. Почту не видит никто.'),
       h('label',{class:'consent'}, consent, h('span',null,'Я согласен(на) на обработку моих персональных данных в соответствии с ', h('a',{href:'/politika',target:'_blank'},'Политикой конфиденциальности'))),
+      h('label',{class:'consent'}, news, h('span',null,'Напомнить мне на почту, если я долго не захожу (отписаться можно в один клик)')),
       h('div',null,btn));
     const ref = refOf(), invite = h('div');
     if (ref) live(()=>{ invite.replaceChildren(h('div',{class:'invite-banner'}, h('span',{'aria-hidden':'true'},'🎁'),
@@ -3925,6 +3928,7 @@ function authForms(mode){
           try{ await pb.collection('referrals').create({inviter:ref, invited:auth.record.id}); }catch(e){}
         }
         try{ localStorage.removeItem(REF_KEY); }catch(e){}
+        if (news.checked){ try{ await pb.collection('notify').create({user:auth.record.id, email_topics:['comeback'], hour:20, tz:-new Date().getTimezoneOffset()}); }catch(e){} }
         pb.collection('users').requestVerification(email.value.trim()).catch(()=>{});
         try{ sessionStorage.setItem('db-ask-place','1'); }catch(e){}
         done('Добро пожаловать, '+v+'! Мы прислали письмо для подтверждения почты — если не найдёте, проверьте «Спам»');
@@ -4414,6 +4418,7 @@ const NOTIFY_ROWS = [
   ['messages','💬 Личные сообщения','когда вам пишут; на почту — не чаще раза в 3 часа',{tg:true, mail:true}],
   ['articles','📖 Новые статьи','когда Даша публикует статью',{tg:true, mail:true}],
   ['weekly','📬 Письмо недели','по воскресеньям: новые статьи, жизнь «Счастливого мира» и ваш прогресс',{tg:true, mail:true}],
+  ['comeback','👋 Если давно не заходил(а)','одно письмо, если вас не было больше 3 дней: что нового и что вы ещё не пробовали',{mail:true}],
   ['signups','👤 Новый участник','когда кто-то регистрируется на сайте (видят только админы и модераторы)',{tg:true, mail:true, admin:true}]
 ];
 function notifyCard(){
@@ -4451,7 +4456,7 @@ function notifyCard(){
     const mail = new Set((NREC && NREC.email_topics)||[]), tgw = new Set((sub && sub.enabled && sub.topics)||[]);
     const rows = NOTIFY_ROWS.filter(r=>!r[3].admin || COM.admin).map(([k,t,d,ch])=>{
       const m = ch.mail ? h('input',{type:'checkbox','data-k':k,'data-c':'mail',checked:mail.has(k)?'':null,'aria-label':t+' — на почту'}) : h('span',{class:'hint',title:'Только в Telegram'},'—');
-      const g = h('input',{type:'checkbox','data-k':k,'data-c':'tg',checked:tgw.has(k)?'':null,disabled:sub?null:'','aria-label':t+' — в Telegram'});
+      const g = ch.tg ? h('input',{type:'checkbox','data-k':k,'data-c':'tg',checked:tgw.has(k)?'':null,disabled:sub?null:'','aria-label':t+' — в Telegram'}) : h('span',{class:'hint',title:'Только на почту'},'—');
       return h('tr',null, h('th',{scope:'row'}, h('b',null,t), h('span',{class:'hint'},d)), h('td',null,m), h('td',null,g));
     });
     const curHour = (sub && sub.hour) || (NREC && NREC.hour) || 20;
