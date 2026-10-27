@@ -2823,7 +2823,7 @@ function thingsPanel(lists){
     h('div',null, h('b',null,r.given), h('span',null,'вы отдали '+plural(r.given,'вещь','вещи','вещей'))),
     h('div',null, h('b',null,'≈ '+String(r.kg).replace('.',',')+' кг'), h('span',null,'не попало на свалку благодаря вам')),
     h('div',null, h('b',null,(r.badges||[]).map(b=>(BADGE_T[b]||[''])[0].split(' ')[0]).join(' ') || '—'), h('span',null, (r.badges||[]).length ? (r.badges||[]).map(b=>(BADGE_T[b]||['',''])[0].replace(/^\S+\s/,'')).join(', ') : 'значков пока нет — первый за первую отданную вещь'))); }).catch(()=>{});
-  return [myCount, h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в «Вещах даром», и те, кому вещь нужна, смогут написать вам.'), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
+  return [myCount, h('p',{class:'muted'},'Даша проверяет каждое объявление, обычно в течение дня. Потом оно появится в «Вещах даром», и те, кому вещь нужна, смогут написать вам.'), h('p',{class:'hint tg-hint'},'📲 Быстрее через Telegram: подключите бота в «Профиль и настройки» → «Уведомления» и просто пришлите ему фото вещи с подписью — объявление создастся само. ', h('a',{href:'/kabinet?tab=profile#notify'},'Подключить')), f, h('h3',{style:'font-size:18px'},'Мои объявления'), lists.things];
 }
 function paintThings(el){
   const items = myItems().slice().sort((a,b)=>b.ts-a.ts);

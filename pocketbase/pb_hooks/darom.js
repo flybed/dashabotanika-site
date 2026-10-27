@@ -227,4 +227,59 @@ function expire(app) {
   return { reminded, archived, returns, closed }
 }
 
-module.exports = { stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend, badgesOf, trusted, reservations, hold }
+// --- объявление из Telegram ---
+// категория по словам из названия; не угадали — «Другое» (модератор поправит при проверке)
+const CAT_WORDS = [["Детское", /детск|ребён|ребен|малыш|коляск|кроватк|автокресл|игрушк|пелен|комбинезон/i], ["Одежда и обувь", /куртк|пальто|плать|джинс|брюк|рубаш|свитер|кофт|юбк|обув|ботин|кроссов|сапог|шарф|шапк|одежд/i],
+  ["Книги", /книг|учебник|журнал|роман|энциклопед/i], ["Кухня и посуда", /посуд|кастрюл|сковород|тарел|чашк|кружк|банк|чайник|блендер|мультиварк|кухон/i],
+  ["Техника", /телефон|смартфон|ноутбук|компьютер|планшет|телевиз|монитор|наушник|зарядк|роутер|принтер|техник|пылесос|утюг|фен/i],
+  ["Мебель и дом", /стол|стул|шкаф|диван|кресл|полк|комод|кроват|матрас|ламп|торшер|ковёр|ковер|штор|зеркал|мебел/i],
+  ["Растения", /растени|цвет[оа]к|кактус|рассад|горшок|фикус|монстер/i], ["Для животных", /кошк|кот|собак|пёс|корм|лоток|переноск|аквариум|клетк/i],
+  ["Хобби и спорт", /велосипед|самокат|лыж|коньк|санк|мяч|гантел|тренаж|палатк|рюкзак|удочк|гитар|спорт/i]]
+const guessCat = (t) => (CAT_WORDS.find(([, re]) => re.test(t)) || ["Другое"])[0]
+function fromTelegram(app, msg) {
+  const T = require(`${__hooks}/tg.js`), chatId = String(msg.chat.id)
+  let sub
+  try { sub = app.findFirstRecordByFilter("tg_subs", "chat_id = {:c}", { c: chatId }) } catch (e) {
+    T.send(chatId, "Чтобы отдавать вещи через бота, сначала подключите его к своему аккаунту: кабинет на сайте → «Профиль и настройки» → «Подключить Telegram».", ["Открыть кабинет", SITE + "/kabinet?tab=profile#notify"]); return
+  }
+  const userId = sub.getString("user"), store = app.store()
+  const photo = msg.photo && msg.photo.length ? msg.photo[msg.photo.length - 1] : null
+  // несколько фото одним альбомом — к первому объявлению, дополнительными фото (до 5)
+  const mg = msg.media_group_id ? "tg_mg_" + msg.media_group_id : ""
+  if (mg && store.get(mg)) {
+    try {
+      const l = app.findRecordById("listings", store.get(mg)), have = l.getStringSlice("more_photos")
+      const bytes = photo && have.length < 5 ? T.fileBytes(photo.file_id) : null
+      if (bytes) { l.set("more_photos+", [$filesystem.fileFromBytes(bytes, "tg-" + (have.length + 1) + ".jpg")]); app.saveNoValidate(l) }
+    } catch (e) {}
+    return
+  }
+  const raw = String(msg.caption || msg.text || "").replace(/^\/otdam(@\S+)?/i, "").trim()
+  const lines = raw.split("\n").map((x) => x.trim()).filter(Boolean)
+  const title = String(lines[0] || "").replace(/^(отдам даром|отдаю даром|отдам|отдаю)[:\s—-]*/i, "").replace(/^./, (c) => c.toUpperCase()).slice(0, 100)
+  if (title.length < 2) {
+    T.send(chatId, "🎁 Чтобы отдать вещь, пришлите её фото и подпишите: первая строка — что это (например, «Детский велосипед»), дальше — состояние, размер, где и когда удобно забрать.\n\nМожно и без фото: «Отдам книги о садоводстве, 5 штук».")
+    return
+  }
+  const l = new Record(app.findCollectionByNameOrId("listings"))
+  l.set("seller", userId); l.set("title", title); l.set("kind", "Отдам даром"); l.set("status", "active")
+  l.set("note", lines.slice(1).join("\n").slice(0, 1500)); l.set("category", guessCat(raw))
+  l.set("until", new Date(Date.now() + 14 * 86400000).toISOString().replace("T", " "))
+  try {
+    const p = app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: userId })
+    l.set("city", p.getString("city")); l.set("district", p.getString("district"))
+    if (p.get("lat") && p.get("lon")) { l.set("lat", Math.round(Number(p.get("lat")) * 100) / 100); l.set("lon", Math.round(Number(p.get("lon")) * 100) / 100) }
+  } catch (e) {}
+  let photoOk = !photo
+  if (photo) { const bytes = T.fileBytes(photo.file_id); if (bytes) { l.set("photo", $filesystem.fileFromBytes(bytes, "tg.jpg")); photoOk = true } }
+  const trust = trusted(app, userId)
+  if (trust) l.set("moderation", "approved")
+  app.save(l)
+  if (mg) store.set(mg, l.id)
+  if (trust) onApproved(app, l)
+  T.send(chatId, (trust ? `✅ Опубликовано: «${safe(title)}»` : `✅ Отправлено на проверку: «${safe(title)}». Даша обычно проверяет в течение дня.`) +
+    `\nКатегория: ${l.getString("category")}${l.getString("city") ? " · " + safe(l.getString("city")) : ""}` + (photoOk ? "" : "\n\n⚠️ Фото не загрузилось — можно удалить объявление в кабинете и выставить заново на сайте.") +
+    "\n\nЖелающие напишут вам на сайте, а вы сами выберете, кому отдать.", trust ? ["Открыть объявление", `${SITE}/darom/v/${l.id}`] : ["Мои вещи", `${SITE}/kabinet?tab=things`])
+}
+
+module.exports = { fromTelegram, guessCat, stats, mine, checkThanks, expire, KG, checkClaim, claimsChanged, choose, onLent, onApproved, flushSubs, support, isFriend, badgesOf, trusted, reservations, hold }
