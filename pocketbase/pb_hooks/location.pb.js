@@ -34,3 +34,11 @@ onRecordCreateRequest((e) => {
 }, "listings")
 // вещи без точки (старые или когда сервис был недоступен) — раз в час
 cronAdd("geo-backfill", "37 * * * *", () => { require(`${__hooks}/geo.js`).backfill($app, 10) })
+// запустить сейчас, не дожидаясь часа (админ или модератор); говорит, что не вышло
+routerAdd("POST", "/api/geo/backfill", (e) => {
+  const role = e.auth ? e.auth.getString("role") : ""
+  if (role !== "admin" && role !== "moderator") return e.json(403, { message: "Только для администратора" })
+  const geo = require(`${__hooks}/geo.js`)
+  const done = geo.backfill(e.app, 10)
+  return e.json(200, { done, left: e.app.findRecordsByFilter("listings", "lat = 0 && city != '' && status != 'gone'", "", 0, 0).length, error: geo.lastError() })
+}, $apis.requireAuth("users"))
