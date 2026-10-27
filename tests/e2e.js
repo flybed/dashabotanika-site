@@ -91,7 +91,7 @@ const T = '#cabinet-tabs ';
   const p = await c1.newPage(); watchPage(p,'dasha');
   await p.goto(B+'/', {waitUntil:'networkidle'});
   const order = await p.$$eval('main > section', s=>s.map(x=>x.id));
-  check('home for a newcomer: what you get, things for free, how to start, cleaning, Dasha, topics, articles, the world, first steps, myths, feedback', order.join()==='top,benefits,darom-spot,start,uborka,about,interests,journal,world-teaser,steps,myths-teaser,say' && !(await p.$('#about .gallery')));
+  check('home for a newcomer: what you get, things for free, how to start, myths, cleaning, Dasha, topics, articles, the world, first steps, feedback', order.join()==='top,benefits,darom-spot,start,myths-teaser,uborka,about,interests,journal,world-teaser,steps,say' && !(await p.$('#about .gallery')));
   { const hi = await p.$eval('.pebble img', i=>[i.getAttribute('loading'), i.getAttribute('srcset')||'', i.currentSrc]);
     const small = await fetch(B+'/img/hero-dasha-480.webp');
     check('photos: hero loads first with a small copy for phones, others lazy', hi[0]==='eager' && hi[1].includes('-480.webp 480w') && small.ok && (await p.$$eval('#about img', a=>a.every(i=>i.loading==='lazy'))));
