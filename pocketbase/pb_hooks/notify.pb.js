@@ -38,3 +38,10 @@ routerAdd("POST", "/api/notify/weekly", (e) => e.json(200, { sent: require(`${__
 // «Отписаться» из письма: одна ссылка, без входа на сайт (почтовые программы отписывают одним POST)
 routerAdd("GET", "/api/notify/unsub", (e) => require(`${__hooks}/notify.js`).unsubRoute(e))
 routerAdd("POST", "/api/notify/unsub", (e) => require(`${__hooks}/notify.js`).unsubRoute(e))
+
+// «ОН ТЕБЯ ОЧЕНЬ ЖДЕТ...» — раз в день в 12:23 по Москве, тем, кто не заходил больше 3 дней
+cronAdd("notify-comeback", "23 9 * * *", () => { require(`${__hooks}/notify.js`).comeback($app, false) })
+routerAdd("POST", "/api/notify/comeback", (e) => {
+  const b = e.requestInfo().body || {}
+  return e.json(200, { sent: require(`${__hooks}/notify.js`).comeback(e.app, !!b.force, String(b.user || "")) })
+}, $apis.requireSuperuserAuth())
