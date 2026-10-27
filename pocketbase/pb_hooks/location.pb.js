@@ -40,7 +40,10 @@ routerAdd("POST", "/api/geo/backfill", (e) => {
   if (role !== "admin" && role !== "moderator") return e.json(403, { message: "Только для администратора" })
   const geo = require(`${__hooks}/geo.js`)
   // {"redo": id вещи} — точка встала не туда: заново по городу и району автора
-  const redo = String((e.requestInfo().body || {}).redo || "")
+  const body = e.requestInfo().body || {}
+  // {"q": "…"} — что отвечает сервис карт (проверить, почему точка не там)
+  if (body.q) return e.json(200, { found: geo.search(String(body.q)).map((x) => ({ name: x.display_name, type: x.addresstype || x.type, lat: x.lat, lon: x.lon })), error: geo.lastError() })
+  const redo = String(body.redo || "")
   if (redo) try {
     const l = e.app.findRecordById("listings", redo)
     const p = e.app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: l.getString("seller") })
