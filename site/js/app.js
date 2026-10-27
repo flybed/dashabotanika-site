@@ -516,7 +516,7 @@ function mythsTeaser(){
       h('div',{class:'eyebrow'},'Прежде чем начать'),
       h('h2',{class:'mt-title'},'Сначала развеем мифы?'),
       h('p',{class:'lead'},'«Я один ничего не изменю», «всё равно всё смешивают»… Из-за таких мифов многие бросают, даже не начав. 10 коротких ответов с фактами — пара минут.'),
-      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#uborka'},'Сомнений нет — к делу'))),
+      h('div',{class:'mt-cta'}, h('a',{class:'btn',href:'/mify'},'Развеять мифы →'), h('a',{class:'btn ghost',href:'/#about'},'Сомнений нет — к делу'))),
     h('a',{class:'mt-art',href:'/mify','aria-label':'10 мифов о переработке и экологии'},
       h('span',{class:'mt-q','aria-hidden':'true'},'?'),
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
@@ -1938,7 +1938,7 @@ window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max
 
 function homePage(){
   // for someone who came by chance: first what you get (in 5 seconds), then how to start, then who Dasha is, then the deep end
-  return [hero(), benefitsSection(), daromSpotlight(), startSection(), mythsTeaser(), cleaningTeaser(), dashaIntro(), interestsSection(), journalSection(true), worldTeaser(), firstSteps(), feedbackTeaser()];
+  return [hero(), benefitsSection(), daromSpotlight(), startSection(), mythsTeaser(), dashaIntro(), interestsSection(), journalSection(true), worldTeaser(), firstSteps(), feedbackTeaser()];
 }
 /* «Что ты получишь здесь»: benefits for a person, not the sections of the project */
 const BENEFITS = [
@@ -1972,18 +1972,6 @@ function startSection(){
       h('span',{class:'start-n','aria-hidden':'true'},String(i+1)), h('span',{class:'start-ic','aria-hidden':'true'},ic),
       h('b',null,t), h('p',{class:'muted'},d), h('a',{class:'btn small ghost',href},b)))),
     cta));
-}
-/* household chemistry: start from what it gives you, then the planet */
-const CLEAN_ART = '/zhurnal/ekologichnaya-uborka-chem-zamenit-bytovuyu-himiyu-soda-uksus-limonnaya-kislota';
-function cleaningTeaser(){
-  return h('section',{class:'band clean',id:'uborka'}, h('div',{class:'wrap'}, h('div',{class:'teaser clean-teaser'},
-    h('div',{style:'display:grid;gap:10px'},
-      h('div',{class:'eyebrow'},'Дом и уборка'),
-      h('h2',null,'Тебе правда нужны 12 бутылок для уборки дома?'),
-      h('p',{class:'lead'},'Разберёмся, что действительно нужно, где реклама заставляет покупать лишнее и какие варианты подойдут для дома — особенно если есть дети и животные.'),
-      h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'}, h('a',{class:'btn',href:CLEAN_ART,onclick:()=>goal('home_clean')},'Разобраться'), h('a',{class:'btn ghost',href:BENEFITS[2][3]},'Как читать состав'))),
-    // twelve bottles, and only a few of them are really needed
-    h('div',{class:'bottles','aria-hidden':'true'}, Array.from({length:12},(_,i)=>h('span',{class:i < 3 ? 'keep' : ''},'🧴')), h('small',null,'хватит 3–4')))));
 }
 /* who is behind it: a photo and a few lines; the whole story opens on a button */
 function dashaIntro(){
