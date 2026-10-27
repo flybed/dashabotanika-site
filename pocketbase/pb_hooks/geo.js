@@ -46,11 +46,26 @@ function profilePoint(app, p) {
   return pt
 }
 
-// место профиля → его вещам, которые ещё не отданы
-function syncListings(app, p) {
+// у вещи может быть своё место (забрать у метро у работы) — тогда профиль ей не указ
+const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase()
+function samePlace(l, city, district) { return same(l.getString("city"), city) && (!l.getString("district") || same(l.getString("district"), district)) }
+
+// точка вещи: место профиля, если вещь там же; иначе по городу и району самой вещи
+function listingPoint(app, l) {
+  let p = null
+  try { p = app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: l.getString("seller") }) } catch (e) {}
+  if (p && p.getString("city") && samePlace(l, p.getString("city"), p.getString("district"))) { const pt = profilePoint(app, p); if (pt) return pt }
+  if (!l.getString("city")) return null
+  return lookup(p && same(p.getString("city"), l.getString("city")) ? p.getString("country") : "", l.getString("city"), l.getString("district"))
+}
+
+// место профиля сменилось → вещам, которые лежали «там же, где профиль» (old) и ещё не отданы; у остальных своё место
+function syncListings(app, p, old) {
   const pt = p.get("lat") && p.get("lon") ? { lat: r2(p.get("lat")), lon: r2(p.get("lon")) } : null
+  const was = old || { city: p.getString("city"), district: p.getString("district") }
   let n = 0
   for (const l of app.findRecordsByFilter("listings", "seller = {:u} && status != 'gone'", "", 0, 0, { u: p.getString("owner") })) {
+    if (l.getString("city") && !samePlace(l, was.city, was.district)) continue
     const want = { lat: pt ? pt.lat : l.get("lat"), lon: pt ? pt.lon : l.get("lon"), city: p.getString("city") || l.getString("city"), district: p.getString("district") || l.getString("district") }
     if (Object.keys(want).every((k) => l.get(k) === want[k])) continue
     for (const k in want) l.set(k, want[k])
@@ -59,16 +74,14 @@ function syncListings(app, p) {
   return n
 }
 
-// вещи без точки: берём из профиля, иначе ищем по городу и району вещи (не больше max за раз — у Nominatim лимит)
+// вещи без точки (не больше max запросов к сервису карт за раз — у Nominatim лимит)
 function backfill(app, max) {
-  let done = 0, looked = 0
-  for (const l of app.findRecordsByFilter("listings", "lat = 0 && city != '' && status != 'gone'", "-created", 50, 0)) {
-    let pt = null
-    try { const p = app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: l.getString("seller") }); if (p.get("lat") || looked < (max || 10)) { if (!p.get("lat")) looked++; pt = profilePoint(app, p) } } catch (e) {}
-    if (!pt && looked < (max || 10)) { looked++; pt = lookup("", l.getString("city"), l.getString("district")) }
+  let done = 0
+  for (const l of app.findRecordsByFilter("listings", "lat = 0 && city != '' && status != 'gone'", "-created", max || 10, 0)) {
+    const pt = listingPoint(app, l)
     if (pt) { l.set("lat", pt.lat); l.set("lon", pt.lon); app.saveNoValidate(l); done++ }
   }
   return done
 }
 
-module.exports = { search, lookup, profilePoint, syncListings, backfill, lastError: () => lastError }
+module.exports = { search, lookup, profilePoint, listingPoint, syncListings, backfill, lastError: () => lastError }
