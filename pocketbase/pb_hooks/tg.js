@@ -27,6 +27,13 @@ function call(method, payload) {
   } catch (e) { lastError = "нет связи с api.telegram.org"; $app.store().set("tg_down_until", Date.now() + 5 * 60000); return null }
 }
 const errorText = () => lastError
+// файл, который прислали боту (фото вещи): getFile, потом скачиваем через тот же адрес API (или прокси)
+function fileBytes(fileId) {
+  const r = call("getFile", { file_id: fileId })
+  const p = r && r.ok && r.result && r.result.file_path
+  if (!p) return null
+  try { const res = $http.send({ url: `${apiBase()}/file/bot${token()}/${p}`, method: "GET", timeout: 15 }); return res.statusCode === 200 && res.body && res.body.length ? res.body : null } catch (e) { return null }
+}
 function send(chatId, html, button) {
   const p = { chat_id: chatId, text: html, parse_mode: "HTML", disable_web_page_preview: true }
   if (button) p.reply_markup = { inline_keyboard: [[{ text: button[0], url: button[1] }]] }
@@ -108,7 +115,9 @@ function onMessage(app, msg) {
     send(chatId, "Напоминания выключены. Чтобы включить снова — кабинет на сайте → «Профиль и настройки» → «Подключить Telegram».")
     return
   }
-  send(chatId, "Привет! Я бот сайта DashaBotanika 🌍 Напоминаю про эко-челленджи и рассказываю новости сообщества.\n\nЧтобы подключить напоминания, откройте личный кабинет → «Профиль и настройки» → «Подключить Telegram».", ["Открыть сайт", SITE + "/kabinet?tab=profile#notify"])
+  // «Вещи даром» прямо из Telegram: фото с подписью (или «Отдам …», /otdam) — и объявление готово
+  if ((msg.photo && msg.photo.length) || /^\/otdam\b/i.test(text) || /^отда(м|ю)(\s|:|$)/i.test(text)) { require(`${__hooks}/darom.js`).fromTelegram(app, msg); return }
+  send(chatId, "Привет! Я бот сайта DashaBotanika 🌍 Напоминаю про эко-челленджи, рассказываю новости сообщества и помогаю отдавать вещи даром.\n\n🎁 Чтобы отдать вещь, пришлите сюда её фото и подпишите, что это (первая строка — название, дальше — описание).\n\nЧтобы подключить бота, откройте личный кабинет → «Профиль и настройки» → «Подключить Telegram».", ["Открыть сайт", SITE + "/kabinet?tab=profile#notify"])
 }
 
 // ---------- напоминания ----------
@@ -208,4 +217,4 @@ function flushArticles(app) {
 // для кабинета: есть ли токен и отвечает ли Telegram (getMe), чтобы честно показать, почему бот не подключается
 function status() { return { token: !!token(), ok: token() ? !!username() : false, error: errorText() } }
 
-module.exports = { send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles, openToday, status, subsWith }
+module.exports = { fileBytes, send, errorText, token, hookSecret, poll, linkFor, onMessage, remindAll, onChatMessage, onNewArticles, flushArticles, openToday, status, subsWith }
