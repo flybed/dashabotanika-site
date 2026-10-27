@@ -513,7 +513,7 @@ function interestsSection(){
 /* right under the first screen: a big question mark in a cloud of myths, and a choice — clear them up first or go straight on */
 const MYTH_BITS = ['экологично — дорого','один человек ничего не изменит','всё равно всё смешают','экотовары — маркетинг','придётся от всего отказаться','сортировка бесполезна'];
 function mythsTeaser(){
-  return h('section',{class:'band mt',id:'myths-teaser','aria-label':'Мифы об экологии'}, h('div',{class:'wrap mt-wrap'},
+  return h('section',{class:'band alt mt',id:'myths-teaser','aria-label':'Мифы об экологии'}, h('div',{class:'wrap mt-wrap'},
     h('div',{class:'mt-text'},
       h('div',{class:'eyebrow'},'Мифы и факты'),
       h('h2',{class:'mt-title'},'Экология — дорого, сложно и бессмысленно?'),
@@ -538,7 +538,7 @@ function worldTeaser(){
     // a newcomer sees how to join: the resident is chosen at sign-up
     cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Создать своего жителя'));
   });
-  return h('section',{class:'band alt',id:'world-teaser'}, h('div',{class:'wrap wt'},
+  return h('section',{class:'band',id:'world-teaser'}, h('div',{class:'wrap wt'},
     h('div',null, sectionHead('А ещё здесь можно играть','Свой Счастливый мир'), row, count, cta),
     h('a',{href:'/mir',class:'wt-link','aria-label':'Открыть «Счастливый мир»'}, mini)));
 }
@@ -1269,7 +1269,8 @@ const articleUrl = a => '/zhurnal/'+articleSlug(a);
 // alt for a cover: the editor's description, else the title; for a photo in the text: its caption without the «Фото: author, licence» credit
 const coverAlt = a => (a.image_alt||'').trim() || a.title || '';
 const figAlt = cap => cap.replace(/\s*Фото:.*$/s,'').trim() || cap;
-const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); };
+// «27 октября 2026», without the trailing «г.»
+const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}).replace(/\s?г\.$/,''); };
 /* ---------- article text: simple marks Dasha types become a nicely laid out article ----------
    ## Заголовок · ### Подзаголовок · **жирный** · _курсив_ · [ссылка](https://…) · > совет · --- разделитель
    - пункт · 1. пункт · ![подпись](адрес фото) на отдельной строке. Old plain-text articles keep working. */
@@ -1628,13 +1629,13 @@ function articleScore(a, topics){
 function articlesFor(topics, n){
   return STATE.articles.map((a,i)=>Object.assign({a, i}, articleScore(a, topics))).filter(x=>x.score >= 2).sort((x,y)=>y.score-x.score || x.i-y.i).slice(0, n||3);
 }
+// one card size for every article: a cover (or a quiet placeholder), at most two badges, title and lead cut to three lines
 function articleCard(it, why){
-  return h('article',{class:'card'},
-    it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, coverAlt(it))) : null,
-    why && why.length ? h('div',{class:'picked-why'}, why.slice(0,2).map(w=>h('span',null,'🎯 '+w.toLowerCase()))) : null,
-    h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
-    h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
-    h('p',{class:'muted',style:'font-size:15px'},it.lead));
+  return h('article',{class:'card acard'},
+    h('a',{class:'art-thumb'+(it.image ? '' : ' empty'),href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, it.image ? photoImg(it.image, coverAlt(it)) : h('span',{html:CAIRN_ICON})),
+    h('div',{class:'acard-meta'}, h('span',{class:'tag'},it.cat||'Статья'), why && why.length ? h('span',{class:'tag why'},'🎯 '+why[0].toLowerCase()) : null, h('span',{class:'date'},fmtDate(it.date))),
+    h('h3',{class:'acard-t'}, h('a',{class:'art-link',href:articleUrl(it),title:it.title},it.title)),
+    h('p',{class:'acard-lead'},it.lead));
 }
 // chips «Что вам интересно?» and the «Для вас» row; remembered in this browser
 function forYouBlock(){
@@ -1666,7 +1667,7 @@ function journalSection(preview){
         list.length ? h('div',{class:'grid g3'}, list.map(([a,why])=>articleCard(a, why))) : h('div',{class:'empty'},'Статьи скоро появятся.'),
         h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/zhurnal'},'Все статьи')));
     });
-    return h('section',{class:'band',id:'journal'}, h('div',{class:'wrap'}, box));
+    return h('section',{class:'band alt',id:'journal'}, h('div',{class:'wrap'}, box));
   }
   return h('section',{class:'band alt',id:'journal'}, h('div',{class:'wrap'},
     sectionHead('Журнал','Новости и статьи','Заметки об экологичной жизни. Есть тема или новость? Предложите её в личном кабинете, лучшие появятся здесь.'),
@@ -1998,7 +1999,7 @@ function startSection(){
   return h('section',{class:'band alt start',id:'start'}, h('div',{class:'wrap'},
     sectionHead('Для новичка','Ничего не знаешь про экологию? Отлично. Начнём вместе','Не нужно сразу всё менять. Выбери один маленький шаг — остальное подскажу по ходу.'),
     h('ol',{class:'start-steps'}, START_STEPS.map(([ic,t,d,href,b],i)=>h('li',{class:'card'},
-      h('span',{class:'start-n','aria-hidden':'true'},String(i+1)), h('span',{class:'start-ic','aria-hidden':'true'},ic),
+      h('span',{class:'start-n','aria-hidden':'true'},String(i+1)), h('span',{class:'start-ic int-ic','aria-hidden':'true'},ic),
       h('b',null,t), h('p',{class:'muted'},d), h('a',{class:'btn small ghost',href},b)))),
     cta));
 }
@@ -2008,7 +2009,7 @@ function dashaIntro(){
   const more = h('div',{class:'about-more',hidden:''}, paras.slice(1).map(x=>h('p',{class:'about-text'},x)));
   const btn = paras.length > 1 ? h('button',{type:'button',class:'btn ghost'},'Моя история') : null;
   if (btn) btn.addEventListener('click', ()=>{ more.hidden = !more.hidden; btn.textContent = more.hidden ? 'Моя история' : 'Свернуть'; if (!more.hidden) goal('home_story'); });
-  return h('section',{class:'band alt',id:'about'}, h('div',{class:'wrap'},
+  return h('section',{class:'band',id:'about'}, h('div',{class:'wrap'},
     h('div',{class:'about'},
       photoFig('about', 'Даша с семьёй у большого глобуса', 'round', 'Наша счастливая планета'),
       h('div',{style:'display:grid;gap:14px;min-width:0;align-content:start'},
@@ -5193,7 +5194,7 @@ function eleTips(){
   (STATE.promos||[]).filter(p=>p && p.title && safeHref(p.href) && (!p.until || p.until >= today) && (!p.who || p.who==='all' || (p.who==='member')===member))
     .forEach(p=>tips.push({id:'p:'+p.id, title:p.title, text:p.text, cta:p.cta||'Посмотреть', href:p.href}));
   const art = (STATE.articles||[]).find(a=>a && a.date && Date.now() - Date.parse(a.date) < 4*86400000);
-  if (art && !(member && COM.reads[art.id])) tips.push({id:'a:'+art.id, title:'Свежая статья в журнале', text:'«'+art.title+'»', cta:'Читать', href:articleUrl(art)});
+  if (art && !(member && COM.reads[art.id])) tips.push({id:'a:'+art.id, title:'Свежая статья в журнале', text:/^«/.test(art.title) ? art.title : '«'+art.title+'»', cta:'Читать', href:articleUrl(art)});
   const week = Math.floor(Date.now()/(7*86400000));
   if (!member) tips.push({id:'join:'+week, title:'Поселитесь в «Счастливом мире»', text:'Регистрация — минута: выберите животное или растение, и оно будет расти вместе с вашими эко-привычками.', cta:'Присоединиться', href:'/kabinet?tab=register'});
   if (!eleFlag('db-myths-seen')) tips.push({id:'myths', title:'15 мифов об экологии', text:'«Экологично — дорого», «всё равно всё смешивают», «я один ничего не изменю»… Честно и с фактами — за пару минут.', cta:'Развеять мифы', href:'/mify'});

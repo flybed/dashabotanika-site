@@ -1,6 +1,6 @@
 /* Layout: страница-гербарий — широкие «грядки»-секции на бумажном фоне, липкая навигация, карточки только у объектов (товары, кафе, вещи) */
 :root{
-  --paper:#EDE6D6; --surface:#F7F3EA; --ink:#232A1E; --muted:#61655A;
+  --paper:#EDE6D6; --surface:#F7F3EA; --ink:#232A1E; --muted:#575B50;
   --moss:#3A6234; --on-moss:#FFFFFF; --leaf:#86A85C; --sun:#C9932E; --clay:#AD5E39;
   --line:#D8CEB9; --soft:#E3DAC5;
   --stone:#8D9187; --stone-hi:#C9CCC2; --stone-dk:#5E6359; --sand-deep:#D9CBAE;
@@ -91,7 +91,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .cairn{width:34px;height:34px;flex:none}
 
 /* sections */
-section.band{padding-block:clamp(48px,7vw,88px);border-top:1px solid var(--line)}
+section.band{padding-block:clamp(44px,6vw,76px);border-top:1px solid var(--line)}
 section.band.alt{background:var(--soft) var(--grain);border-top:0;position:relative}
 section.band.alt::before{content:"";position:absolute;left:0;right:0;top:-23px;height:24px;background:var(--soft);
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 24' preserveAspectRatio='none'%3E%3Cpath d='M0 24V14C120 4 240 2 380 10s260 14 420 4 300-14 400-6v16Z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;
@@ -106,9 +106,11 @@ section.band.alt::before{content:"";position:absolute;left:0;right:0;top:-23px;h
 .ex{font-family:var(--font-hand);font-size:18px;color:var(--clay);position:absolute;top:10px;right:14px;transform:rotate(-4deg)}
 
 .btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:10px 18px;font-weight:800;cursor:pointer;background:var(--moss);color:var(--on-moss);text-decoration:none}
+.btn{transition:filter .15s ease,border-color .15s ease,background-color .15s ease,transform .15s ease}
 .btn:hover{filter:brightness(1.08)}
+.btn:active{transform:translateY(1px)}
 .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
-.btn.ghost:hover{border-color:var(--moss)}
+.btn.ghost:hover{border-color:var(--moss);background:color-mix(in srgb,var(--moss) 6%,transparent)}
 .btn.small{padding:6px 12px;font-size:14px}
 .btn.danger{background:transparent;color:var(--clay);border:1.5px solid var(--clay)}
 
@@ -439,7 +441,7 @@ body:has(.reader-bar) .wand{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
 .nav a[aria-current="page"]{color:var(--moss);text-decoration:underline;text-underline-offset:6px}
 a.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .more-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px}
-.teaser{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;border:2px solid var(--moss);border-radius:20px;padding:28px;background:var(--surface) var(--grain)}
+.teaser{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;border:2px solid var(--moss);border-radius:var(--r);padding:28px;background:var(--surface) var(--grain)}
 .teaser > div{flex:1 1 420px}
 .prod-ic{font-size:44px;line-height:1}
 .prod-img{border-radius:12px;overflow:hidden;aspect-ratio:4/3}
@@ -1410,7 +1412,7 @@ html,body{overflow-x:clip}
 .start-steps li{position:relative;display:grid;gap:8px;align-content:start;justify-items:start}
 .start-steps li p{margin:0;font-size:15px}
 .start-n{position:absolute;top:14px;right:16px;font-family:var(--font-display);font-size:34px;font-weight:800;color:var(--moss);opacity:.25}
-.start-ic{font-size:32px;line-height:1}
+.start-ic.int-ic{width:52px;height:52px;font-size:26px}
 .start-cta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:22px}
 .about-more{display:grid;gap:14px}
 @media (max-width:900px){.start-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1420,3 +1422,20 @@ html,body{overflow-x:clip}
 .myth-fake.half{background:var(--sun,#D49A2A);color:#2A1C05;box-shadow:0 2px 0 color-mix(in srgb,var(--sun,#D49A2A) 60%,#000)}
 .myth-facts{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14.5px}
 .myth-facts a{color:var(--moss);font-weight:700;white-space:nowrap}
+
+/* journal cards: one height, one cover ratio, at most two badges, three lines of title and lead */
+.acard{gap:10px;transition:border-color .2s ease,box-shadow .2s ease}
+.acard:hover{border-color:color-mix(in srgb,var(--moss) 45%,var(--line));box-shadow:0 14px 28px -20px rgba(35,42,30,.35)}
+.acard .art-thumb{aspect-ratio:16/9;margin-bottom:6px}
+.art-thumb.empty{display:grid;place-items:center;background:var(--soft) var(--grain)}
+.art-thumb.empty .cairn{width:64px;height:64px;opacity:.75}
+.acard-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-height:24px}
+.acard-meta .date{margin-left:auto}
+.tag.why{background:color-mix(in srgb,var(--sun) 18%,var(--surface));color:var(--ink);text-transform:none;letter-spacing:0;font-weight:700;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acard-t{font-size:21px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.acard-lead{margin:0;color:var(--muted);font-size:15px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* cards that are links or hold actions: the same calm hover */
+.start-steps li.card{transition:border-color .2s ease,box-shadow .2s ease}
+.start-steps li.card:hover{border-color:color-mix(in srgb,var(--moss) 45%,var(--line));box-shadow:0 14px 28px -20px rgba(35,42,30,.35)}
+/* keyboard focus on cards with a link inside */
+.acard:focus-within,.int:focus-within,.start-steps li.card:focus-within{border-color:var(--moss)}
