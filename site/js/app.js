@@ -1549,7 +1549,8 @@ function articlePage(path){
   if (!it) return {title:'Статья не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'},
     h('h1',null,'Статья не найдена'), h('p',{class:'lead'},'Возможно, её переименовали или убрали. Загляните в журнал — там все статьи.'),
     h('a',{class:'btn',href:'/zhurnal'},'Все статьи')))]};
-  return {title:it.title+' — DashaBotanika', render:()=>{
+  // the same title as the server page (pb_hooks/seo.js): the short search title when it is filled in
+  return {title:it.seo_title || it.title+' — DashaBotanika', render:()=>{
     live(()=>{ if (COM.uid) markRead(it.id); });
     setTimeout(readerBar);
     const others = STATE.articles.filter(a=>a!==it).slice(0,3);
