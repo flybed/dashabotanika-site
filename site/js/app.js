@@ -2642,8 +2642,8 @@ function marketSection(opts){
     h('button',{type:'button',class:'btn',onclick:giveThing},'🎁 Отдать вещь'),
     h('a',{class:'btn ghost',href:'#darom-catalog',onclick:e=>{ e.preventDefault(); goal('darom_find_page'); const el = document.getElementById('darom-catalog'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); }},'Найти вещь'),
     h('p',{class:'darom-trust'},'Без продажи и обмена. Каждое объявление проверяет Даша.'));
-  // secondary ways from an empty catalogue: the existing subscription and «Ищу»
-  const toBlock = (id, then) => e => { e.preventDefault(); const el = document.getElementById(id); if (!el) return; el.scrollIntoView({behavior:'smooth', block:'start'}); if (then) then(el); };
+  // the secondary way from an empty catalogue: the existing subscription («Ищу» stays further down)
+  const toBlock = id => e => { e.preventDefault(); const el = document.getElementById(id); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); };
   // Dasha's own giveaways; a teaching example lives in «Как это работает», marked «Пример»
   const own = STATE.market.filter(it=>!it.example), examples = STATE.market.filter(it=>it.example);
   const userGrid = h('div');
@@ -2659,9 +2659,7 @@ function marketSection(opts){
         h('b',{class:'darom-empty-t'},'Вещей пока нет — станьте первым'),
         h('p',null,'Первое объявление увидят все, кто заглянет в «Вещи даром».'),
         h('button',{type:'button',class:'btn',onclick:giveThing},'🎁 Отдать первую вещь'),
-        h('p',{class:'darom-empty-more'},
-          h('a',{href:'#darom-sub',onclick:toBlock('darom-sub')},'🔔 Сообщить, когда появятся'), ' · ',
-          h('a',{href:'#ishu',onclick:toBlock('ishu', el=>{ const b = el.querySelector('.want-cta button'); if (b) b.click(); })},'🔍 Оставить запрос «Ищу»'))));
+        h('p',{class:'darom-empty-more'}, h('a',{href:'#darom-sub',onclick:toBlock('darom-sub')},'🔔 Подписаться на новые вещи'))));
       return; }
     const F = DAROM.filter, q = F.q.trim().toLowerCase();
     const near = l => { if (!F.near) return true; if (F.near==='district') return sameDistrict(l); if (F.near==='city') { const p = PROFILE.rec; return !!(p && p.city && (l.city||'').trim().toLowerCase()===p.city.trim().toLowerCase()); } const km = kmTo(l); return km!==null && km <= +F.near; };
@@ -2707,8 +2705,8 @@ function marketSection(opts){
         [['Размести вещь','фото и пара слов, Даша проверит'],
          ['Выбери получателя','желающие пишут, решаешь ты'],
          ['Передай бесплатно','встреча или доставка, без денег']].map(([t,d],i)=>h('li',null, h('span',{class:'how-n','aria-hidden':'true'},String(i+1)), h('span',null, h('b',null,t), ' — ', d)))),
-      examples.length ? h('div',{class:'darom-example'}, examples.map(it=>h('div',{class:'ex-line'},
-        h('span',{class:'ex-mark'},'Пример'), h('b',null,it.title), h('span',{class:'hint'}, ['Даром', it.condition && 'состояние: '+it.condition.toLowerCase()].filter(Boolean).join(' · ')), delBtn('market',it.id)))) : null),
+      examples.length ? h('details',{class:'darom-example'}, h('summary',null,'Посмотреть пример'), examples.map(it=>h('div',{class:'ex-line'},
+        h('span',{class:'ex-mark'},'Пример'), h('b',null,it.title), h('span',{class:'hint'}, ['Даром', it.condition && 'состояние: '+it.condition.toLowerCase()].filter(Boolean).join(' · ')), it.note ? h('span',{class:'hint',style:'flex-basis:100%'},it.note) : null, delBtn('market',it.id)))) : null),
     thanksFeed(),
     wantsBlock(), daromSubCard(), FRIEND_PROGRAM ? friendCard() : null
   ));
@@ -3022,7 +3020,7 @@ function thingsPanel(lists){
     h('label',{class:'consent',for:'mk-lot'}, lot, '📦 Это лот: отдаю много вещей сразу (переезд, расхламление)'), lotBox);
   const f = h('form',{class:'form mk-form',novalidate:'',style:'margin:0;border-style:solid;border-color:var(--line)'},
     h('div',{class:'mk-photo'}, h('div',{class:'mk-photo-l'},'Фото'), h('div',{class:'mk-photo-row'}, pickLabel, file, photoBox),
-      h('p',{class:'hint',style:'margin:0'},'Можно и без фото, но с ним вещь забирают быстрее. JPG, PNG или WebP до 15 МБ.')),
+      h('p',{class:'hint',style:'margin:0'},'Необязательно. С фото вашу вещь будет проще выбрать. JPG, PNG или WebP до 15 МБ.')),
     h('label',{for:'mk-title'}, h('span',null,'Что отдаёте',req.cloneNode(true)), title),
     h('label',{for:'mk-cat'}, h('span',null,'Категория',req.cloneNode(true)), cat, h('span',{class:'hint'},'По ней вещь найдут в фильтре и пришлют подписчикам.')),
     h('label',{for:'mk-cond'},'Состояние',cond),
@@ -3075,7 +3073,7 @@ function thingsPanel(lists){
     h('div',null, h('b',null,(r.badges||[]).map(b=>(BADGE_T[b]||[''])[0].split(' ')[0]).join(' ') || '—'), h('span',null, (r.badges||[]).length ? (r.badges||[]).map(b=>(BADGE_T[b]||['',''])[0].replace(/^\S+\s/,'')).join(', ') : 'значков пока нет — первый за первую отданную вещь'))); }).catch(()=>{});
   // two views with a switch: «Мои объявления» and «Отдать вещь» (the form); ?do=give opens the form right away
   const giveBox = h('div',{class:'mk-give',id:'mk-give'},
-    h('p',{class:'hint mk-intro'},'Заполните форму за минуту. Даша проверит объявление, обычно в течение дня, а кому отдать — решаете вы.'),
+    h('h2',{class:'mk-head'},'Отдать вещь'),
     f, done,
     h('p',{class:'hint tg-hint'},'📲 Можно и через Telegram: подключите бота в ', h('a',{href:'/kabinet?tab=profile#notify'},'«Уведомлениях»'),' и пришлите ему фото вещи с подписью — объявление создастся само.'));
   const mineBox = h('div',{class:'mk-mine',id:'mk-mine'}, lists.things);

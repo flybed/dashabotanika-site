@@ -1571,7 +1571,6 @@ html,body{overflow-x:clip}
 .seg button{border:0;background:transparent;font:inherit;font-weight:800;padding:9px 16px;border-radius:999px;cursor:pointer;color:var(--muted);min-height:44px}
 .seg button[aria-selected="true"]{background:var(--moss);color:var(--on-moss)}
 .mk-give,.mk-mine{display:grid;gap:12px}
-.mk-intro{margin:0}
 @media (max-width:420px){ .seg{display:flex;width:100%}.seg button{flex:1;padding:9px 6px;font-size:14px;white-space:nowrap} }
 /* messages: a compact list of conversations */
 .th-list{gap:6px}
@@ -1663,7 +1662,7 @@ html,body{overflow-x:clip}
   .int-t{font-size:18px;line-height:1.2}
   .int-d{font-size:13.5px;line-height:1.35}
   .int-subs{padding:0 12px 10px;gap:6px}
-  .int-subs .chip{min-height:38px;padding:4px 10px;font-size:13px}
+  .int-subs .chip{min-height:44px;padding:4px 12px;font-size:13.5px}
   /* myths: the same interactive cloud, smaller */
   .mt-wrap{gap:14px}
   .mt-title{font-size:27px}
@@ -1722,11 +1721,14 @@ html,body{overflow-x:clip}
 .darom-trust{flex-basis:100%;margin:2px 0 0;font-size:14px;color:var(--muted)}
 .darom-empty-t{font-size:19px;font-family:var(--font-display)}
 .darom-empty-more{font-size:14.5px;color:var(--muted)}
-.darom-empty-more a{color:var(--moss);font-weight:700;display:inline-block;padding:8px 2px}
+.darom-empty-more a{color:var(--moss);font-weight:700;display:inline-flex;align-items:center;min-height:44px;padding:0 4px}
 .how-steps{list-style:none;margin:0;padding:14px 16px;display:grid;gap:10px;background:transparent}
 .how-steps li{display:flex;gap:12px;align-items:baseline;font-size:15.5px;line-height:1.4}
 .how-n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--font-display);font-weight:800;color:#2A1C05;background:color-mix(in srgb,var(--sun) 55%,var(--surface))}
-.darom-example{margin-top:12px}
+.darom-example{margin-top:10px}
+.darom-example summary{cursor:pointer;font-weight:700;color:var(--moss);min-height:44px;display:inline-flex;align-items:center}
+.darom-example[open] summary{margin-bottom:6px}
+.mk-head{font-size:clamp(24px,5vw,30px);margin:0}
 .ex-line{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;padding:10px 14px;border:1px dashed var(--line);border-radius:12px;font-size:15px}
 .ex-mark{font-family:var(--font-hand);color:var(--clay);font-size:18px}
 .darom-how{margin-top:32px}
@@ -1754,9 +1756,15 @@ html,body{overflow-x:clip}
   .mk-form{gap:12px;padding:14px}
   .mk-place{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
   .mk-place > label,.mk-place input{min-width:0;width:100%}
+  /* tap targets of 44 px on the way to giving a thing */
+  .back-btn,.back-home{min-height:44px;display:inline-flex;align-items:center}
+  .tabs button{min-height:44px}
+  .cab-hero .cab-logout{min-height:44px}
+  .cab-verify-more summary{min-height:44px;display:flex;align-items:center}
   .darom-how{margin-top:24px}
   .darom-how .darom-cat-t{margin-bottom:10px}
   .how-steps{padding:12px 14px;gap:8px}
   .how-steps li{font-size:15px;gap:10px}
   .ex-line{padding:8px 12px;font-size:14px}
 }
+@media (max-width:360px){ .how-steps li{font-size:14px;line-height:1.35} .how-steps{padding:10px 12px} .darom-how .darom-cat-t{font-size:22px} }
