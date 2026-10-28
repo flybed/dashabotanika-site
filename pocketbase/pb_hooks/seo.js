@@ -248,11 +248,12 @@ function reindexAll(app, all) {
 }
 // города с публичными вещами: сколько всего и сколько в поиске — одним запросом с группировкой
 function daromCities(app) {
-  const rows = arrayOf(new DynamicModel({ city: "", n: 0, k: 0 }))
+  const rows = arrayOf(new DynamicModel({ city: "", n: 0, k: 0, last: "" }))
   try {
-    app.db().newQuery(`SELECT TRIM(city) AS city, COUNT(*) AS n, COALESCE(SUM(seo_index), 0) AS k FROM listings WHERE ${PUBLIC_SQL} AND TRIM(city) != '' GROUP BY TRIM(city) ORDER BY n DESC, city`).all(rows)
+    app.db().newQuery(`SELECT TRIM(city) AS city, COUNT(*) AS n, COALESCE(SUM(seo_index), 0) AS k, COALESCE(MAX(CASE WHEN seo_index THEN created END), '') AS last FROM listings WHERE ${PUBLIC_SQL} AND TRIM(city) != '' GROUP BY TRIM(city) ORDER BY n DESC, city`).all(rows)
   } catch (err) { return [] }
-  const list = rows.map((r) => ({ city: r.city, n: r.n, k: r.k }))
+  // last — когда в городе появилась самая свежая вещь из тех, что в поиске (lastmod страницы города)
+  const list = rows.map((r) => ({ city: r.city, n: r.n, k: r.k, last: r.last }))
   // город — своя страница в поиске, когда в нём от 5 индексируемых вещей и он не повторяет весь каталог
   const total = list.reduce((s, c) => s + c.k, 0)
   list.forEach((c) => { c.indexable = c.k >= MIN_PAGE && c.k < total })
@@ -679,10 +680,13 @@ function countIndexable(app) {
   try { app.db().newQuery("SELECT COUNT(*) AS n FROM listings WHERE seo_index = TRUE").one(row) } catch (err) { return 0 }
   return row.n
 }
+// lastmod: только настоящая дата ГГГГ-ММ-ДД, иначе без него
+const lastmod = (s) => { const d = String(s || "").slice(0, 10); return /^\d{4}-\d\d-\d\d$/.test(d) ? `<lastmod>${d}</lastmod>` : "" }
+// lastmod вещи — день публикации: даты изменения у объявлений нет
 function listingUrls(app, limit, offset) {
-  const rows = arrayOf(new DynamicModel({ id: "" }))
-  try { app.db().newQuery("SELECT id FROM listings WHERE seo_index = TRUE ORDER BY created DESC, id LIMIT {:l} OFFSET {:o}").bind({ l: limit, o: offset }).all(rows) } catch (err) { return [] }
-  return rows.map((r) => `  <url><loc>${ORIGIN}/darom/v/${r.id}</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>`)
+  const rows = arrayOf(new DynamicModel({ id: "", created: "" }))
+  try { app.db().newQuery("SELECT id, created FROM listings WHERE seo_index = TRUE ORDER BY created DESC, id LIMIT {:l} OFFSET {:o}").bind({ l: limit, o: offset }).all(rows) } catch (err) { return [] }
+  return rows.map((r) => `  <url><loc>${ORIGIN}/darom/v/${r.id}</loc>${lastmod(r.created)}<changefreq>weekly</changefreq><priority>0.5</priority></url>`)
 }
 function pageUrls(app) {
   const tpl = read(`${SITE}/index.html`)
@@ -693,10 +697,12 @@ function pageUrls(app) {
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
   constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
   // «Вещи даром»: только города, которые можно индексировать (см. daromCities); сами вещи — listingUrls
-  daromCities(app).filter((c) => c.indexable).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c.city)}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>`))
+  daromCities(app).filter((c) => c.indexable).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c.city)}</loc>${lastmod(c.last)}<changefreq>daily</changefreq><priority>0.7</priority></url>`))
   serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {
-    urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
+    // lastmod — когда статью последний раз меняли (updated ставит сайт при правке текста), иначе дата публикации
+    const mod = [a.updated, a.date].find((x) => /^\d{4}-\d\d-\d\d$/.test(x || ""))
+    urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${lastmod(mod)}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
   })
   return urls
 }
