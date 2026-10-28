@@ -560,12 +560,19 @@ function sitemap(app) {
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
   constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
-  // «Вещи даром»: только то, что можно индексировать (см. indexable и cityIndexable)
-  daromCities(app).filter((c) => cityIndexable(app, c)).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c)}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>`))
-  indexableListings(app).slice(0, 1000).forEach((l) => urls.push(`  <url><loc>${ORIGIN}/darom/v/${l.id}</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>`))
+  // «Вещи даром»: только то, что можно индексировать (см. indexable и cityIndexable).
+  // lastmod: у вещи — день публикации (даты изменения у объявлений нет), у города — самая свежая его вещь
+  const idx = indexableListings(app), day = (s) => String(s || "").slice(0, 10), lm = (d) => (/^\d{4}-\d\d-\d\d$/.test(d) ? `<lastmod>${d}</lastmod>` : "")
+  daromCities(app).filter((c) => cityIndexable(app, c)).forEach((c) => {
+    const last = idx.filter((l) => l.city === c).map((l) => day(l.created)).sort().pop()
+    urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c)}</loc>${lm(last)}<changefreq>daily</changefreq><priority>0.7</priority></url>`)
+  })
+  idx.slice(0, 1000).forEach((l) => urls.push(`  <url><loc>${ORIGIN}/darom/v/${l.id}</loc>${lm(day(l.created))}<changefreq>weekly</changefreq><priority>0.5</priority></url>`))
   serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {
-    urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
+    // lastmod — когда статью последний раз меняли (updated ставит сайт при правке текста), иначе дата публикации
+    const mod = [a.updated, a.date].find((x) => /^\d{4}-\d\d-\d\d$/.test(x || ""))
+    urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${mod ? `<lastmod>${mod}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
   })
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
 }
