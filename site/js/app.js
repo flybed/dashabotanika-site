@@ -42,12 +42,12 @@ const NAV_GROUPS = [
 ];
 // the home page: one block «Что тебе интересно» — six topics, each says what you get and leads to real features; 1 marks the hottest link
 const INTERESTS = [
-  ['🥗','Еда и рецепты','/eda','Готовь вкусно и без лишних трат: сезонные продукты, меню на неделю и рецепты из остатков.',[['Меню на неделю','/eda#menu',1],['Кафе','/eda#cafes'],['ИИ по фото','/eda#helper']]],
-  ['♻️','Сортировка и переработка','/sortirovka','Узнай, что можно переработать и куда это сдать, — без пяти вёдер на кухне.',[['Куда сдать в городе','/servisy',1],['Маркировка','/markirovka'],['Калькулятор','/sortirovka#calc']]],
-  ['👗','Мода и вещи','/moda','Отдавай ненужное, находи нужное бесплатно и собери гардероб, который не надоест.',[['Вещи даром','/darom',1],['Эко-товары','/tovary']]],
-  ['🌤️','Мой город','/vozduh','Чем ты дышишь сегодня и где рядом пункты приёма и полезные сервисы.',[['Сервисы','/servisy',1],['Воздух','/vozduh']]],
-  ['🎮','Учиться и играть','/eko-test','Начни с простых привычек: челленджи с напоминаниями, эко-тест с сертификатом и игра.',[['Челленджи','/kabinet?tab=challenges#cabinet-tabs',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
-  ['🌍','Сообщество','/mir','Соседи по «Счастливому миру», журнал и прямая связь с Дашей.',[['Мир','/mir',1],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
+  ['🥗','Еда и рецепты','/eda','Сезонные продукты, меню на неделю, рецепты из остатков.',[['Меню на неделю','/eda#menu',1],['Кафе','/eda#cafes'],['ИИ по фото','/eda#helper']]],
+  ['♻️','Сортировка и переработка','/sortirovka','Что можно переработать и куда это сдать.',[['Куда сдать в городе','/servisy',1],['Маркировка','/markirovka'],['Калькулятор','/sortirovka#calc']]],
+  ['👗','Мода и вещи','/moda','Отдавай ненужное, находи нужное бесплатно.',[['Вещи даром','/darom',2],['Эко-товары','/tovary']]],
+  ['🌤️','Мой город','/vozduh','Воздух сегодня, пункты приёма и сервисы рядом.',[['Сервисы','/servisy',1],['Воздух','/vozduh']]],
+  ['🎮','Учиться и играть','/eko-test','Челленджи с напоминаниями, эко-тест и игра.',[['Челленджи','/kabinet?tab=challenges#cabinet-tabs',1],['Эко-тест','/eko-test'],['Игра','/igra']]],
+  ['🌍','Сообщество','/mir','«Счастливый мир», журнал и связь с Дашей.',[['Мир','/mir',1],['Журнал','/zhurnal'],['Написать Даше','/o-proekte#feedback']]]
 ];
 // sections used to live on the home page: old links like /#food now open their own pages
 const OLD_ANCHORS = {'#food':'/eda','#menu':'/eda#menu','#cafes':'/eda#cafes','#helper':'/eda#helper','#sort':'/sortirovka','#calc':'/sortirovka#calc',
@@ -418,19 +418,27 @@ function render(){
       h('span',{style:'flex:1'}),
       socialLinks(),
       // «Вещи даром» is the community's main thing: always one tap away
-      h('a',{class:'darom-btn',href:'/darom','aria-label':'Вещи даром','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',{class:'darom-btn-t'},'Вещи даром')),
+      h('a',{class:'darom-btn',href:'/darom','aria-label':'Вещи даром','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',{class:'darom-btn-t','aria-hidden':'true'},'Вещи даром'), h('span',{class:'darom-btn-s','aria-hidden':'true'},'Даром')),
       accountButton(),
       siteMenu(path)
     )),
     h('main',null, path !== '/' ? backBar() : null, ...page.render()),
     h('footer',null, h('div',{class:'wrap'+(ART_RE.test(path) || path==='/politika' ? ' narrow' : path==='/kabinet' && accState()!=='member' ? ' narrow auth' : '')},
-      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/o-proekte'},'О проекте'), ' · ', h('a',{href:'/o-proekte#feedback'},'Обратная связь'), ' · ', h('a',{href:'/politika'},'Политика конфиденциальности'), ' · ', h('button',{type:'button',class:'linkish',onclick:()=>startTour()},'Показать подсказки')),
-      h('span',{id:'edit-slot'})
-    )),
+      h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/o-proekte'},'О проекте'), ' · ', h('a',{href:'/o-proekte#feedback'},'Обратная связь'), ' · ', h('a',{href:'/politika'},'Политика конфиденциальности'), ' · ', h('button',{type:'button',class:'linkish',onclick:()=>startTour()},'Показать подсказки')))),
     editBar()
   );
-  mountEditButton();
+  fitHeader();
 }
+// the name next to the logo only when it leaves room for «Даром», the cabinet and the menu
+function fitHeader(){
+  const w = document.querySelector('header.top .wrap'); if (!w) return;
+  w.classList.remove('tight'); document.documentElement.classList.remove('hdr-tight');
+  const kids = [...w.children].filter(x=>x.offsetWidth), gap = parseFloat(getComputedStyle(w).columnGap) || 0;
+  const need = kids.reduce((n,x)=>n + (x.style.flex ? 0 : x.offsetWidth), 0) + gap*(kids.length-1);
+  // no room: the name moves back to the first screen (above the headline)
+  if (need > w.clientWidth - parseFloat(getComputedStyle(w).paddingLeft) - parseFloat(getComputedStyle(w).paddingRight)){ w.classList.add('tight'); document.documentElement.classList.add('hdr-tight'); }
+}
+window.addEventListener('resize', ()=>fitHeader());
 
 /* Dasha's Instagram and Telegram in the top bar; addresses come from the contacts block */
 const IG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></svg>';
@@ -449,9 +457,14 @@ function siteMenu(path){
     h('a',{class:'menu-hot',href:'/darom','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',null, h('b',null,'Вещи даром'), h('small',null,'отдать и забрать бесплатно, рядом с домом'))),
     NAV_GROUPS.map(([g, items])=>h('div',{class:'menu-g'}, h('div',{class:'menu-gt'},g), items.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t)))), tail);
   live(()=>{
-    tail.replaceChildren(...(accState()==='member'
+    const tg = String((STATE.contacts||{}).telegram||'').trim().replace(/^@/,'');
+    tail.replaceChildren(...[
+      tg ? h('a',{class:'menu-tg',href:'https://t.me/'+tg,target:'_blank',rel:'noopener'},'✈️ Telegram Даши') : null,
+      h('button',{type:'button',class:'menu-edit',onclick:()=>openWand()},'✨ Улучшим сайт вместе'),
+      EDIT.can && !EDIT.on ? h('button',{type:'button',class:'menu-edit',onclick:startEditing},'✏️ Редактировать сайт') : null,
+      ...(accState()==='member'
       ? [h('a',{href:'/kabinet','aria-current':path==='/kabinet'?'page':null},'Личный кабинет'), h('button',{type:'button',class:'menu-out',onclick:logout},'Выйти из аккаунта')]
-      : [h('a',{href:'/kabinet'},'Войти или зарегистрироваться')]));
+      : [h('a',{href:'/kabinet'},'Войти или зарегистрироваться')])].filter(Boolean));
   });
   const set = open => { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.classList.toggle('open', open); };
   btn.addEventListener('click', e=>{ e.stopPropagation(); set(panel.hidden); });
@@ -466,7 +479,7 @@ function hero(){
     h('div',null,
       h('div',{class:'brand'},'DashaBotanika'),
       h('h1',{html:'Меньше лишнего. <em>Больше жизни.</em>'}),
-      h('p',{class:'hero-intro'},'Разумные покупки, вещи даром, сезонная еда и простые экопривычки. Всё, чтобы жить комфортнее, тратить осознаннее и заботиться о планете без фанатизма.'),
+      h('p',{class:'hero-intro'},'Вещи даром, разумные покупки, простые экопривычки и полезные идеи для жизни. Без фанатизма и лишних затрат.'),
       heroCta()
     ),
     heroArt()
@@ -479,8 +492,8 @@ function heroCta(){
   live(()=>{
     const steps = accState()==='member' && !firstStepsList().every(x=>x[3]);
     box.replaceChildren(
-      h('a',{class:'btn',href:steps ? '/#steps' : '/#start',onclick:e=>{ goal('home_start'); if (steps) openSteps(e); }},'С чего начать'),
-      h('a',{class:'btn ghost',href:'/#interests',onclick:()=>goal('home_what')},'Что есть на сайте')); });
+      h('a',{class:'btn',href:steps ? '/#steps' : '/#start',onclick:e=>{ goal('home_start'); if (steps) openSteps(e); }},'Я здесь впервые'),
+      h('a',{class:'btn ghost',href:'/#interests',onclick:()=>goal('home_what')},'Все разделы')); });
   return box;
 }
 // a row wider than the screen: arrows at the edges and a bar below show it scrolls, and where you are
@@ -508,7 +521,7 @@ function interestsSection(){
     sectionHead('Что есть на сайте','Что тебе интересно','Выбери тему — а всё остальное всегда в меню ☰ справа вверху.'),
     h('div',{class:'int-grid'}, INTERESTS.map(([ic,t,href,d,subs])=>h('div',{class:'int card'},
       h('a',{class:'int-main',href}, h('span',{class:'int-ic','aria-hidden':'true'},ic), h('span',{class:'int-t'},t), h('span',{class:'int-d'},d)),
-      h('div',{class:'int-subs'}, subs.map(([st,sh,hot])=>h('a',{class:'chip'+(hot ? ' hot' : ''),href:sh}, hot ? h('span',{'aria-hidden':'true'},'🔥 ') : null, st))))))));
+      h('div',{class:'int-subs'}, subs.map(([st,sh,hot])=>h('a',{class:'chip'+(hot ? ' hot' : ''),href:sh}, hot===2 ? h('span',{'aria-hidden':'true'},'🔥 ') : null, st))))))));
 }
 /* right under the first screen: a big question mark in a cloud of myths, and a choice — clear them up first or go straight on */
 const MYTH_BITS = ['экологично — дорого','один человек ничего не изменит','всё равно всё смешают','экотовары — маркетинг','придётся от всего отказаться','сортировка бесполезна'];
@@ -534,9 +547,9 @@ function worldTeaser(){
     const all = worldIds();
     mini.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...all.slice(0,60).map((id,i)=>{ const [x,y] = worldPos(i, all.length);
       return h('span',{class:'wt-dw'+(isDasha(id)?' first':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%'}, emojiOf(id)); }));
-    count.textContent = 'Создай своего жителя — животное или растение. Выполняй экопривычки, помогай ему расти и наблюдай, как развивается общий мир участников.'+(ids.length ? ' Жителей в мире: '+ids.length+'.' : '');
+    count.textContent = 'Создай своего жителя — животное или растение — и расти его экопривычками вместе с другими участниками.'+(ids.length ? ' Жителей в мире: '+ids.length+'.' : '');
     // a newcomer sees how to join: the resident is chosen at sign-up
-    cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost',onclick:()=>openAccount('register')},'Создать своего жителя'));
+    cta.replaceChildren(h('a',{class:'btn',href:'/mir'},'Открыть мир'), accState()==='member' ? null : h('button',{type:'button',class:'btn ghost wt-join',onclick:()=>openAccount('register')},'Создать своего жителя'));
   });
   return h('section',{class:'band',id:'world-teaser'}, h('div',{class:'wrap wt'},
     h('div',null, sectionHead('А ещё здесь можно играть','Свой Счастливый мир'), row, count, cta),
@@ -565,14 +578,18 @@ function openSteps(e){
   refresh();
   requestAnimationFrame(()=>{ const el = document.getElementById('steps'); if (el && !el.hidden) el.scrollIntoView({behavior:'smooth', block:'start'}); });
 }
+// one block, never both: a member with steps left sees «Первые шаги» (their current step), anyone else — «Для новичка»
+function stepsShown(){
+  let hidden = false; try{ hidden = localStorage.getItem(STEPS_HIDE)==='1'; }catch(e){}
+  return accState()==='member' && !hidden && firstStepsList().some(x=>!x[3]);
+}
 function firstSteps(){
   const sec = h('section',{class:'band steps-band',id:'steps'});
   live(()=>{
-    let hidden = false; try{ hidden = localStorage.getItem(STEPS_HIDE)==='1'; }catch(e){}
     const member = accState()==='member';
     const steps = firstStepsList();
-    const done = steps.filter(x=>x[3]).length, next = steps.find(x=>!x[3]), todo = steps.filter(x=>!x[3]).map(x=>x[1]);
-    if (hidden || !next){ sec.replaceChildren(); sec.hidden = true; return; }
+    const done = steps.filter(x=>x[3]).length, next = steps.find(x=>!x[3]);
+    if (!stepsShown()){ sec.replaceChildren(); sec.hidden = true; return; }
     sec.hidden = false;
     const pts = key => { const r = COM.growthRules.find(x=>x.key===key); return r && r.points ? ' +'+r.points : ''; };
     const guide = member ? emojiOf(COM.uid) : '🦔';
@@ -583,11 +600,12 @@ function firstSteps(){
           h('div',{class:'eyebrow'},'Первые шаги · ',done,' из ',steps.length),
           h('p',{class:'steps-bubble'}, done === 0 ? 'Привет! Я покажу, что здесь делать. Начнём с персонажа — он будет расти вместе с вашими привычками.' : 'Отлично, так держать! Следующий шаг: «'+next[1]+'».'),
           h('div',{class:'steps-bar'}, h('i',{style:'width:'+Math.round(done/steps.length*100)+'%'})))),
-      h('ol',{class:'steps-list'}, steps.map(([ic,t,key,ok,href,cta])=>h('li',{class:'step'+(ok?' ok':'')+(next[1]===t?' next':'')+(ok || todo.indexOf(t) > 2 ? ' later' : '')},
+      // the current step is open; the rest (done and to do) are under «Все шаги»
+      h('ol',{class:'steps-list'}, steps.map(([ic,t,key,ok,href,cta])=>h('li',{class:'step'+(ok?' ok':'')+(next[1]===t?' next':' later')},
         h('span',{class:'step-ic','aria-hidden':'true'}, ok ? '✓' : ic),
         h('span',{class:'step-t'}, t, ok ? null : h('span',{class:'step-pts'}, pts(key))),
         ok ? null : h('a',{class:'btn small'+(next[1]===t?'':' ghost'),href},cta)))),
-      todo.length + done > 3 ? h('button',{type:'button',class:'linkish steps-all',onclick:e=>{ const box = e.currentTarget.closest('.steps'); box.classList.toggle('all'); e.currentTarget.textContent = box.classList.contains('all') ? 'Свернуть' : 'Все шаги ('+steps.length+')'; }},'Все шаги ('+steps.length+')') : null,
+      h('button',{type:'button',class:'linkish steps-all','aria-expanded':'false',onclick:e=>{ const box = e.currentTarget.closest('.steps'); box.classList.toggle('all'); e.currentTarget.setAttribute('aria-expanded', String(box.classList.contains('all'))); e.currentTarget.textContent = box.classList.contains('all') ? 'Свернуть' : 'Все шаги ('+steps.length+')'; }},'Все шаги ('+steps.length+')'),
       h('button',{type:'button',class:'linkish steps-hide',onclick:()=>{ try{ localStorage.setItem(STEPS_HIDE,'1'); }catch(e){} refresh(); }},'Скрыть подсказки'))));
   });
   return sec;
@@ -1982,7 +2000,8 @@ window.addEventListener('popstate', ()=>{ fixOldAnchor(); INNER_STEPS = Math.max
 function homePage(){
   // for someone who came by chance: first what you get (in 5 seconds), then how to start, then who Dasha is, then the deep end
   // first steps (the game-like guide) belong to the beginner block, so they follow it
-  return [hero(), interestsSection(), mythsTeaser(), daromSpotlight(), startSection(), firstSteps(), dashaIntro(), journalSection(true), worldTeaser(), feedbackTeaser()];
+  // phones: the short «Вещи даром» announcement right after the first screen; wider screens keep the big block further down
+  return [hero(), daromStrip(), interestsSection(), mythsTeaser(), daromSpotlight(), startSection(), firstSteps(), dashaIntro(), journalSection(true), worldTeaser(), feedbackTeaser()];
 }
 /* for a beginner: no knowledge needed, one small step at a time */
 const START_STEPS = [
@@ -1991,17 +2010,22 @@ const START_STEPS = [
   ['🥕','Приготовь ужин из того, что есть','Рецепты из остатков и меню на неделю — меньше выбросишь, меньше потратишь.','/eda#menu','К рецептам']
 ];
 function startSection(){
-  const cta = h('div',{class:'start-cta'});
+  const cta = h('div',{class:'start-cta'}), sec = h('section',{class:'band alt start',id:'start'});
+  live(()=>{ sec.hidden = stepsShown(); });
   // challenges live in the cabinet (there is no public catalogue): a guest signs up first, a member opens or starts their own
   live(()=>{ cta.replaceChildren(...(accState()==='member'
     ? [h('a',{class:'btn ghost',href:'/kabinet?tab=challenges#cabinet-tabs'}, challenges().length ? 'Мои челленджи' : 'Начать челлендж')]
     : [h('a',{class:'btn',href:'/kabinet?tab=register',onclick:()=>goal('home_start_join')},'Начать вместе'), h('span',{class:'hint'},'Регистрация за минуту — дальше подскажу каждый шаг.')])); });
-  return h('section',{class:'band alt start',id:'start'}, h('div',{class:'wrap'},
-    sectionHead('Для новичка','Ничего не знаешь про экологию? Отлично. Начнём вместе','Не нужно сразу всё менять. Выбери один маленький шаг — остальное подскажу по ходу.'),
-    h('ol',{class:'start-steps'}, START_STEPS.map(([ic,t,d,href,b],i)=>h('li',{class:'card'},
+  // phones: the first step is open, the other two — under «Ещё 2 шага»
+  const list = h('ol',{class:'start-steps',id:'start-steps'}, START_STEPS.map(([ic,t,d,href,b],i)=>h('li',{class:'card'},
       h('span',{class:'start-n','aria-hidden':'true'},String(i+1)), h('span',{class:'start-ic int-ic','aria-hidden':'true'},ic),
-      h('b',null,t), h('p',{class:'muted'},d), h('a',{class:'btn small ghost',href},b)))),
-    cta));
+      h('b',null,t), h('p',{class:'muted'},d), h('a',{class:'btn small ghost',href},b))));
+  const more = h('button',{type:'button',class:'linkish start-more','aria-expanded':'false','aria-controls':'start-steps',onclick:()=>{
+    const open = list.classList.toggle('all'); more.setAttribute('aria-expanded', String(open)); more.textContent = open ? 'Свернуть' : 'Ещё '+(START_STEPS.length-1)+' шага'; }},'Ещё '+(START_STEPS.length-1)+' шага');
+  sec.append(h('div',{class:'wrap'},
+    sectionHead('Для новичка','Ничего не знаешь про экологию? Отлично. Начнём вместе','Не нужно сразу всё менять. Выбери один маленький шаг — остальное подскажу по ходу.'),
+    list, more, cta));
+  return sec;
 }
 /* who is behind it: a photo and a few lines; the whole story opens on a button */
 function dashaIntro(){
@@ -2035,7 +2059,26 @@ function daromInset(){
     h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/darom',onclick:()=>goal('darom_article_find')},'Смотреть вещи рядом'),
       h('a',{class:'btn ghost small',href:accState()==='member' ? '/kabinet?tab=things&do=give#cabinet-tabs' : '/kabinet?tab=register&next=things',onclick:()=>goal('darom_article_give')},'Отдать свою вещь')));
 }
-/* «Вещи даром» on the home page, right under the hero: what is being given away now (nearest first), the counter and two doors */
+// where «Отдать вещь» leads: a member straight to the form, a guest to sign-up and then back to the form
+const giveHref = () => accState()==='member' ? '/kabinet?tab=things&do=give#cabinet-tabs' : '/kabinet?tab=register&next=things';
+/* phones: one short but noticeable «Вещи даром» announcement under the first screen (the big block below is hidden there) */
+function daromStrip(){
+  const give = h('span',{style:'display:contents'}), items = h('div',{class:'dst-items'});
+  live(()=>{
+    give.replaceChildren(h('a',{class:'btn ghost',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать вещь'));
+    // the newest things being given away, when there are any — the same as in the big block
+    const list = publicListings().slice().sort((a,b)=>b.ts-a.ts).slice(0,3);
+    items.hidden = !list.length;
+    items.replaceChildren(...list.map(it=>h('a',{class:'dst-item',href:'/darom'},
+      it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',decoding:'async'}) : h('span',{class:'ds-ph','aria-hidden':'true'},catIcon(it.category)), h('span',null,it.title))));
+  });
+  return h('section',{class:'darom-strip',id:'darom-strip','aria-label':'Вещи даром'}, h('div',{class:'wrap'}, h('div',{class:'dst'},
+    h('img',{class:'dst-art',src:'/img/darom-things.svg',alt:'',width:'110',height:'80',loading:'lazy',decoding:'async'}),
+    h('div',{class:'dst-text'}, h('h2',{class:'dst-t'},'🎁 Вещи даром'), h('p',null,'Отдавайте хорошие вещи бесплатно и находите нужное рядом с собой.')),
+    h('div',{class:'dst-cta'}, h('a',{class:'btn',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь'), give),
+    items)));
+}
+/* «Вещи даром» on the home page (wider screens): what is being given away now (nearest first) and two doors */
 function daromSpotlight(){
   const grid = h('div',{class:'ds-items'}), sub = h('p',{class:'lead',style:'margin:0'});
   live(()=>{
@@ -2051,7 +2094,7 @@ function daromSpotlight(){
       h('b',null,it.title), h('span',{class:'hint'}, nearLabel(it) || [it.city, it.district].filter(Boolean).join(', ') || (it.category||'')))) : [h('p',{class:'hint'},'Стань одним из первых участников — размести вещь бесплатно.')]));
   });
   const give = h('span');
-  live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:accState()==='member' ? '/kabinet?tab=things&do=give#cabinet-tabs' : '/kabinet?tab=register&next=things',onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
+  live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
   return h('section',{class:'band darom-spot',id:'darom-spot'}, h('div',{class:'wrap'},
     h('div',{class:'ds-head'},
       h('div',{style:'display:grid;gap:10px;align-content:center'}, h('div',{class:'eyebrow'},'🎁 Вещи даром'), h('h2',null,'Отдай то, что тебе больше не нужно. Найди то, что пригодится тебе. Бесплатно'), sub,
@@ -4145,7 +4188,7 @@ function cabinetPage(){
 const adminWaiting = () => COM.admin ? newDrafts().length + COM.sugg.filter(s=>!s.status).length + pendingListings().length + COM.services.filter(x=>!x.status).length + openReports().length + COM.feedback.filter(f=>!f.status).length : 0;
 function adminHead(){
   return h('section',{class:'band cab-band',id:'cabinet'}, h('div',{class:'wrap admin-head'},
-    h('a',{class:'btn ghost small',href:'/kabinet?tab=path#cabinet-tabs'},'← Мой кабинет'),
+    h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn ghost small',href:'/kabinet?tab=path#cabinet-tabs'},'← Мой кабинет'), editSiteBtn()),
     h('div',null, h('div',{class:'eyebrow'},'Только для команды сайта'), h('h1',{class:'cab-name'},'🛠 Управление сайтом'),
       h('p',{class:'hint'},'Видите только вы', COM.owner ? '' : ' и модераторы', '. Статьи, проверка объявлений, обратная связь', COM.owner ? ', участники и уровни.' : '.'))));
 }
@@ -4867,6 +4910,7 @@ function accountButton(){
       else { b.removeAttribute('title'); b.removeAttribute('aria-label'); }
     }
     else { b.replaceChildren('Войти'); b.removeAttribute('title'); b.removeAttribute('aria-label'); }
+    requestAnimationFrame(fitHeader);
   });
   return b;
 }
@@ -5296,11 +5340,9 @@ function editBar(){
   ));
 }
 function setEditing(on){ EDIT.on=on; document.body.classList.toggle('editing',on); }
-function mountEditButton(){
-  const slot = document.getElementById('edit-slot');
-  if (!slot || !EDIT.can || EDIT.on) return;
-  slot.replaceChildren(h('button',{type:'button',class:'btn ghost small',onclick:()=>{ setEditing(true); render(); }},'Редактировать сайт'));
-}
+// «Редактировать сайт» lives in the menu (☰) and in the cabinet's «Управление сайтом», not in the footer
+function startEditing(){ setEditing(true); if (currentPath()==='/kabinet') go('/'); else render(); }
+const editSiteBtn = () => EDIT.can && !EDIT.on ? h('button',{type:'button',class:'btn ghost small',onclick:startEditing},'✏️ Редактировать сайт') : null;
 function toast(msg){ const n = document.querySelectorAll('.toast').length; const t=h('div',{class:'toast',role:'status',style:n ? 'margin-bottom:'+(n*54)+'px' : null},msg); document.body.append(t); setTimeout(()=>t.remove(),2600); }
 async function saveSite(){
   const btn = document.getElementById('save-btn');
@@ -5329,6 +5371,22 @@ function magicWand(){
   const b = h('button',{type:'button',class:'wand','aria-label':'Улучшим сайт вместе: предложить идею'}, h('span',{class:'wand-ic','aria-hidden':'true'},'✨'), h('span',{class:'wand-t'},'Улучшим сайт вместе'));
   b.addEventListener('click', openWand);
   document.body.append(b);
+  // phones: never over what you read, tap or type — hidden on the first screen, while scrolling down and while a field
+  // is in use; it shows when you scroll back up or reach the end of the page (and is always in the ☰ menu)
+  let lastY = scrollY;
+  const phone = matchMedia('(max-width:640px)');
+  const sync = () => {
+    if (!phone.matches){ b.classList.remove('away'); return; }
+    const y = scrollY, typing = document.activeElement && document.activeElement.matches('input,textarea,select,[contenteditable]');
+    const atEnd = y + innerHeight >= document.documentElement.scrollHeight - 40;
+    if (typing || y <= 160) b.classList.add('away');
+    else if (atEnd || y < lastY - 6) b.classList.remove('away');
+    else if (y > lastY + 6) b.classList.add('away');
+    if (Math.abs(y - lastY) > 6) lastY = y;
+  };
+  sync();
+  addEventListener('scroll', sync, {passive:true}); phone.addEventListener('change', sync);
+  document.addEventListener('focusin', sync); document.addEventListener('focusout', ()=>setTimeout(sync, 50));
 }
 function openWand(){
   closeElephant();
@@ -5467,7 +5525,7 @@ const TOUR = [
   ['.burger','Все разделы — в меню','Еда, сортировка, вещи даром, журнал и всё остальное — здесь, в любой момент.'],
   ['#interests .int-grid','Что тебе интересно','Каждая карточка ведёт на свою страницу, а маленькие кнопки — сразу к нужной функции.'],
   ['.acc-btn', ()=>accState()==='member' ? 'Твой кабинет' : 'Присоединяйтесь', ()=>accState()==='member' ? 'Здесь твой путь, челленджи, сообщения и настройки.' : 'Регистрация за минуту: отдавай и забирай вещи, проходи челленджи и копи очки роста.'],
-  ['#start','Не знаешь, с чего начать?','Три маленьких шага для новичка — выбери любой. Знать про экологию ничего не нужно.']
+  ['#start:not([hidden]), #steps:not([hidden])', ()=>stepsShown() ? 'Твои первые шаги' : 'Не знаешь, с чего начать?', ()=>stepsShown() ? 'Здесь твой следующий шаг, а все остальные — по кнопке «Все шаги».' : 'Три маленьких шага для новичка — выбери любой. Знать про экологию ничего не нужно.']
 ];
 let TOUR_EL = null;
 function tourDone(){ try{ return localStorage.getItem(TOUR_KEY)==='1'; }catch(e){ return true; } }
