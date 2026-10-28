@@ -1559,7 +1559,8 @@ function articlePage(path){
         it.updated && it.updated > (it.date||'') ? h('span',{class:'date'},'· обновлено ', h('time',{datetime:it.updated}, fmtDate(it.updated))) : null,
         h('span',{class:'date'},'⏱ ',readMinutes(it.body),' мин чтения')),
       h('h1',null,it.title),
-      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, coverAlt(it), '', {sizes:'(max-width: 760px) 100vw, 760px'})) : null,
+      // the cover is the biggest thing on the first screen: load it at once, not lazily
+      it.image ? h('figure',{class:'art-cover'}, photoImg(it.image, coverAlt(it), '', {sizes:'(max-width: 760px) 100vw, 760px', eager:true})) : null,
       it.lead ? h('p',{class:'lead'},it.lead) : null,
       it.by ? h('p',{class:'hint'},'Идею предложил участник: ', nameSpan(it.by)) : null,
       // «Коротко»: the direct answer to the question in the title — the part search engines quote
@@ -5592,7 +5593,9 @@ function startTour(){
     const tw = Math.min(340, innerWidth - 32), below = innerHeight - bottom > tip.offsetHeight + 24 || top < tip.offsetHeight + 24;
     tip.style.width = tw+'px';
     const left = Math.min(Math.max(16, r.left + r.width/2 - tw/2), innerWidth - tw - 16), y = below ? Math.min(bottom + 14, innerHeight - tip.offsetHeight - 12) : Math.max(12, top - tip.offsetHeight - 14);
-    tip.style.left = left+'px'; tip.style.top = y+'px';
+    // moved with transform, like the light: no layout shift; it shows only once it stands in its place
+    tip.style.transform = 'translate('+left+'px,'+y+'px)';
+    if (!tip.classList.contains('placed')){ void tip.offsetWidth; tip.classList.add('placed'); } // the first time — straight to its place, no glide
     // the little arrow points at the lit element; no arrow when the element is taller than the screen and the tip sits on it
     tip.style.setProperty('--ax', Math.min(Math.max(r.left + r.width/2 - left, 22), tw - 22)+'px');
     tip.classList.toggle('up', !below); tip.classList.toggle('over', below ? y < bottom : y + tip.offsetHeight > top);

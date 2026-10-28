@@ -63,6 +63,15 @@ function mdHtml(src) {
 const mdPlain = (s) => String(s || "").replace(/^\s*\[\[darom\]\]\s*$/gim, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
   .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm, "").replace(/^\s*(-{3,}|❦+)\s*$/gm, "").trim()
 
+// Обложка статьи — с теми же адресами и размерами, что выберет скрипт сайта (photoSrc в site/js/app.js):
+// браузер скачает её один раз, а не сначала оригинал для этой страницы, потом уменьшенную копию для сайта.
+function coverImg(src, alt) {
+  const s = esc(src), a = esc(alt)
+  if (/^\/api\/files\/photos\/[^?"]+\.jpe?g$/i.test(src))
+    return `<img src="${s}?thumb=960x0" srcset="${s}?thumb=480x0 480w, ${s}?thumb=960x0 960w, ${s} 1600w" sizes="(max-width: 760px) 100vw, 760px" alt="${a}" fetchpriority="high">`
+  return `<img src="${s}" alt="${a}">`
+}
+
 // «## Частые вопросы» → «### вопрос» + ответ: то же, что articleFaq в site/js/app.js — для FAQ-разметки
 function articleFaq(text) {
   const out = []
@@ -368,7 +377,7 @@ function page(path, d, k, app) {
         dateModified: a.updated || a.date || undefined, inLanguage: "ru", image: image || undefined,
         author: { "@type": "Person", name: about.name || "Даша", url: ORIGIN + "/o-proekte", description: bio || undefined }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }]
         .concat(faq.length ? [{ "@type": "FAQPage", mainEntity: faq.map(([q, x]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: x } })) }] : []),
-      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? `<img src="${esc(a.image)}" alt="${esc((a.image_alt || "").trim() || a.title)}">` : ""}<p class="lead">${esc(a.lead)}</p>\n${a.answer ? `<section class="answer"><h2>Коротко</h2><p>${mdInline(a.answer)}</p></section>\n` : ""}${mdHtml(a.body)}\n<aside class="author"><p>Автор — <a href="/o-proekte">${esc(about.name || "Даша")}</a>, DashaBotanika.${bio ? " " + esc(cut(bio, 220)) : ""}</p>${a.updated && a.updated > (a.date || "") ? `<p>Обновлено: <time datetime="${esc(a.updated)}">${esc(a.updated)}</time></p>` : ""}</aside></div></article>`,
+      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? coverImg(a.image, (a.image_alt || "").trim() || a.title) : ""}<p class="lead">${esc(a.lead)}</p>\n${a.answer ? `<section class="answer"><h2>Коротко</h2><p>${mdInline(a.answer)}</p></section>\n` : ""}${mdHtml(a.body)}\n<aside class="author"><p>Автор — <a href="/o-proekte">${esc(about.name || "Даша")}</a>, DashaBotanika.${bio ? " " + esc(cut(bio, 220)) : ""}</p>${a.updated && a.updated > (a.date || "") ? `<p>Обновлено: <time datetime="${esc(a.updated)}">${esc(a.updated)}</time></p>` : ""}</aside></div></article>`,
     })
   }
   return null
