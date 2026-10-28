@@ -2635,12 +2635,15 @@ function marketSection(opts){
   live(()=>{ const c = cityOf ? cityOf() : ''; if (c===headFor) return; headFor = c;
     if (cityOf && c){ DAROM.filter.city = c; document.title = 'Отдам даром '+inCity(c)+': вещи бесплатно — DashaBotanika'; }
     SEC_H1 = true;
-    head.replaceChildren(sectionHead('Вторая жизнь вещей', c ? 'Отдам даром '+inCity(c) : 'Вещи даром', c ? 'Соседи '+inCity(c)+' отдают бесплатно то, что им больше не нужно. Без продажи и обмена — даритель сам выбирает, кому отдать.' : 'Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно. Каждое объявление участников проверяет Даша.'));
+    head.replaceChildren(sectionHead('Вторая жизнь вещей', c ? 'Отдам даром '+inCity(c) : 'Вещи даром', c ? 'Соседи '+inCity(c)+' отдают бесплатно то, что им больше не нужно.' : 'Отдавайте ненужное и находите нужное рядом — бесплатно.'));
     SEC_H1 = false; });
   // first screen: two actions — give (the catalogue needs things) and find
   const actions = h('div',{class:'darom-actions'},
     h('button',{type:'button',class:'btn',onclick:giveThing},'🎁 Отдать вещь'),
-    h('a',{class:'btn ghost',href:'#darom-catalog',onclick:e=>{ e.preventDefault(); goal('darom_find_page'); const el = document.getElementById('darom-catalog'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); }},'Найти вещь'));
+    h('a',{class:'btn ghost',href:'#darom-catalog',onclick:e=>{ e.preventDefault(); goal('darom_find_page'); const el = document.getElementById('darom-catalog'); if (el) el.scrollIntoView({behavior:'smooth', block:'start'}); }},'Найти вещь'),
+    h('p',{class:'darom-trust'},'Без продажи и обмена. Каждое объявление проверяет Даша.'));
+  // secondary ways from an empty catalogue: the existing subscription and «Ищу»
+  const toBlock = (id, then) => e => { e.preventDefault(); const el = document.getElementById(id); if (!el) return; el.scrollIntoView({behavior:'smooth', block:'start'}); if (then) then(el); };
   // Dasha's own giveaways; a teaching example lives in «Как это работает», marked «Пример»
   const own = STATE.market.filter(it=>!it.example), examples = STATE.market.filter(it=>it.example);
   const userGrid = h('div');
@@ -2653,8 +2656,12 @@ function marketSection(opts){
     if (!all.length){
       filters.replaceChildren(); viewBar.replaceChildren(); mapBox.hidden = true; cache.clear();
       userGrid.replaceChildren(st==='loading' ? h('div',{class:'empty'},'Загружаем…') : h('div',{class:'empty darom-empty'},
-        h('p',null,'Пока здесь нет объявлений. Стань первым, кто подарит вещь.'),
-        h('button',{type:'button',class:'btn',onclick:giveThing},'Разместить объявление')));
+        h('b',{class:'darom-empty-t'},'Вещей пока нет — станьте первым'),
+        h('p',null,'Первое объявление увидят все, кто заглянет в «Вещи даром».'),
+        h('button',{type:'button',class:'btn',onclick:giveThing},'🎁 Отдать первую вещь'),
+        h('p',{class:'darom-empty-more'},
+          h('a',{href:'#darom-sub',onclick:toBlock('darom-sub')},'🔔 Сообщить, когда появятся'), ' · ',
+          h('a',{href:'#ishu',onclick:toBlock('ishu', el=>{ const b = el.querySelector('.want-cta button'); if (b) b.click(); })},'🔍 Оставить запрос «Ищу»'))));
       return; }
     const F = DAROM.filter, q = F.q.trim().toLowerCase();
     const near = l => { if (!F.near) return true; if (F.near==='district') return sameDistrict(l); if (F.near==='city') { const p = PROFILE.rec; return !!(p && p.city && (l.city||'').trim().toLowerCase()===p.city.trim().toLowerCase()); } const km = kmTo(l); return km!==null && km <= +F.near; };
@@ -2693,14 +2700,15 @@ function marketSection(opts){
       filters, viewBar, mapBox, userGrid),
     own.length ? h('div',{class:'darom-dasha'}, h('h3',{style:'margin-bottom:14px'},'От Даши'), h('div',{class:'grid g3'}, own.map(dashaCard))) : null,
     addForm('market','Новое объявление от Даши'),
-    // how it works — after the catalogue, short
+    // how it works — after the catalogue, one short card; the example is clearly an example, never in the catalogue
     h('div',{class:'darom-how'},
       h('h2',{class:'darom-cat-t'},'Как это работает'),
-      h('div',{class:'grid g3'},
-        [['1','Размести вещь','Фото и пара слов. Даша проверит объявление.'],
-         ['2','Выбери получателя','Желающие пишут тебе, а кому отдать — решаешь ты.'],
-         ['3','Передай бесплатно','Встреча или доставка — как удобно. Без денег.']].map(([n,t,d])=>h('div',{class:'card',style:'background:transparent'}, h('div',{class:'tip-num'},n), h('h3',{style:'font-size:19px'},t), h('p',{class:'muted',style:'font-size:15px'},d)))),
-      examples.length ? h('div',{class:'darom-example'}, h('div',{class:'eyebrow'},'Пример объявления'), h('div',{class:'grid g3'}, examples.map(dashaCard))) : null),
+      h('ol',{class:'card how-steps'},
+        [['Размести вещь','фото и пара слов, Даша проверит'],
+         ['Выбери получателя','желающие пишут, решаешь ты'],
+         ['Передай бесплатно','встреча или доставка, без денег']].map(([t,d],i)=>h('li',null, h('span',{class:'how-n','aria-hidden':'true'},String(i+1)), h('span',null, h('b',null,t), ' — ', d)))),
+      examples.length ? h('div',{class:'darom-example'}, examples.map(it=>h('div',{class:'ex-line'},
+        h('span',{class:'ex-mark'},'Пример'), h('b',null,it.title), h('span',{class:'hint'}, ['Даром', it.condition && 'состояние: '+it.condition.toLowerCase()].filter(Boolean).join(' · ')), delBtn('market',it.id)))) : null),
     thanksFeed(),
     wantsBlock(), daromSubCard(), FRIEND_PROGRAM ? friendCard() : null
   ));
@@ -3005,22 +3013,23 @@ function thingsPanel(lists){
   cat.addEventListener('change', ()=>clearErr(cat));
   const btn = h('button',{type:'submit',class:'btn'},'Отправить на проверку');
   const req = h('span',{class:'req','aria-hidden':'true'},' *');
-  const more = h('details',{class:'mk-more'}, h('summary',null,'Дополнительно: отдать на время, срок объявления, много вещей сразу'),
+  // the main part: photo, what, category, condition, where — and send; everything else is under «Добавить подробности»
+  // (folding it keeps whatever was typed there)
+  const more = h('details',{class:'mk-more'}, h('summary',null,'Добавить подробности (необязательно)'),
+    h('label',{for:'mk-pickup'},'Где и когда удобно передать',pickup),
+    h('label',{for:'mk-note'},'Описание',note),
     h('div',{class:'fields'}, h('label',{for:'mk-how'},'Как отдаёте',how), lendBox, h('label',{for:'mk-days'},'Объявление актуально',days)),
     h('label',{class:'consent',for:'mk-lot'}, lot, '📦 Это лот: отдаю много вещей сразу (переезд, расхламление)'), lotBox);
   const f = h('form',{class:'form mk-form',novalidate:'',style:'margin:0;border-style:solid;border-color:var(--line)'},
-    h('p',{class:'hint',style:'margin:0'},'Поля со звёздочкой', req.cloneNode(true), ' — обязательные. Остальное по желанию.'),
-    h('label',{for:'mk-title'}, h('span',null,'Что отдаёте',req.cloneNode(true)), title),
     h('div',{class:'mk-photo'}, h('div',{class:'mk-photo-l'},'Фото'), h('div',{class:'mk-photo-row'}, pickLabel, file, photoBox),
-      h('p',{class:'hint',style:'margin:0'},'С фото вещь забирают быстрее. Снимите её целиком при дневном свете. JPG, PNG или WebP до 15 МБ. Можно и без фото.')),
-    h('label',{for:'mk-cat'}, h('span',null,'Категория',req.cloneNode(true)), cat, h('span',{class:'hint'},'По ней вещь найдут в фильтре и пришлют тем, кто подписан.')),
+      h('p',{class:'hint',style:'margin:0'},'Можно и без фото, но с ним вещь забирают быстрее. JPG, PNG или WebP до 15 МБ.')),
+    h('label',{for:'mk-title'}, h('span',null,'Что отдаёте',req.cloneNode(true)), title),
+    h('label',{for:'mk-cat'}, h('span',null,'Категория',req.cloneNode(true)), cat, h('span',{class:'hint'},'По ней вещь найдут в фильтре и пришлют подписчикам.')),
     h('label',{for:'mk-cond'},'Состояние',cond),
-    h('div',{class:'fields'}, h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-district'},'Район',mkDistrict)),
-    h('p',{class:'hint',style:'margin:-4px 0 0'},'Только город и район — точный адрес не нужен и никому не показывается. На карте вещь будет примерно, с точностью около километра.'),
-    h('label',{for:'mk-pickup'},'Где и когда удобно передать',pickup),
-    h('label',{for:'mk-note'},'Описание',note),
+    h('div',{class:'fields mk-place'}, h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-district'},'Район',mkDistrict)),
+    h('p',{class:'hint',style:'margin:-4px 0 0'},'Точный адрес не нужен и никому не показывается — на карте вещь видна примерно.'),
     more,
-    h('div',null,btn));
+    h('div',{class:'mk-send'}, btn, h('span',{class:'hint'}, req.cloneNode(true),' — обязательно, остальное по желанию')));
   // after sending: a clear confirmation instead of the form, and a way to put out one more thing
   const done = h('div',{class:'card mk-done',hidden:'',role:'status'});
   const showDone = published => { done.replaceChildren(
@@ -3073,15 +3082,24 @@ function thingsPanel(lists){
   const segBtn = (k, l) => h('button',{type:'button',role:'tab','aria-controls':'mk-'+k,onclick:()=>{ showView(k); if (k==='give') title.focus(); }},l);
   const seg = h('div',{class:'seg',role:'tablist','aria-label':'Вещи даром'}, segBtn('mine','📋 Мои объявления'), segBtn('give','🎁 Отдать вещь'));
   function showView(k){ if (k==='give' && !done.hidden){ done.hidden = true; f.hidden = false; }
-    giveBox.hidden = k!=='give'; mineBox.hidden = k!=='mine'; if (k==='mine' && lists.things && lists.things.isConnected) paintThings(lists.things);
+    giveBox.hidden = k!=='give'; mineBox.hidden = k!=='mine'; wait.hidden = true; if (k==='mine' && lists.things && lists.things.isConnected) paintThings(lists.things);
     seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected', String(b.getAttribute('aria-controls')==='mk-'+k))); }
   const wantGive = new URLSearchParams(location.search).get('do')==='give';
   let picked = false;
   seg.addEventListener('click', ()=>{ picked = true; });
-  showView(wantGive || !myItems().length ? 'give' : 'mine');
-  // the listings may arrive after the tab is drawn: then open «Мои объявления», unless the form is already in use
-  if (!wantGive) live(()=>{ if (!picked && !giveBox.hidden && myItems().length && !title.value && !f.hidden && giveBox.isConnected) showView('mine'); });
-  return [myCount, seg, giveBox, mineBox];
+  // until the listings have loaded, neither view: a quiet «Загружаем…» instead of the form flashing and switching
+  const wait = h('p',{class:'hint mk-wait',role:'status',hidden:wantGive ? '' : null},'Загружаем ваши объявления…');
+  if (wantGive) showView('give');
+  else { giveBox.hidden = mineBox.hidden = true;
+    // no answer in 4 s (a bad connection): show the form rather than wait forever
+    let late = false; setTimeout(()=>{ late = true; refresh(); }, 4000);
+    live(()=>{ if (wait.hidden) return; if (picked){ wait.hidden = true; return; }
+      if (COM.listingsReady || late){ wait.hidden = true; showView(myItems().length ? 'mine' : 'give'); } }); }
+  // «Отдать вещь»: the form starts at the top of the screen, no scrolling by hand
+  if (wantGive){ let moved = false; const toForm = ()=>{ if (moved || !giveBox.isConnected) return; giveBox.scrollIntoView({block:'start'}); };
+    addEventListener('touchstart', ()=>{ moved = true; }, {once:true, passive:true}); addEventListener('wheel', ()=>{ moved = true; }, {once:true, passive:true});
+    setTimeout(toForm, 60); setTimeout(toForm, 600); }
+  return [myCount, seg, wait, giveBox, mineBox];
 }
 function paintThings(el){
   const items = myItems().slice().sort((a,b)=>b.ts-a.ts);
@@ -4106,6 +4124,19 @@ function authForms(mode){
     const pass = h('input',{id:'rg-pass',type:'password',autocomplete:'new-password',minlength:'6',required:''});
     const nick = h('input',{id:'rg-nick',maxlength:'30',placeholder:'Например, Лиза из Москвы',autocomplete:'nickname',required:''});
     const pick = characterPicker('rg-char');
+    // came to give a thing: a short form — a friendly character is already chosen, the whole catalogue is under «Выбрать другого»
+    const giving = new URLSearchParams(location.search).get('next')==='things';
+    const charNow = h('span',{class:'rg-char-now'});
+    const showChar = ()=>{ const c = charOf(pick.value);
+      charNow.replaceChildren(h('span',{class:'rg-char-em','aria-hidden':'true'}, (pick.custom && pick.custom.emoji) || (c && c.emoji) || '🌱'),
+        h('span',null, h('b',null, (pick.custom && (pick.custom.name || 'Свой персонаж')) || (c && c.name) || 'Персонаж'), h('span',{class:'hint'},' — можно сменить потом в кабинете'))); };
+    if (giving){
+      live(()=>{ if (pick.value || !COM.characters.length) return;
+        const c = COM.characters.find(x=>x.name==='Ёж' && !x.reserved_for) || COM.characters.find(x=>x.kind!=='custom' && !x.reserved_for); if (!c) return;
+        pick.value = c.id; const l = pick.querySelector('.char[data-id="'+c.id+'"]'); if (l){ l.classList.add('on'); const r = l.querySelector('input'); if (r) r.checked = true; }
+        showChar(); });
+      pick.addEventListener('change', showChar); pick.addEventListener('click', ()=>setTimeout(showChar)); pick.addEventListener('input', ()=>setTimeout(showChar));
+    }
     const consent = h('input',{type:'checkbox',id:'rg-consent',required:''});
     // «ОН ТЕБЯ ОЧЕНЬ ЖДЕТ...»: one letter if you have not come for more than 3 days; ticked by default, can be unticked
     const news = h('input',{type:'checkbox',id:'rg-news',checked:''});
@@ -4113,7 +4144,9 @@ function authForms(mode){
     const f = h('form',{class:'form',style:'margin:0;border-style:solid;border-color:var(--line)'},
       h('div',{class:'fields'}, h('label',{for:'rg-email'},'Почта',email), h('label',{for:'rg-pass'},'Пароль (от 6 символов)',pass)),
       h('label',{for:'rg-nick'},'Как вас подписывать',nick),
-      h('div',null, h('div',{style:'font-weight:700;margin-bottom:6px'},'Кем вы будете в «Счастливом мире»?'), pick),
+      giving ? h('div',{class:'rg-char'}, h('div',{style:'font-weight:700'},'Ваш персонаж в «Счастливом мире»'), charNow,
+          h('details',{class:'rg-char-more'}, h('summary',null,'Выбрать другого'), pick))
+        : h('div',null, h('div',{style:'font-weight:700;margin-bottom:6px'},'Кем вы будете в «Счастливом мире»?'), pick),
       h('p',{class:'hint'},'Имя и персонажа видят все посетители сайта. Почту не видит никто.'),
       h('label',{class:'consent'}, consent, h('span',null,'Я согласен(на) на обработку моих персональных данных в соответствии с ', h('a',{href:'/politika',target:'_blank'},'Политикой конфиденциальности'))),
       h('label',{class:'consent'}, news, h('span',null,'Напомнить мне на почту, если я долго не захожу (отписаться можно в один клик)')),
@@ -4148,6 +4181,7 @@ function authForms(mode){
         toast(d.email ? 'Эта почта уже зарегистрирована или указана неверно' : d.password ? 'Пароль слишком простой или короткий' : 'Не получилось зарегистрироваться, проверьте поля');
       }
     });
+    if (giving) return [invite, h('p',{class:'rg-give'},'🎁 Ещё шаг — и форма объявления. После регистрации она откроется сама.'), f];
     return [invite, h('p',null,'В личном кабинете хранятся ваши эко-привычки, уровень и сертификаты, результаты экзамена и игры. Ещё можно оставлять отзывы, комментировать, отдавать вещи даром и предлагать статьи.'), f];
   }
   show(mode==='register' ? 'register' : 'login');
@@ -4173,12 +4207,13 @@ function cabinetPage(){
   const tab = q.get('tab') || '', tid = q.get('t') || null;
   const st = accState();
   if (st==='loading') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap'}, h('h1',{class:'cab-name'},'Личный кабинет'), h('p',{class:'muted'},'Загружаем…')))];
-  if (st==='signedout') return [h('section',{class:'band',id:'cabinet'}, h('div',{class:'wrap cab-auth'},
-    h('div',{class:'eyebrow'},'Личный кабинет'),
-    h('h1',{class:'cab-name'}, tab==='register' || (!tab && refOf()) ? 'Регистрация' : 'Вход'),
-    h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи, которые вы отдаёте, и переписка. А ещё вы появитесь в «Счастливом мире».'),
+  const giving = q.get('next')==='things';
+  if (st==='signedout') return [h('section',{class:'band'+(giving ? ' cab-give-auth' : ''),id:'cabinet'}, h('div',{class:'wrap cab-auth'},
+    h('div',{class:'eyebrow'}, giving ? '🎁 Вещи даром' : 'Личный кабинет'),
+    h('h1',{class:'cab-name'}, giving ? 'Отдать вещь' : tab==='register' || (!tab && refOf()) ? 'Регистрация' : 'Вход'),
+    giving ? null : h('p',{class:'lead'},'В кабинете — ваш эко-челлендж недели, уровень и сертификаты, вещи, которые вы отдаёте, и переписка. А ещё вы появитесь в «Счастливом мире».'),
     authForms(tab || (refOf() ? 'register' : '')),
-    h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
+    giving ? null : h('p',{class:'hint'},'Без входа можно пользоваться калькулятором, играть и сдавать экзамен — результаты сохранятся в этом браузере.')))];
   // site management is its own section: the personal head is not shown there
   if (COM.admin && ADMIN_TABS.includes(TAB_ALIAS[tab] || tab)) return [adminHead(), cabinetTabs(tab, tid)];
   // like the home page: who you are and the main actions first, then the tabs with everything else
@@ -5639,7 +5674,7 @@ function maybeTour(){
   });
   watch('reviews',{sort:'-created'}, l=>{ COM.reviews = l.map(r=>({id:r.id, author:r.author, rating:r.rating, text:r.text, ts:tsOf(r)})); });
   watch('comments',{sort:'created'}, l=>{ COM.comments = l.map(r=>({id:r.id, target:r.target, author:r.author, text:r.text, ts:tsOf(r)})); });
-  watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); });
+  watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); COM.listingsReady = true; });
   watch('thanks',{sort:'-created'}, l=>{ COM.thanks = l.map(thanksOf); DAROM.stats = null; DAROM.people = {}; });
   watch('wants',{sort:'-created',filter:'status = "open"'}, l=>{ COM.wants = l.map(wantOf); });
   if (COM.uid){
