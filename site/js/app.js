@@ -2412,7 +2412,7 @@ function userListingCard(it, full){
     h('div',{class:'lc-giver'}, h('span',{class:'hint'},'Отдаёт: ', nameSpan(it.seller)), trustLine(it.seller)),
     it.claims && !mine ? h('p',{class:'hint lc-claims'},'🙋 Желающих: ',h('b',null,it.claims),' — даритель выберет сам, кто первый — не важно') : null,
     h('div',{class:'lc-actions'},
-      mine ? h('p',{class:'hint',style:'font-weight:800;margin:0'},'Это ваша вещь. Желающие и их сообщения — в кабинете.') : it.status==='lent' ? null : claimBtn(it),
+      mine ? h('p',{class:'hint',style:'font-weight:800;margin:0'},'Это ваша вещь. Желающие и их сообщения — в кабинете.') : claimBtn(it),
       full ? null : h('a',{class:'btn ghost small',href:daromUrl(it)},'Подробнее')),
     full ? shareRow(it) : null,
     full ? commentsBlock('mk:'+it.id) : null
@@ -2469,13 +2469,19 @@ function lotBlock(it){
     items.length ? h('ul',null, items.slice(0,6).map(x=>h('li',null,x)), items.length > 6 ? h('li',{class:'hint'},'и ещё '+(items.length-6)) : null) : null,
     it.more && it.more.length ? h('div',{class:'lot-ph'}, it.more.map(u=>h('img',{src:u,alt:it.title,loading:'lazy'}))) : null);
 }
+// the same title as the server page of a thing (pb_hooks/seo.js, itemTitle) — change them together
+function itemTitle(it){
+  const tail = it.city ? (CITY_IN[it.city] ? ' в '+CITY_IN[it.city] : ', '+it.city) : '', how = it.kind==='Одолжу' ? 'на время' : 'бесплатно';
+  const t = it.title+' '+how+tail+' — Вещи даром | DashaBotanika';
+  return t.length <= 75 ? t : it.title+' '+how+tail+' | DashaBotanika';
+}
 function daromItemPage(path){
   const id = path.split('/')[3];
   return {title:'Вещь даром — DashaBotanika', render:()=>{
     const box = h('div');
     live(()=>{ const it = COM.listings.find(l=>l.id===id);
       if (!it){ box.replaceChildren(h('p',{class:'lead'}, accState()==='loading' ? 'Загружаем…' : 'Эту вещь уже отдали или убрали. Посмотрите другие — вдруг найдётся похожая.'), h('a',{class:'btn',href:'/darom'},'Все вещи даром')); return; }
-      document.title = 'Отдам даром: '+it.title+(it.city ? ' — '+it.city : '')+' — DashaBotanika';
+      document.title = itemTitle(it);
       const more = publicListings().filter(l=>l.id!==id && (l.category===it.category || l.city===it.city)).slice(0,3);
       box.replaceChildren(h('div',{class:'grid g2 item-page'}, userListingCard(it, true), h('div',{style:'display:grid;gap:12px;align-content:start'},
           h('div',{class:'card'}, h('b',null,'Как забрать'), h('p',{class:'muted',style:'margin:0'},'Нажмите «Хочу забрать» и напишите пару слов о себе. Даритель сам выберет, кому отдать, — кто написал первым, не важно. Вещь бесплатная: здесь ничего не продают.')),
@@ -2497,7 +2503,9 @@ function claimBtn(it){
   const mineClaim = (COM.claims||[]).find(c=>c.listing===it.id && c.user===COM.uid);
   if (mineClaim) return h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}, h('span',{class:'status accepted'},'✓ Вы в списке желающих'),
     h('button',{type:'button',class:'btn ghost small',onclick:()=>openDeal({listing:it.id}, it.title, it.seller)},'Написать'));
-  return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openClaim(it)}, it.kind==='Одолжу' ? 'Хочу взять на время' : 'Хочу забрать');
+  // the action follows the real status: a reserved or lent thing is not free — you join the queue
+  const busy = it.status==='reserved' || it.status==='lent';
+  return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openClaim(it)}, busy ? 'Встать в очередь' : it.kind==='Одолжу' ? 'Хочу взять на время' : 'Хочу забрать');
 }
 function openClaim(it){
   if (accState() !== 'member'){ try{ sessionStorage.setItem('db-return', daromUrl(it)); }catch(e){} go('/kabinet?tab=register'); toast('Сначала войдите или зарегистрируйтесь — это минута. Потом вернём вас к этой вещи'); return; }

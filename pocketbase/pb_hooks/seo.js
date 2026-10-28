@@ -104,14 +104,65 @@ function content(app, tpl) {
   return m ? JSON.parse(m[1]) : {}
 }
 
+// Только публичные поля объявления: без дарителя, его почты, переписки, заявок и служебных полей модерации.
+function listingOf(r) {
+  const file = (f) => `/api/files/${r.collection().id}/${r.id}/${f}`
+  return {
+    id: r.id, title: r.getString("title").trim(), kind: r.getString("kind"), category: r.getString("category"),
+    condition: r.getString("condition").trim(), city: r.getString("city").trim(), district: r.getString("district").trim(),
+    pickup: r.getString("pickup").trim(), note: r.getString("note").trim(), status: r.getString("status") || "active",
+    lend_days: r.getInt("lend_days"), return_by: r.getString("return_by"), lot: r.getBool("lot"), items: r.getString("items"),
+    created: r.getString("created"), updated: r.getString("updated"),
+    photo: r.getString("photo") ? file(r.getString("photo")) : "",
+    more: (r.getStringSlice("more_photos") || []).map((f) => file(f)),
+  }
+}
 function listings(app) {
   try {
-    return app.findRecordsByFilter("listings", "moderation = 'approved' && status != 'gone' && status != 'archived'", "-created", 300, 0).map((r) => ({
-      id: r.id, title: r.getString("title"), kind: r.getString("kind"), price: r.getString("price"), category: r.getString("category"),
-      condition: r.getString("condition"), city: r.getString("city").trim(), district: r.getString("district"), note: r.getString("note"),
-      photo: r.getString("photo") ? `/api/files/${r.collection().id}/${r.id}/${r.getString("photo")}` : "",
-    }))
+    return app.findRecordsByFilter("listings", "moderation = 'approved' && status != 'gone' && status != 'archived'", "-created", 300, 0).map(listingOf)
   } catch (err) { return [] }
+}
+// Страница вещи: заголовок, H1 и описание собираются только из заполненных полей — ничего не додумываем.
+const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+const ruDate = (s) => { const m = String(s || "").match(/^(\d{4})-(\d\d)-(\d\d)/); return m ? `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}` : "" }
+const lend = (it) => it.kind === "Одолжу"
+// «в Москве» для городов из списка, иначе «, Тула»: склонять любые названия автоматически не возьмёмся
+const cityTail = (c) => (c ? (CITY_IN[c] ? " в " + CITY_IN[c] : ", " + c) : "")
+function itemTitle(it) {
+  const t = `${it.title} ${lend(it) ? "на время" : "бесплатно"}${cityTail(it.city)} — Вещи даром | DashaBotanika`
+  return t.length <= 75 ? t : `${it.title} ${lend(it) ? "на время" : "бесплатно"}${cityTail(it.city)} | DashaBotanika`
+}
+const itemH1 = (it) => `${it.title} — ${lend(it) ? "на время" : "даром"}${it.city ? ", " + it.city : ""}`
+// честный статус: забронированная и одолженная вещь не выдаётся за свободную
+function itemStatus(it) {
+  if (it.status === "reserved") return ["Забронирована", "Даритель уже выбрал получателя. Если вещь не заберут, она перейдёт следующему — можно встать в очередь."]
+  if (it.status === "lent") return ["На руках", `Вещь сейчас у другого участника${it.return_by ? ", вернуть должны до " + ruDate(it.return_by) : ""}. Можно встать в очередь.`]
+  return lend(it) ? ["Можно взять на время", `Даритель одалживает вещь${it.lend_days ? " на " + it.lend_days + " дн." : ""}. Нажмите «Хочу взять на время» и напишите пару слов о себе.`]
+    : ["Свободна", "Нажмите «Хочу забрать» и напишите пару слов о себе. Кому отдать, решает даритель — кто написал первым, не важно."]
+}
+function itemDescription(it) {
+  const parts = [it.title + (it.condition ? ", состояние: " + it.condition.replace(/[.\s]+$/, "").toLowerCase() : "") + "."]
+  const place = [it.city, it.district].filter(Boolean).join(", ")
+  parts.push((lend(it) ? "Можно взять на время" : "Бесплатно") + (place ? " — " + place : "") + ".")
+  if (it.status === "reserved") parts.push("Сейчас забронирована.")
+  if (it.note) parts.push(cut(it.note, 90))
+  parts.push((it.photo ? "Фото и связь" : "Связь") + " с дарителем на DashaBotanika.")
+  return cut(parts.join(" "), 200)
+}
+function itemHtml(it, similar, cityLink) {
+  const [st, how] = itemStatus(it)
+  const facts = [["Статус", st], ["Категория", it.category], ["Состояние", it.condition], ["Где", [it.city, it.district].filter(Boolean).join(", ")],
+    ["Передача", it.pickup], ["Опубликовано", ruDate(it.created)]].filter(([, v]) => v)
+  const items = it.lot ? String(it.items || "").split("\n").map((x) => x.replace(/^([-—–•*]|\d+[.)])\s+/, "").trim()).filter(Boolean) : []
+  return `<article class="band"><div class="wrap"><p><a href="/darom">Вещи даром</a>${cityLink ? ` · <a href="${cityLink[1]}">${esc(cityLink[0])}</a>` : ""}</p>` +
+    `<h1>${esc(itemH1(it))}</h1>` +
+    (it.photo ? `<img src="${esc(it.photo)}?thumb=600x450" alt="${esc(it.title)}" width="600" height="450">` : "") +
+    `<dl>${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` +
+    (items.length ? `<h2>Что в лоте</h2><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "") +
+    (it.note ? `<h2>Описание</h2>${paras(it.note)}` : "") +
+    `<h2>Как забрать</h2><p>${esc(how)} Вещь бесплатная: здесь ничего не продают.</p>` +
+    (similar.length ? `<h2>Похожие вещи</h2><ul>${similar.map((x) => `<li><a href="/darom/v/${x.id}">${esc(x.title)}</a>${x.city ? " — " + esc(x.city) : ""}</li>`).join("")}</ul>` : "") +
+    `<p><a href="/darom">Все вещи даром</a>${cityLink ? ` · <a href="${cityLink[1]}">${esc(cityLink[0])}</a>` : ""}</p></div></article>`
 }
 // города, где сейчас есть вещи даром, — у каждого своя страница /darom/<город>
 const daromCities = (app) => [...new Set(listings(app).map((l) => l.city).filter(Boolean))]
@@ -256,16 +307,17 @@ function page(path, d, k, app) {
   // одна вещь: своя страница, чтобы ею можно было поделиться (превью с фото) и найти в поиске
   const mv = path.match(/^\/darom\/v\/([a-z0-9]{15})$/)
   if (mv) {
-    const it = listings(app).find((l) => l.id === mv[1])
+    const all = listings(app), it = all.find((l) => l.id === mv[1])
     if (!it) return null
-    const where = [it.city, it.district].filter(Boolean).join(", ")
+    // похожие: та же категория или тот же город, сначала совпадение по обоим
+    const score = (x) => (x.category && x.category === it.category ? 2 : 0) + (x.city && x.city === it.city ? 1 : 0)
+    const similar = all.filter((x) => x.id !== it.id && score(x) > 0).sort((a, b) => score(b) - score(a)).slice(0, 6)
+    const cityLink = it.city ? [`Вещи даром ${inCity(it.city)}`, `/darom/${slugify(it.city)}`] : null
     return Object.assign(base, {
-      title: `Отдам даром: ${it.title}${where ? " — " + where : ""} — DashaBotanika`,
-      description: cut(`Бесплатно, без продажи и обмена: ${it.title}${where ? " (" + where + ")" : ""}. ${it.note || "Напишите дарителю на DashaBotanika — он сам выберет, кому отдать."}`, 200),
+      title: itemTitle(it), description: itemDescription(it),
       image: it.photo ? ORIGIN + it.photo : null, canonical: path,
-      crumbs: [["Вещи даром", "/darom"], [it.title, path]],
-      body: sec("market", "Вещи даром", it.title, `Бесплатно${where ? " · " + where : ""}${it.category ? " · " + it.category : ""}`,
-        `${it.photo ? `<img src="${esc(it.photo)}" alt="${esc(it.title)}">` : ""}${it.note ? `<p>${esc(it.note)}</p>` : ""}<p><a href="/darom">Все вещи даром</a>${it.city ? ` · <a href="/darom/${slugify(it.city)}">Отдам даром ${esc(inCity(it.city))}</a>` : ""}</p>`, true),
+      crumbs: [["Вещи даром", "/darom"]].concat(cityLink ? [[it.city, cityLink[1]]] : []).concat([[it.title, path]]),
+      body: itemHtml(it, similar, cityLink),
     })
   }
   // город: «Отдам даром Новосибирск» — живые вещи этого города
@@ -450,4 +502,4 @@ function sitemap(app) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
 }
 
-module.exports = { render, sitemap, slugify, articleSlug }
+module.exports = { render, sitemap, slugify, articleSlug, itemTitle }
