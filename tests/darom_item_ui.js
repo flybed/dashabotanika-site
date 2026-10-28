@@ -19,6 +19,8 @@ const ssrTitle = async path => ((await (await fetch(B+'/api/seo/page?p='+encodeU
   const free = await listing({title:'Самокат '+sfx}), res = await listing({title:'Санки '+sfx}), lent = await listing({title:'Дрель '+sfx, kind:'Одолжу', lend_days:7});
   await api('PATCH','/collections/listings/records/'+res,{status:'reserved'},giver.token);
   await api('PATCH','/collections/listings/records/'+lent,{status:'lent'},su);
+  const gone = await listing({title:'Коляска прогулочная '+sfx, condition:'Хорошее'});
+  await api('PATCH','/collections/listings/records/'+gone,{status:'gone'},giver.token);
   const b = await chromium.launch();
   try{
     const c = await b.newContext({viewport:{width:390,height:812}}); await c.addInitScript(()=>{ try{ sessionStorage.setItem('db-splash','1'); localStorage.setItem('db-tour-done','1'); }catch(e){} });
@@ -32,6 +34,14 @@ const ssrTitle = async path => ((await (await fetch(B+'/api/seo/page?p='+encodeU
       check(want+': the button is «'+btn+'»', (await p.locator('.lcard.full .lc-actions button').first().innerText()).trim() === btn);
       check(want+': page title = server title', (await p.title()) === await ssrTitle('/darom/v/'+id));
     }
+    // a given-away thing, served the way the live server does it (Caddy → /api/seo/page): honest status, similar things, no claim
+    await p.route(/\/darom\/v\/[a-z0-9]{15}$/, async r=>{ if (r.request().resourceType()!=='document') return r.continue();
+      const path = new URL(r.request().url()).pathname, res = await fetch(B+'/api/seo/page?p='+encodeURIComponent(path));
+      r.fulfill({status:res.status, contentType:'text/html; charset=utf-8', body:await res.text()}); });
+    await p.goto(B+'/darom/v/'+gone); await p.waitForSelector('.item-closed-t'); await p.waitForTimeout(500);
+    check('given away: «уже отдана» shown by the page script too', (await p.innerText('.item-closed-t')).includes('уже отдана'));
+    check('given away: similar free things, none of them is the closed one', (await p.$$('.lcard')).length > 0 && !(await p.innerText('main')).includes('Коляска прогулочная '+sfx+'\n\nСвободна'));
+    check('given away: page title = server title', (await p.title()) === await ssrTitle('/darom/v/'+gone));
   } finally { await b.close(); }
   console.log(fails.length ? 'FAILED\n'+fails.join('\n') : 'ALL OK'); process.exit(fails.length ? 1 : 0);
 })();
