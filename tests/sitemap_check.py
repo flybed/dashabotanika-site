@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Проверка карты сайта: в ней только живые индексируемые адреса.
 
-Каждый адрес из sitemap отвечает 200, его canonical — он сам, нет <meta name="robots" content="noindex">,
+Каждый адрес из sitemap (и из всех частей, если /sitemap.xml — оглавление) отвечает 200, его canonical — он сам, нет <meta name="robots" content="noindex">,
 есть ровно один H1 и непустой title; адреса не повторяются, lastmod — дата ГГГГ-ММ-ДД; robots.txt не закрывает
 ни одного адреса из карты и ссылается на неё.
 
@@ -32,6 +32,16 @@ def main(argv):
         if not ok: fails.append(name); print('FAIL ' + name)
     st, xml = fetch(sm_url)
     check('sitemap answers 200', st == 200)
+    # много вещей — /sitemap.xml становится оглавлением: проверяем адреса из всех его частей
+    if '<sitemapindex' in xml:
+        parts = re.findall(r'<loc>([^<]+)</loc>', xml)
+        print('sitemap index: %d parts' % len(parts))
+        xml = ''
+        for part in parts:
+            name = part.rsplit('/', 1)[1]
+            st, body = fetch(base + '/api/seo/sitemap?f=' + name if local else part)
+            check(name + ' answers 200', st == 200)
+            xml += body
     locs = re.findall(r'<loc>([^<]+)</loc>', xml)
     mods = re.findall(r'<lastmod>([^<]+)</lastmod>', xml)
     check('sitemap is not empty', len(locs) > 0)

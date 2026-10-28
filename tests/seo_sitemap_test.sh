@@ -51,7 +51,29 @@ check('a noindex thing is not in the sitemap', '/darom/v/'+weak not in sm and '/
 check('canonical: trailing slash → the address without it', canon('/zhurnal/') == 'https://dashabotanika.ru/zhurnal')
 check('canonical: an old article address → the current one', canon('/zhurnal/kompost') == 'https://dashabotanika.ru/zhurnal/kompost-v-kvartire')
 check('canonical: filters in the address are not part of it', canon('/darom') == 'https://dashabotanika.ru/darom')
+
 import sys; sys.exit(1 if fails else 0)
 PY
 # каждый адрес из карты: 200, свой canonical, без noindex, один H1, title, не закрыт robots.txt
+python3 "$ROOT/tests/sitemap_check.py" --pb http://127.0.0.1:8097 || { echo FAILED; exit 1; }
+# то же, когда карта — оглавление с частями (часть по 3 вещи, чтобы не создавать тысячи)
+kill "$(cat "$T/pid")"; sleep 1
+SEO_SITEMAP_CHUNK=3 "$PB" serve --dir="$T/pb_data" --migrationsDir="$ROOT/pocketbase/pb_migrations" --hooksDir="$ROOT/pocketbase/pb_hooks" --http=127.0.0.1:8097 > "$T/log.txt" 2>&1 & echo $! > "$T/pid"
+sleep 5
+python3 - <<'PY' || { echo FAILED; exit 1; }
+import re, time, urllib.request as u
+B = 'http://127.0.0.1:8097/api/seo/sitemap'
+get = lambda q='': u.urlopen(B + q).read().decode()
+idx = get()
+parts = re.findall(r'<loc>https://dashabotanika.ru/(sitemap-[a-z0-9-]+\.xml)</loc>', idx)
+ok = '<sitemapindex' in idx and parts == ['sitemap-pages.xml', 'sitemap-darom-1.xml', 'sitemap-darom-2.xml']
+print(('PASS ' if ok else 'FAIL ') + '6 things in search, parts of 3: an index of pages + 2 parts of things')
+things = get('?f=sitemap-darom-1.xml') + get('?f=sitemap-darom-2.xml')
+today = time.strftime('%Y-%m-%d', time.gmtime())
+ok2 = len(re.findall(r'/darom/v/[a-z0-9]{15}</loc><lastmod>' + today + '</lastmod>', things)) == 6
+print(('PASS ' if ok2 else 'FAIL ') + 'every thing in the parts keeps its lastmod')
+ok3 = re.search(r'/darom/perm</loc><lastmod>' + today, get('?f=sitemap-pages.xml')) is not None
+print(('PASS ' if ok3 else 'FAIL ') + 'the city with its lastmod is in the pages part')
+raise SystemExit(0 if ok and ok2 and ok3 else 1)
+PY
 python3 "$ROOT/tests/sitemap_check.py" --pb http://127.0.0.1:8097 || { echo FAILED; exit 1; }
