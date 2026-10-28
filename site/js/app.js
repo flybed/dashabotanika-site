@@ -2474,12 +2474,24 @@ function itemTitle(it){
   const t = it.title+' '+how+tail+' — Вещи даром | DashaBotanika';
   return t.length <= 75 ? t : it.title+' '+how+tail+' | DashaBotanika';
 }
+// a given-away or out-of-date thing: the server page leaves its status here (pb_hooks/seo.js, closedItem)
+const SSR_ITEM = (()=>{ try{ return JSON.parse(document.getElementById('item-state').textContent); }catch(e){ return null; } })();
 function daromItemPage(path){
   const id = path.split('/')[3];
   return {title:'Вещь даром — DashaBotanika', render:()=>{
     const box = h('div');
     live(()=>{ const it = COM.listings.find(l=>l.id===id);
-      if (!it){ box.replaceChildren(h('p',{class:'lead'}, accState()==='loading' ? 'Загружаем…' : 'Эту вещь уже отдали или убрали. Посмотрите другие — вдруг найдётся похожая.'), h('a',{class:'btn',href:'/darom'},'Все вещи даром')); return; }
+      if (!it){
+        const was = SSR_ITEM && SSR_ITEM.id===id ? SSR_ITEM : null;
+        if (accState()==='loading' && !was){ box.replaceChildren(h('p',{class:'lead'},'Загружаем…')); return; }
+        // similar free things: the same category or city first (no «Хочу забрать» for the closed one)
+        const score = l => was ? (l.category===was.category ? 2 : 0) + (l.city===was.city ? 1 : 0) : 0;
+        const more = publicListings().slice().sort((a,b)=>score(b)-score(a)).slice(0,6);
+        if (was) document.title = was.title+' — '+(was.status==='gone' ? 'уже отдана' : 'объявление неактуально')+' | DashaBotanika';
+        box.replaceChildren(h('h1',{class:'item-closed-t'}, was ? was.title+' — '+(was.status==='gone' ? 'уже отдана' : 'объявление неактуально') : 'Вещи здесь больше нет'),
+          h('p',{class:'lead'}, was && was.status==='gone' ? 'Эту вещь уже отдали. ' : was ? 'Срок объявления закончился. ' : 'Эту вещь уже отдали или убрали. ', more.length ? 'Посмотрите похожие — они ещё свободны.' : 'Загляните в каталог — там есть другие вещи.'),
+          more.length ? h('div',{class:'grid g3'}, more.map(x=>userListingCard(x))) : null, h('a',{class:'btn',href:'/darom'},'Все вещи даром'));
+        return; }
       document.title = itemTitle(it);
       const more = publicListings().filter(l=>l.id!==id && (l.category===it.category || l.city===it.city)).slice(0,3);
       box.replaceChildren(h('div',{class:'grid g2 item-page'}, userListingCard(it, true), h('div',{style:'display:grid;gap:12px;align-content:start'},
@@ -4313,7 +4325,12 @@ function cabinetTabs(tab, tid){
     if (cur==='challenges') out.push(challengesSection());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); lists.svc = h('div',{class:'list'});
-      out.push(h('h3',{style:'font-size:20px'},'Объявления «Вещи даром»'), h('p',{class:'muted'},'Объявления участников появляются в «Вещах даром» только после вашего одобрения.'), lists.moder,
+      // possible copies from different accounts: they stay in the catalogue but are kept out of search; Dasha decides
+      const dupes = h('div',{class:'list'});
+      pb.send('/api/darom/dupes',{requestKey:null}).then(r=>{ const it = r.items||[]; dupes.replaceChildren(...(it.length ? [h('h3',{style:'font-size:18px'},'Возможные дубли'),
+        h('p',{class:'muted'},'Такое же название и описание уже есть у другого участника. В поиск эти объявления не попадают, в каталоге остаются — проверьте и при необходимости удалите.')].concat(it.map(x=>h('div',{class:'li'},
+          h('b',null,x.title), h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn ghost small',href:'/darom/v/'+x.id},'Это объявление'), h('a',{class:'btn ghost small',href:'/darom/v/'+x.first},'Первое такое же'))))) : [])); }).catch(()=>{});
+      out.push(h('h3',{style:'font-size:20px'},'Объявления «Вещи даром»'), h('p',{class:'muted'},'Объявления участников появляются в «Вещах даром» только после вашего одобрения.'), lists.moder, dupes,
         h('h3',{style:'font-size:20px'},'Предложенные сервисы'), h('p',{class:'muted'},'Компании и проекты, которые участники предложили для раздела «Полезные сервисы».'), lists.svc,
         h('h3',{style:'font-size:20px'},'Жалобы на комментарии'), h('p',{class:'muted'},'Участники отметили эти комментарии. Удалите или оставьте — автор жалобы не узнаёт, кто решал.'), lists.rep = h('div',{class:'list'})); }
     if (cur==='people'){ lists.people = h('div',{class:'list'}); out.push(backupCard(), h('p',{class:'muted'},'Модераторы проверяют объявления, видят предложения и обратную связь и могут редактировать сайт.'), lists.people); }

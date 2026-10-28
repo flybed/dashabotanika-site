@@ -71,7 +71,7 @@ onRecordAfterCreateSuccess((e) => { e.next(); if (e.record.getString("moderation
 // ---------- письмо дарителю после проверки ----------
 // служебные поля писем меняет только сервер (и суперпользователь при проверках), не запрос автора или модератора
 onRecordUpdateRequest((e) => {
-  if (!e.hasSuperuserAuth()) { const o = e.record.original(); for (const f of ["mod_due", "mod_mail", "mod_tries", "mod_next"]) e.record.set(f, o.get(f)) }
+  if (!e.hasSuperuserAuth()) { const o = e.record.original(); for (const f of ["mod_due", "mod_mail", "mod_tries", "mod_next", "gone_at"]) e.record.set(f, o.get(f)) }
   e.next()
 }, "listings")
 // сменился статус проверки (или причина отказа) — письмо в очередь; то же самое ещё раз — нет
@@ -93,3 +93,23 @@ routerAdd("GET", "/api/darom/tg-off", (e) => {
   const D = require(`${__hooks}/darom.js`), r = D.tgOff(e.app, String(e.request.url.query().get("t") || ""))
   return e.html(r === "unknown" ? 404 : 200, D.tgOffPage(r))
 })
+
+// ---------- когда вещь отдали (gone_at) и поисковики ----------
+// отдали — запоминаем дату (по ней страница 30 дней показывает «Уже отдана», потом 410); вернули в ленту — дату снимаем
+onRecordUpdate((e) => {
+  const was = e.record.original().getString("status"), now = e.record.getString("status")
+  if (now === "gone" && was !== "gone" && !e.record.getString("gone_at")) e.record.set("gone_at", new Date().toISOString())
+  if (now !== "gone" && was === "gone") e.record.set("gone_at", "")
+  e.next()
+}, "listings")
+onRecordCreate((e) => { e.record.set("gone_at", e.record.getString("status") === "gone" ? new Date().toISOString() : ""); e.next() }, "listings")
+// страница вещи стала доступной, изменилась или закрылась — в очередь IndexNow (уходит раз в 5 минут, сохранение не ждёт;
+// любая ошибка здесь не мешает сохранить объявление)
+onRecordAfterCreateSuccess((e) => { e.next(); try { require(`${__hooks}/indexnow.js`).onListing(e.app, e.record, null) } catch (err) {} }, "listings")
+onRecordAfterUpdateSuccess((e) => { e.next(); try { require(`${__hooks}/indexnow.js`).onListing(e.app, e.record, e.record.original()) } catch (err) {} }, "listings")
+onRecordAfterDeleteSuccess((e) => { e.next(); try { require(`${__hooks}/indexnow.js`).onListing(e.app, null, e.record) } catch (err) {} }, "listings")
+// модераторам: возможные дубли с разных аккаунтов (в поиск не попадают, из каталога сами не убираются)
+routerAdd("GET", "/api/darom/dupes", (e) => {
+  if (!e.auth || ["admin", "moderator"].indexOf(e.auth.getString("role")) < 0) return e.json(403, { message: "Только для модераторов" })
+  return e.json(200, { items: require(`${__hooks}/seo.js`).suspectedDupes(e.app) })
+}, $apis.requireAuth("users"))

@@ -44,7 +44,7 @@ full = listing(title='Детский велосипед', category='Детско
                pickup='м. Парк культуры, вечером', note='Колёса 16 дюймов, на рост 105–120 см. Отдам вместе с насосом.')
 bare = listing(title='Книги о садоводстве', category='Книги')
 tula = listing(title='Кастрюля', category='Кухня и посуда', city='Кострома')
-res  = listing(title='Санки', category='Детское', city='Москва')
+res  = listing(title='Санки детские складные', category='Детское', city='Москва', condition='Хорошее')
 req('PATCH','/collections/listings/records/'+res, {'status':'reserved'}, t)
 lent = listing(title='Дрель', category='Техника', city='Москва', kind='Одолжу', lend_days=7)
 req('PATCH','/collections/listings/records/'+lent, {'status':'lent','return_by':'2026-11-20 12:00:00.000Z'}, su)
@@ -59,7 +59,8 @@ check('full: H1 «Детский велосипед — даром, Москва
 check('full: description from the fields only', p['desc'].startswith('Детский велосипед, состояние: хорошее, есть царапины. Бесплатно — Москва, Хамовники. Колёса 16 дюймов') and p['desc'].endswith('Связь с дарителем на DashaBotanika.'))
 check('full: category, condition, place, pickup, status and date on the page', all(x in p['main'] for x in ['Детское','Хорошее, есть царапины','Москва, Хамовники','м. Парк культуры, вечером','Свободна','Опубликовано']))
 check('full: «Хочу забрать» explained, similar things linked', 'Хочу забрать' in p['main'] and '/darom/v/'+res in p['main'])
-check('full: breadcrumbs Главная › Вещи даром › Москва › вещь', '"name":"Москва"' in p['ld'] and '"name":"Детский велосипед"' in p['ld'])
+# город попадает в крошки, только когда его страница индексируется (от 5 вещей) — здесь их меньше
+check('full: breadcrumbs Главная › Вещи даром › вещь (the city page is not indexed yet)', '"name":"Вещи даром"' in p['ld'] and '"name":"Детский велосипед"' in p['ld'] and '"name":"Москва"' not in p['ld'])
 check('privacy: no e-mail, no giver name, no moderation reason', 'anya.private' not in p['html'] and 'Секретова' not in p['html'] and 'Не по правилам' not in p['html'])
 check('privacy: the pickup place is not in title/description', 'Парк культуры' not in p['title'] + p['desc'])
 p = page('/darom/v/'+bare)
