@@ -71,7 +71,7 @@ onRecordAfterCreateSuccess((e) => { e.next(); if (e.record.getString("moderation
 // ---------- письмо дарителю после проверки ----------
 // служебные поля писем меняет только сервер (и суперпользователь при проверках), не запрос автора или модератора
 onRecordUpdateRequest((e) => {
-  if (!e.hasSuperuserAuth()) { const o = e.record.original(); for (const f of ["mod_due", "mod_mail", "mod_tries", "mod_next", "gone_at"]) e.record.set(f, o.get(f)) }
+  if (!e.hasSuperuserAuth()) { const o = e.record.original(); for (const f of ["mod_due", "mod_mail", "mod_tries", "mod_next", "gone_at", "seo_index", "seo_key"]) e.record.set(f, o.get(f)) }
   e.next()
 }, "listings")
 // сменился статус проверки (или причина отказа) — письмо в очередь; то же самое ещё раз — нет
@@ -102,12 +102,23 @@ onRecordUpdate((e) => {
   if (now !== "gone" && was === "gone") e.record.set("gone_at", "")
   e.next()
 }, "listings")
-onRecordCreate((e) => { e.record.set("gone_at", e.record.getString("status") === "gone" ? new Date().toISOString() : ""); e.next() }, "listings")
-// страница вещи стала доступной, изменилась или закрылась — в очередь IndexNow (уходит раз в 5 минут, сохранение не ждёт;
-// любая ошибка здесь не мешает сохранить объявление)
-onRecordAfterCreateSuccess((e) => { e.next(); try { require(`${__hooks}/indexnow.js`).onListing(e.app, e.record, null) } catch (err) {} }, "listings")
-onRecordAfterUpdateSuccess((e) => { e.next(); try { require(`${__hooks}/indexnow.js`).onListing(e.app, e.record, e.record.original()) } catch (err) {} }, "listings")
-onRecordAfterDeleteSuccess((e) => { e.next(); try { require(`${__hooks}/indexnow.js`).onListing(e.app, null, e.record) } catch (err) {} }, "listings")
+onRecordCreate((e) => {
+  e.record.set("gone_at", e.record.getString("status") === "gone" ? new Date().toISOString() : "")
+  // в поиск вещь отмечает только сервер — после сохранения (reindexListing)
+  e.record.set("seo_index", false); e.record.set("seo_key", "")
+  e.next()
+}, "listings")
+// вещь сохранили или удалили — пересчитать, попадает ли она в поиск (и вещи с тем же названием: дубли);
+// потом страница в очередь IndexNow (уходит раз в 5 минут, сохранение не ждёт).
+// Любая ошибка здесь не мешает сохранить объявление.
+onRecordAfterCreateSuccess((e) => { e.next(); require(`${__hooks}/seo.js`).afterSave(e.app, e.record, true); try { require(`${__hooks}/indexnow.js`).onListing(e.app, e.record, null) } catch (err) {} }, "listings")
+onRecordAfterUpdateSuccess((e) => { e.next(); require(`${__hooks}/seo.js`).afterSave(e.app, e.record, true); try { require(`${__hooks}/indexnow.js`).onListing(e.app, e.record, e.record.original()) } catch (err) {} }, "listings")
+onRecordAfterDeleteSuccess((e) => { e.next(); require(`${__hooks}/seo.js`).afterSave(e.app, e.record, false); try { require(`${__hooks}/indexnow.js`).onListing(e.app, null, e.record) } catch (err) {} }, "listings")
+// вещи без seo_key (опубликованные до обновления или записанные в базу в обход сайта) — досчитываем раз в минуту;
+// запрос идёт по индексу, поэтому, когда таких нет, он почти ничего не стоит
+cronAdd("seo-reindex", "* * * * *", () => {
+  try { const r = require(`${__hooks}/seo.js`).reindexAll($app, false); if (r.listings) $app.logger().info("seo reindex", "listings", r.listings, "changed", r.changed) } catch (err) { $app.logger().error("seo reindex", "error", String(err)) }
+})
 // модераторам: возможные дубли с разных аккаунтов (в поиск не попадают, из каталога сами не убираются)
 routerAdd("GET", "/api/darom/dupes", (e) => {
   if (!e.auth || ["admin", "moderator"].indexOf(e.auth.getString("role")) < 0) return e.json(403, { message: "Только для модераторов" })
