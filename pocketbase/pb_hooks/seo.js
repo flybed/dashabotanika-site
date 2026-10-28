@@ -142,31 +142,66 @@ const seoKey = (title) => norm(title).slice(0, 300) || "-"
 const EMPTY_TITLES = ["вещь", "вещи", "отдам", "отдаю", "отдам даром", "даром", "бесплатно", "разное", "разные вещи", "все", "мелочи", "хлам", "тест", "test", "проверка", "объявление"]
 const DAY = 86400000
 const ts = (s) => Date.parse(String(s || "").replace(" ", "T")) || 0
-// «та же самая вещь, выложенная ещё раз»: кроме названия совпадает всё, что её описывает (пустое = пустое).
-// Две разные куртки одного дарителя с одинаковым названием, но разным описанием или состоянием, — две вещи, обе в поиске.
-const sameThing = (a, b) => norm(a.note) === norm(b.note) && norm(a.condition) === norm(b.condition) && norm(a.items) === norm(b.items) &&
-  a.category === b.category && a.city === b.city && a.kind === b.kind
 // дубли: один даритель выложил ту же вещь ещё раз за 30 дней — в поиске только последняя;
-// одинаковые название и описание с разных аккаунтов за 7 дней — только первая (остальные видят модераторы)
-function dupOf(it, pool) {
-  const t = norm(it.title), n = norm(it.note)
-  return pool.find((x) => x.id !== it.id && norm(x.title) === t && (
-    (x._seller === it._seller && sameThing(x, it) && ts(x.created) > ts(it.created) && ts(x.created) - ts(it.created) <= 30 * DAY) ||
-    (x._seller !== it._seller && n.length >= 20 && norm(x.note) === n && ts(x.created) < ts(it.created) && ts(it.created) - ts(x.created) <= 7 * DAY))) || null
+// одинаковые название и описание с разных аккаунтов за 7 дней — только первая (остальные видят модераторы).
+// «Та же вещь» — кроме названия совпадает всё, что её описывает (пустое = пустое): две разные куртки одного дарителя
+// с одинаковым названием, но разным описанием или состоянием, — две вещи, обе в поиске.
+// Возвращает { id дубля: { first: id вещи, из-за которой он дубль, cross: с другого аккаунта } }.
+// Вещи раскладываются по корзинам, поэтому и группа из тысяч одинаковых названий считается быстро.
+function dupMap(pool) {
+  const out = {}, same = {}, text = {}
+  pool.forEach((x) => {
+    const t = norm(x.title), n = norm(x.note)
+    x._t = ts(x.created)
+    const k = [x._seller, t, n, norm(x.condition), norm(x.items), x.category, x.city, x.kind].join("\u0001")
+    ;(same[k] = same[k] || []).push(x)
+    if (n.length >= 20) (text[t + "\u0001" + n] = text[t + "\u0001" + n] || []).push(x)
+  })
+  const byTime = (a, b) => a._t - b._t
+  // тот же даритель: есть более новая такая же вещь не позже чем через 30 дней
+  Object.keys(same).forEach((k) => {
+    const list = same[k].sort(byTime)
+    list.forEach((x, i) => {
+      let j = i + 1
+      while (j < list.length && list[j]._t <= x._t) j++
+      if (j < list.length && list[j]._t - x._t <= 30 * DAY) out[x.id] = { first: list[j].id, cross: false }
+    })
+  })
+  // другой аккаунт: раньше (не больше чем за 7 дней) выложены те же название и описание
+  Object.keys(text).forEach((k) => {
+    const list = text[k].sort(byTime)
+    list.forEach((x, i) => {
+      if (out[x.id]) return
+      for (let j = i - 1; j >= 0 && x._t - list[j]._t <= 7 * DAY; j--) {
+        if (list[j]._t < x._t && list[j]._seller !== x._seller) { out[x.id] = { first: list[j].id, cross: true }; return }
+      }
+    })
+  })
+  return out
 }
-function indexable(it, pool) {
-  const t = norm(it.title)
+// сама страница полезна: настоящее название, категория, город и фото / описание от 40 знаков / состояние
+function useful(it) {
   return ["active", "reserved", "lent"].indexOf(it.status) >= 0 &&
-    it.title.length >= 8 && /[a-zа-яё]/i.test(it.title) && EMPTY_TITLES.indexOf(t) < 0 &&
-    !!it.category && !!it.city && (!!it.photo || it.note.length >= 40 || !!it.condition) && !dupOf(it, pool)
+    it.title.length >= 8 && /[a-zа-яё]/i.test(it.title) && EMPTY_TITLES.indexOf(norm(it.title)) < 0 &&
+    !!it.category && !!it.city && (!!it.photo || it.note.length >= 40 || !!it.condition)
+}
+// Все публичные вещи с одним названием — постранично и без верхней границы: в памяти только эта группа, не каталог.
+// Ошибка чтения не превращается в пустую группу (иначе все вещи группы выпали бы из поиска) — она уходит наверх.
+const PAGE = 1000
+function groupOf(app, key) {
+  const out = []
+  for (let off = 0; ; off += PAGE) {
+    const page = app.findRecordsByFilter("listings", PUBLIC + " && seo_key = {:k}", "created,id", PAGE, off, { k: key })
+    page.forEach((r) => out.push(listingOf(r)))
+    if (page.length < PAGE) return out
+  }
 }
 // Пересчёт seo_index для вещей с одним названием: только среди них бывают дубли, поэтому остальной каталог не трогаем.
 // Пишем прямым запросом, чтобы не запускать хуки сохранения ещё раз.
-const GROUP_MAX = 1000
 function reindexGroup(app, key) {
-  const pool = find(app, PUBLIC + " && seo_key = {:k}", "-created", GROUP_MAX, { k: key })
+  const pool = groupOf(app, key), dups = dupMap(pool)
   const want = {}
-  pool.forEach((l) => { if (indexable(l, pool)) want[l.id] = true })
+  pool.forEach((l) => { if (useful(l) && !dups[l.id]) want[l.id] = true })
   const rows = arrayOf(new DynamicModel({ id: "", seo_index: false }))
   app.db().newQuery("SELECT id, seo_index FROM listings WHERE seo_key = {:k}").bind({ k: key }).all(rows)
   let changed = 0
@@ -234,9 +269,8 @@ function suspectedDupes(app) {
   const out = [], groups = {}
   find(app, PUBLIC + " && seo_index = false", "-created", 500).forEach((l) => {
     const k = seoKey(l.title)
-    const pool = groups[k] || (groups[k] = find(app, PUBLIC + " && seo_key = {:k}", "-created", GROUP_MAX, { k }))
-    const d = dupOf(l, pool)
-    if (d && d._seller !== l._seller) out.push({ id: l.id, title: l.title, first: d.id })
+    const d = (groups[k] || (groups[k] = dupMap(groupOf(app, k))))[l.id]
+    if (d && d.cross) out.push({ id: l.id, title: l.title, first: d.first })
   })
   return out
 }
@@ -667,10 +701,11 @@ function sitemap(app, name) {
     for (let i = 1; i <= Math.ceil(n / size); i++) files.push("darom-" + i)
     return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${files.map((f) => `  <sitemap><loc>${ORIGIN}/sitemap-${f}.xml</loc></sitemap>`).join("\n")}\n</sitemapindex>\n`
   }
-  if (!split) return null
+  // части отвечают всегда (первая часть вещей — даже пустая), чтобы адреса можно было проверить заранее;
+  // поисковикам их называет только оглавление, пока каталог маленький — они не в robots.txt и не в /sitemap.xml
   if (name === "pages") return urlset(pageUrls(app))
   const m = name.match(/^darom-([1-9]\d*)$/)
-  if (!m || (+m[1] - 1) * size >= n) return null
+  if (!m || (+m[1] > 1 && (+m[1] - 1) * size >= n)) return null
   return urlset(listingUrls(app, size, (+m[1] - 1) * size))
 }
 

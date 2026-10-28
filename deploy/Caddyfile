@@ -18,14 +18,10 @@ dashabotanika.ru {
 		reverse_proxy 127.0.0.1:8090
 	}
 
-	# Карта сайта — её собирает PocketBase (pb_hooks/seo.js). Когда вещей много, /sitemap.xml — оглавление,
-	# а части лежат в /sitemap-pages.xml и /sitemap-darom-1.xml, -2…
-	@sitemap path_regexp ^/sitemap(-[a-z0-9-]+)?\.xml$
-	handle @sitemap {
+	# Карта сайта со всеми статьями журнала — её собирает PocketBase (pb_hooks/seo.js)
+	handle /sitemap.xml {
 		rewrite * /api/seo/sitemap
-		reverse_proxy 127.0.0.1:8090 {
-			header_up X-Seo-Path {http.request.orig_uri.path}
-		}
+		reverse_proxy 127.0.0.1:8090
 	}
 
 	# Страницы сайта (адреса без расширения файла) — сразу с текстом, заголовком и описанием

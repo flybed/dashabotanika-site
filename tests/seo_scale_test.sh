@@ -96,6 +96,9 @@ for target in [300, 1000, 5000, 12000]:
     check(f'[{n_rows}] sitemap: exactly the indexable things ({len(want)}), no duplicates', len(ids) == len(set(ids)) and set(ids) == want)
     if len(want) <= 5000:
         check(f'[{n_rows}] sitemap: one file while there are ≤5000 things', files == [])
+        st1, x1 = req('GET', '/seo/sitemap?f=sitemap-pages.xml'); st2, x2 = req('GET', '/seo/sitemap?f=sitemap-darom-1.xml')
+        check(f'[{n_rows}] sitemap parts answer even before the split (checkable in advance); the next part is 404',
+              st1 == 200 and '<urlset' in x1 and '/darom/v/' not in x1 and st2 == 200 and '<urlset' in x2 and req('GET', '/seo/sitemap?f=sitemap-darom-2.xml')[0] == 404)
     else:
         check(f'[{n_rows}] sitemap: an index with the pages part and ceil({len(want)}/5000) parts of things', files == ['sitemap-pages.xml'] + [f'sitemap-darom-{i}.xml' for i in range(1, -(-len(want) // 5000) + 1)])
         check(f'[{n_rows}] sitemap: every part ≤5000 addresses and ≤50 MB', all(b.count('<url>') <= 5000 and len(b.encode()) < 50e6 for b in bodies))
@@ -119,6 +122,22 @@ for target in [300, 1000, 5000, 12000]:
     check(f'[{n_rows}] renamed: no longer a repost — both in search', st_p == 200 and robots(page('/darom/v/' + old)[1]) == '' and robots(page('/darom/v/' + new)[1]) == '')
     want.add(old)
     report.append((n_rows, len(want), t_re, t_item, t_city, t_darom, t_sm, t_save))
+# one title shared by more than 1000 things: the whole group is recounted, page by page (no cut at 1000)
+KEY = 'зимняя куртка детская'; G = 2500
+rows = [dict(id='g%014d' % i, seller=SELLER, title='Зимняя куртка детская', created=ts_(2000000 + i * 60), note=f'Размер {i}, синяя, почти не носили, без дырок.') for i in range(G)]
+rows.append(dict(id='g%014d' % G, seller=SELLER, title='Зимняя куртка детская', created=ts_(2000000 + 86400), note=rows[0]['note']))        # the oldest posted again a day later
+rows.append(dict(id='g%014d' % (G + 1), seller=OTHER, title='Зимняя куртка детская', created=ts_(2000000 + 60 + 3600), note=rows[1]['note']))  # someone else copied the 2nd
+db.executemany(f"INSERT INTO listings (id, seller, kind, status, moderation, title, category, city, condition, note, created, seo_key) VALUES (:id,:seller,'Отдам даром','active','approved',:title,'Одежда и обувь','Москва','Хорошее',:note,:created,'{KEY}')", rows)
+db.commit()
+t0 = time.perf_counter(); st_g, _ = req('PATCH', '/collections/listings/records/' + 'g%014d' % 1500, {'pickup': 'у метро'}, su); t_group = (time.perf_counter() - t0) * 1000
+flags = dict(db.execute("SELECT id, seo_index FROM listings WHERE seo_key = ?", (KEY,)).fetchall())
+first = 'g%014d' % 0
+check(f'group of {G + 2} same titles: one save recounts all of them (none cut at 1000)',
+      st_g == 200 and sum(flags.values()) == G and all(flags['g%014d' % i] for i in range(1, G)) and flags['g%014d' % G])
+check('… the oldest one posted again: only the newer copy is in search', not flags[first])
+check('… a copy from another account: not in search', not flags['g%014d' % (G + 1)])
+print('save that recounts a group of %d: %.0f ms' % (G + 2, t_group))
+check('saving a thing in a group of 2500 same titles stays under 3 s', t_group < 3000)
 print('\nrows | indexable | reindex all, ms | thing page | city page | /darom | sitemap (part 1) | save, ms')
 for r in report: print('%5d | %9d | %15.0f | %10.0f | %9.0f | %6.0f | %16.0f | %8.0f' % r)
 # pages do not grow with the catalogue: 40x more rows, the thing page stays within a few times (and fast)
