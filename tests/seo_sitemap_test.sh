@@ -49,7 +49,9 @@ check('thing lastmod: its publishing day', ('<loc>https://dashabotanika.ru/darom
 check('indexed city with lastmod; a city below 5 things is not in it', ('<loc>https://dashabotanika.ru/darom/perm</loc><lastmod>%s</lastmod>' % today) in sm and '/darom/tver<' not in sm)
 check('a noindex thing is not in the sitemap', '/darom/v/'+weak not in sm and '/kabinet' not in sm)
 check('canonical: trailing slash → the address without it', canon('/zhurnal/') == 'https://dashabotanika.ru/zhurnal')
-check('canonical: an old article address → the current one', canon('/zhurnal/kompost') == 'https://dashabotanika.ru/zhurnal/kompost-v-kvartire')
+import http.client
+c = http.client.HTTPConnection('127.0.0.1', 8097); c.request('GET', '/api/seo/page?p=/zhurnal/kompost'); r = c.getresponse()
+check('an old article address: permanent redirect (301) to the current one, not a second page', r.status == 301 and r.getheader('Location') == '/zhurnal/kompost-v-kvartire')
 check('canonical: filters in the address are not part of it', canon('/darom') == 'https://dashabotanika.ru/darom')
 
 import sys; sys.exit(1 if fails else 0)

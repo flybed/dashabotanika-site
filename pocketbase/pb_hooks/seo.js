@@ -724,4 +724,15 @@ function sitemap(app, name) {
   return urlset(listingUrls(app, size, (+m[1] - 1) * size))
 }
 
-module.exports = { render, sitemap, slugify, articleSlug, itemTitle, suspectedDupes, afterSave, reindexAll }
+// старый адрес статьи (из old_slugs) или её id — основной адрес для постоянного перенаправления; иначе null
+function articleMoved(app, path) {
+  const m = path.match(/^\/zhurnal\/([^/]+)$/)
+  if (!m) return null
+  const key = decodeURIComponent(m[1])
+  const arts = content(app, read(`${SITE}/index.html`)).articles || []
+  if (arts.some((a) => articleSlug(a) === key)) return null
+  const a = arts.find((x) => String(x.id) === key || (x.old_slugs || []).indexOf(key) >= 0)
+  return a ? "/zhurnal/" + articleSlug(a) : null
+}
+
+module.exports = { render, sitemap, slugify, articleSlug, itemTitle, suspectedDupes, afterSave, reindexAll, articleMoved }

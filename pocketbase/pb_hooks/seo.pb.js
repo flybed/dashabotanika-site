@@ -8,6 +8,9 @@ routerAdd("GET", "/api/seo/page", (e) => {
   // переименованные страницы: старый адрес навсегда ведёт на новый (тот же список — OLD_PATHS в site/js/app.js)
   const moved = { "/baraholka": "/darom" }[path]
   if (moved) return e.redirect(301, moved)
+  // статья переехала на новый адрес (old_slugs) или её открыли по id — навсегда на основной адрес
+  const art = require(`${__hooks}/seo.js`).articleMoved(e.app, path)
+  if (art) return e.redirect(301, art)
   const r = require(`${__hooks}/seo.js`).render(e.app, path)
   e.response.header().set("Cache-Control", "no-cache")
   return e.html(r.status, r.html)
