@@ -41,6 +41,8 @@ chmod +x "$T/bin/"*
 git init -q --bare "$T/origin.git"
 git clone -q "$T/origin.git" "$T/work" 2>/dev/null
 mkdir -p "$T/work/deploy" && cp "$ROOT/deploy/"* "$T/work/deploy/"
+# конфиг «как до маршрута карты сайта»: части карты сайта уходят на страницу сайта
+grep -v -e '@sitemap' -e 'части лежат' "$ROOT/deploy/Caddyfile" > "$T/work/deploy/Caddyfile"
 git -C "$T/work" -c user.email=t@t -c user.name=t add -A && git -C "$T/work" -c user.email=t@t -c user.name=t commit -qm init && git -C "$T/work" push -q origin HEAD:main 2>/dev/null
 git clone -q -b main "$T/origin.git" "$T/site"
 cp "$T/work/deploy/Caddyfile" "$T/caddy/Caddyfile"
