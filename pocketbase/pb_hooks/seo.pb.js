@@ -16,7 +16,14 @@ routerAdd("GET", "/api/seo/page", (e) => {
   return e.html(r.status, r.html)
 })
 
+// /sitemap.xml и, когда вещей много, его части /sitemap-pages.xml, /sitemap-darom-N.xml (адрес передаёт Caddy; ?f= — для проверки)
 routerAdd("GET", "/api/seo/sitemap", (e) => {
+  const raw = String(e.request.header.get("X-Seo-Path") || e.request.url.query().get("f") || "/sitemap.xml")
+  const m = raw.match(/^\/?sitemap(?:-([a-z0-9-]+))?\.xml$/)
+  const xml = m ? require(`${__hooks}/seo.js`).sitemap(e.app, m[1] || "") : null
+  if (!xml) return e.string(404, "Not found")
   e.response.header().set("Content-Type", "application/xml; charset=utf-8")
-  return e.string(200, require(`${__hooks}/seo.js`).sitemap(e.app))
+  return e.string(200, xml)
 })
+// пересчитать, какие вещи в поиске (после ручных правок базы); обычно это делается само при сохранении вещи
+routerAdd("POST", "/api/seo/reindex", (e) => e.json(200, require(`${__hooks}/seo.js`).reindexAll(e.app, true)), $apis.requireSuperuserAuth())

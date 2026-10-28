@@ -45,4 +45,14 @@ function onContent(app, before, after) {
   if (changed.length) queue(app, changed.map((a) => "/zhurnal/" + slug(a)).concat(["/zhurnal", "/"]))
 }
 
-module.exports = { KEY, queue, flush, queueAll, onContent }
+// объявление «Вещей даром»: только то, что видно публично (одобрено), и только когда меняется то, что на странице
+const SEEN = ["moderation", "status", "title", "category", "condition", "city", "district", "note", "photo", "pickup", "lot", "items"]
+function onListing(app, rec, before) {
+  const pub = (r) => !!r && r.getString("moderation") === "approved"
+  if (!pub(rec) && !pub(before)) return
+  if (rec && before && SEEN.every((f) => String(rec.get(f)) === String(before.get(f)))) return
+  const r = rec || before, seo = require(`${__hooks}/seo.js`), city = r.getString("city").trim()
+  queue(app, ["/darom/v/" + r.id, "/darom"].concat(city ? ["/darom/" + seo.slugify(city)] : []))
+}
+
+module.exports = { KEY, queue, flush, queueAll, onContent, onListing }
