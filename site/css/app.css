@@ -1112,7 +1112,8 @@ section.band.mt{padding-block:clamp(24px,3vw,36px)}
 /* guided tour */
 .tour{position:fixed;inset:0;z-index:90}
 .tour-spot{position:fixed;left:0;top:0;border-radius:18px;box-shadow:0 0 0 200vmax rgba(18,22,14,.64), 0 0 0 3px var(--sun);transition:transform .3s ease,width .3s ease,height .3s ease;pointer-events:none}
-.tour-tip{position:fixed;background:var(--surface);color:var(--ink);border-radius:18px;padding:18px 18px 14px;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);display:grid;gap:8px;transition:top .3s ease,left .3s ease}
+.tour-tip{position:fixed;left:0;top:0;background:var(--surface);color:var(--ink);border-radius:18px;padding:18px 18px 14px;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);display:grid;gap:8px;visibility:hidden}
+.tour-tip.placed{visibility:visible;transition:transform .3s ease}
 .tour-tip h3{font-size:21px}
 .tour-tip p{margin:0;font-size:15.5px;line-height:1.45;color:var(--muted)}
 .tour-tip::before{content:"";position:absolute;top:-8px;left:calc(var(--ax,50%) - 8px);width:16px;height:16px;background:var(--surface);transform:rotate(45deg);border-radius:3px}
