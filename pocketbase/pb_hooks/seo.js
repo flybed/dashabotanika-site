@@ -450,4 +450,15 @@ function sitemap(app) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
 }
 
-module.exports = { render, sitemap, slugify, articleSlug }
+// старый адрес статьи (из old_slugs) или её id — основной адрес для постоянного перенаправления; иначе null
+function articleMoved(app, path) {
+  const m = path.match(/^\/zhurnal\/([^/]+)$/)
+  if (!m) return null
+  const key = decodeURIComponent(m[1])
+  const arts = content(app, read(`${SITE}/index.html`)).articles || []
+  if (arts.some((a) => articleSlug(a) === key)) return null
+  const a = arts.find((x) => String(x.id) === key || (x.old_slugs || []).indexOf(key) >= 0)
+  return a ? "/zhurnal/" + articleSlug(a) : null
+}
+
+module.exports = { render, sitemap, slugify, articleSlug, articleMoved }

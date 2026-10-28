@@ -1546,6 +1546,8 @@ function articlePage(path){
   const key = decodeURIComponent(path.split('/')[2]||'');
   // old addresses keep working after the address is changed (old_slugs)
   const it = STATE.articles.find(a=>articleSlug(a)===key || String(a.id)===key || (a.old_slugs||[]).includes(key));
+  // the server answers an old address with 301; inside the site — just show the main address
+  if (it && articleSlug(it)!==key) history.replaceState(null,'','/zhurnal/'+articleSlug(it)+location.search+location.hash);
   if (!it) return {title:'Статья не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'},
     h('h1',null,'Статья не найдена'), h('p',{class:'lead'},'Возможно, её переименовали или убрали. Загляните в журнал — там все статьи.'),
     h('a',{class:'btn',href:'/zhurnal'},'Все статьи')))]};
