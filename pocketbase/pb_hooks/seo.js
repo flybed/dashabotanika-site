@@ -114,16 +114,21 @@ function listingOf(r) {
     lend_days: r.getInt("lend_days"), return_by: r.getString("return_by"), lot: r.getBool("lot"), items: r.getString("items"),
     created: r.getString("created"), updated: r.getString("updated"), gone_at: r.getString("gone_at"),
     // только для правил индексации (дубли одного дарителя) — на страницу не выводится
-    _seller: r.getString("seller"),
+    _seller: r.getString("seller"), _index: r.getBool("seo_index"),
     photo: r.getString("photo") ? file(r.getString("photo")) : "",
     more: (r.getStringSlice("more_photos") || []).map((f) => file(f)),
   }
 }
-function listings(app) {
-  try {
-    return app.findRecordsByFilter("listings", "moderation = 'approved' && status != 'gone' && status != 'archived'", "-created", 300, 0).map(listingOf)
-  } catch (err) { return [] }
+// Публичные вещи: одобрены и не закрыты. Весь каталог в память не загружаем: страницы берут из базы только то,
+// что показывают, а «в поиске ли вещь» (seo_index) посчитано заранее при сохранении — см. reindexListing.
+const PUBLIC = "moderation = 'approved' && status != 'gone' && status != 'archived'"
+const PUBLIC_SQL = "moderation = 'approved' AND status NOT IN ('gone', 'archived')"
+function find(app, filter, sort, limit, params) {
+  try { return app.findRecordsByFilter("listings", filter, sort, limit, 0, params || {}).map(listingOf) } catch (err) { return [] }
 }
+// свежие вещи для страницы /darom (остальные — в скрипте сайта, в городах и в карте сайта)
+const DAROM_PAGE = 100
+const listings = (app) => find(app, PUBLIC, "-created", DAROM_PAGE)
 function approvedListing(app, id) {
   try { const r = app.findRecordById("listings", id); return r.getString("moderation") === "approved" ? listingOf(r) : null } catch (err) { return null }
 }
@@ -132,15 +137,21 @@ function approvedListing(app, id) {
 // Вещь индексируется, только если на её странице есть польза: настоящее название, категория, город и хотя бы одно из
 // фото / описание от 40 знаков / состояние. Остальные одобренные вещи видны в каталоге, но с noindex и без карты сайта.
 const norm = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9]+/g, " ").trim()
+// ключ для поиска дублей: дубли бывают только среди вещей с одинаковым названием
+const seoKey = (title) => norm(title).slice(0, 300) || "-"
 const EMPTY_TITLES = ["вещь", "вещи", "отдам", "отдаю", "отдам даром", "даром", "бесплатно", "разное", "разные вещи", "все", "мелочи", "хлам", "тест", "test", "проверка", "объявление"]
 const DAY = 86400000
 const ts = (s) => Date.parse(String(s || "").replace(" ", "T")) || 0
-// дубли: у одного дарителя одно и то же название за 30 дней — в поиске только последнее;
-// одинаковые название и описание с разных аккаунтов за 7 дней — только первое (остальные видят модераторы)
+// «та же самая вещь, выложенная ещё раз»: кроме названия совпадает всё, что её описывает (пустое = пустое).
+// Две разные куртки одного дарителя с одинаковым названием, но разным описанием или состоянием, — две вещи, обе в поиске.
+const sameThing = (a, b) => norm(a.note) === norm(b.note) && norm(a.condition) === norm(b.condition) && norm(a.items) === norm(b.items) &&
+  a.category === b.category && a.city === b.city && a.kind === b.kind
+// дубли: один даритель выложил ту же вещь ещё раз за 30 дней — в поиске только последняя;
+// одинаковые название и описание с разных аккаунтов за 7 дней — только первая (остальные видят модераторы)
 function dupOf(it, pool) {
   const t = norm(it.title), n = norm(it.note)
   return pool.find((x) => x.id !== it.id && norm(x.title) === t && (
-    (x._seller === it._seller && ts(x.created) > ts(it.created) && ts(x.created) - ts(it.created) <= 30 * DAY) ||
+    (x._seller === it._seller && sameThing(x, it) && ts(x.created) > ts(it.created) && ts(x.created) - ts(it.created) <= 30 * DAY) ||
     (x._seller !== it._seller && n.length >= 20 && norm(x.note) === n && ts(x.created) < ts(it.created) && ts(it.created) - ts(x.created) <= 7 * DAY))) || null
 }
 function indexable(it, pool) {
@@ -149,29 +160,94 @@ function indexable(it, pool) {
     it.title.length >= 8 && /[a-zа-яё]/i.test(it.title) && EMPTY_TITLES.indexOf(t) < 0 &&
     !!it.category && !!it.city && (!!it.photo || it.note.length >= 40 || !!it.condition) && !dupOf(it, pool)
 }
-const indexableListings = (app) => { const all = listings(app); return all.filter((l) => indexable(l, all)) }
-// город — своя страница в поиске, когда в нём от 5 индексируемых вещей и он не повторяет весь каталог
+// Пересчёт seo_index для вещей с одним названием: только среди них бывают дубли, поэтому остальной каталог не трогаем.
+// Пишем прямым запросом, чтобы не запускать хуки сохранения ещё раз.
+const GROUP_MAX = 1000
+function reindexGroup(app, key) {
+  const pool = find(app, PUBLIC + " && seo_key = {:k}", "-created", GROUP_MAX, { k: key })
+  const want = {}
+  pool.forEach((l) => { if (indexable(l, pool)) want[l.id] = true })
+  const rows = arrayOf(new DynamicModel({ id: "", seo_index: false }))
+  app.db().newQuery("SELECT id, seo_index FROM listings WHERE seo_key = {:k}").bind({ k: key }).all(rows)
+  let changed = 0
+  rows.forEach((r) => {
+    const v = !!want[r.id]
+    if (!!r.seo_index !== v) { app.db().newQuery("UPDATE listings SET seo_index = {:v} WHERE id = {:id}").bind({ v, id: r.id }).execute(); changed++ }
+  })
+  return changed
+}
+// после сохранения или удаления вещи: её ключ мог смениться — пересчитываем и старую, и новую группу
+function reindexListing(app, id, oldKey, title) {
+  const key = title === null ? oldKey : seoKey(title)
+  if (title !== null && key !== oldKey) app.db().newQuery("UPDATE listings SET seo_key = {:k} WHERE id = {:id}").bind({ k: key, id }).execute()
+  if (key) reindexGroup(app, key)
+  if (oldKey && oldKey !== key) reindexGroup(app, oldKey)
+}
+// из хуков darom.pb.js: ошибка пересчёта не мешает сохранить объявление
+function afterSave(app, rec, saved) {
+  try { reindexListing(app, rec.id, rec.getString("seo_key"), saved ? rec.getString("title") : null) } catch (err) { app.logger().error("seo reindex", "id", rec.id, "error", String(err)) }
+}
+// весь каталог (после обновления или вручную администратором): только == "" — вещи без ключа, all — все
+function reindexAll(app, all) {
+  const rows = arrayOf(new DynamicModel({ id: "", title: "", seo_key: "" }))
+  app.db().newQuery("SELECT id, title, seo_key FROM listings" + (all ? "" : " WHERE seo_key = ''")).all(rows)
+  const keys = {}
+  rows.forEach((r) => {
+    const k = seoKey(r.title)
+    if (k !== r.seo_key) app.db().newQuery("UPDATE listings SET seo_key = {:k} WHERE id = {:id}").bind({ k, id: r.id }).execute()
+    keys[k] = true
+    if (r.seo_key) keys[r.seo_key] = true
+  })
+  let changed = 0
+  Object.keys(keys).forEach((k) => { changed += reindexGroup(app, k) })
+  return { listings: rows.length, groups: Object.keys(keys).length, changed }
+}
+// города с публичными вещами: сколько всего и сколько в поиске — одним запросом с группировкой
+function daromCities(app) {
+  const rows = arrayOf(new DynamicModel({ city: "", n: 0, k: 0 }))
+  try {
+    app.db().newQuery(`SELECT TRIM(city) AS city, COUNT(*) AS n, COALESCE(SUM(seo_index), 0) AS k FROM listings WHERE ${PUBLIC_SQL} AND TRIM(city) != '' GROUP BY TRIM(city) ORDER BY n DESC, city`).all(rows)
+  } catch (err) { return [] }
+  const list = rows.map((r) => ({ city: r.city, n: r.n, k: r.k }))
+  // город — своя страница в поиске, когда в нём от 5 индексируемых вещей и он не повторяет весь каталог
+  const total = list.reduce((s, c) => s + c.k, 0)
+  list.forEach((c) => { c.indexable = c.k >= MIN_PAGE && c.k < total })
+  return list
+}
 const MIN_PAGE = 5
-function cityIndexable(app, city) {
-  const idx = indexableListings(app), here = idx.filter((l) => l.city === city).length
-  return here >= MIN_PAGE && here < idx.length
+// один город для страницы вещи: два счётчика по индексу (seo_index, city) вместо группировки всего каталога
+function cityOf(app, city) {
+  const row = new DynamicModel({ k: 0, total: 0 })
+  try { app.db().newQuery("SELECT (SELECT COUNT(*) FROM listings WHERE seo_index = TRUE AND city = {:c}) AS k, (SELECT COUNT(*) FROM listings WHERE seo_index = TRUE) AS total").bind({ c: city }).one(row) } catch (err) { return null }
+  return { city, k: row.k, indexable: row.k >= MIN_PAGE && row.k < row.total }
+}
+// похожие свободные вещи: та же категория или тот же город, сначала совпадение по обоим; только те, что в поиске
+function similarOf(app, it, fill) {
+  const score = (x) => (x.category && x.category === it.category ? 2 : 0) + (x.city && x.city === it.city ? 1 : 0)
+  const near = find(app, "seo_index = true && id != {:id} && (category = {:cat} || city = {:city})", "-created", 30, { id: it.id, cat: it.category || "-", city: it.city || "-" })
+    .sort((a, b) => score(b) - score(a)).slice(0, 6)
+  if (!fill || near.length >= 6) return near
+  return near.concat(find(app, "seo_index = true && id != {:id}", "-created", 12, { id: it.id }).filter((x) => !near.some((y) => y.id === x.id))).slice(0, 6)
 }
 // для модераторов: возможные дубли с разных аккаунтов (они не попадают в поиск, но в каталоге остаются)
 function suspectedDupes(app) {
-  const all = listings(app)
-  return all.map((l) => { const d = dupOf(l, all); return d && d._seller !== l._seller ? { id: l.id, title: l.title, first: d.id } : null }).filter(Boolean)
+  const out = [], groups = {}
+  find(app, PUBLIC + " && seo_index = false", "-created", 500).forEach((l) => {
+    const k = seoKey(l.title)
+    const pool = groups[k] || (groups[k] = find(app, PUBLIC + " && seo_key = {:k}", "-created", GROUP_MAX, { k }))
+    const d = dupOf(l, pool)
+    if (d && d._seller !== l._seller) out.push({ id: l.id, title: l.title, first: d.id })
+  })
+  return out
 }
 // Отданная или неактуальная вещь: честный статус и похожие свободные вещи вместо пустоты.
 // Отдана меньше 30 дней назад — 200 и noindex; дольше — 410 с той же страницей, без кнопки «Хочу забрать».
 // Не одобрена или удалена — 404 (как раньше).
-function closedItem(app, id, path, all) {
-  const it = approvedListing(app, id)
+function closedItem(app, it, path) {
   if (!it || (it.status !== "gone" && it.status !== "archived")) return null
   const gone = it.status === "gone", since = ts(it.gone_at || it.created)
   const old = gone && Date.now() - since > 30 * DAY
-  const pool = all.filter((x) => indexable(x, all))
-  const score = (x) => (x.category && x.category === it.category ? 2 : 0) + (x.city && x.city === it.city ? 1 : 0)
-  const similar = pool.filter((x) => score(x) > 0).sort((a, b) => score(b) - score(a)).concat(pool.filter((x) => !score(x))).slice(0, 6)
+  const similar = similarOf(app, it, true)
   const label = gone ? "уже отдана" : "объявление неактуально"
   const text = gone ? `Эту вещь уже отдали${since ? " " + ruDate(new Date(since).toISOString()) : ""}.` : "Срок объявления закончился, даритель его пока не продлил."
   return Object.assign({ title: "", description: null, image: null, type: "website", crumbs: null, ld: [] }, {
@@ -228,8 +304,6 @@ function itemHtml(it, similar, cityLink) {
     (similar.length ? `<h2>Похожие вещи</h2><ul>${similar.map((x) => `<li><a href="/darom/v/${x.id}">${esc(x.title)}</a>${x.city ? " — " + esc(x.city) : ""}</li>`).join("")}</ul>` : "") +
     `<p><a href="/darom">Все вещи даром</a>${cityLink ? ` · <a href="${cityLink[1]}">${esc(cityLink[0])}</a>` : ""}</p></div></article>`
 }
-// города, где сейчас есть вещи даром, — у каждого своя страница /darom/<город>
-const daromCities = (app) => [...new Set(listings(app).map((l) => l.city).filter(Boolean))]
 const daromCard = (it) => `<article><h3><a href="/darom/v/${it.id}">${esc(it.title)}</a></h3><p>Даром${it.category ? " · " + esc(it.category) : ""}${it.city ? " · " + esc(it.city) : ""}${it.district ? ", " + esc(it.district) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`
 
 const priceLabel = () => "Бесплатно"
@@ -358,27 +432,27 @@ function page(path, d, k, app) {
     })
   }
   if (path === "/darom") {
-    const items = (d.market || []).concat(listings(app))
+    const items = (d.market || []).concat(listings(app)), cities = daromCities(app)
     return Object.assign(base, {
       title: "Вещи даром: отдать ненужное тем, кому пригодится — DashaBotanika",
       description: "Вещи даром на DashaBotanika: отдавайте бесплатно то, что ещё послужит другим, и забирайте нужное рядом с домом. Без продажи — каждое объявление проверяет модератор.",
       crumbs: [["Вещи даром", "/darom"]],
       body: sec("market", "Вторая жизнь вещей", "Вещи даром", "Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно.",
         items.map((it) => it.id ? daromCard(it) : `<article><h3>${esc(it.title)}</h3><p>Даром · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).join("\n") +
-        (daromCities(app).length ? `<h2>Вещи даром по городам</h2><p>${daromCities(app).map((c) => `<a href="/darom/${slugify(c)}">Отдам даром ${esc(inCity(c))}</a>`).join(" · ")}</p>` : ""), true),
+        (cities.length ? `<h2>Вещи даром по городам</h2><p>${cities.map(({ city: c }) => `<a href="/darom/${slugify(c)}">Отдам даром ${esc(inCity(c))}</a>`).join(" · ")}</p>` : ""), true),
     })
   }
   // одна вещь: своя страница, чтобы ею можно было поделиться (превью с фото) и найти в поиске
   const mv = path.match(/^\/darom\/v\/([a-z0-9]{15})$/)
   if (mv) {
-    const all = listings(app), it = all.find((l) => l.id === mv[1])
-    if (!it) return closedItem(app, mv[1], path, all)
-    // похожие: та же категория или тот же город, сначала совпадение по обоим
-    const score = (x) => (x.category && x.category === it.category ? 2 : 0) + (x.city && x.city === it.city ? 1 : 0)
-    const similar = all.filter((x) => x.id !== it.id && score(x) > 0 && indexable(x, all)).sort((a, b) => score(b) - score(a)).slice(0, 6)
-    const cityLink = it.city && cityIndexable(app, it.city) ? [`Вещи даром ${inCity(it.city)}`, `/darom/${slugify(it.city)}`] : null
+    const it = approvedListing(app, mv[1])
+    if (!it) return null
+    if (it.status === "gone" || it.status === "archived") return closedItem(app, it, path)
+    const similar = similarOf(app, it, false)
+    const c = it.city ? cityOf(app, it.city) : null
+    const cityLink = c && c.indexable ? [`Вещи даром ${inCity(it.city)}`, `/darom/${slugify(it.city)}`] : null
     return Object.assign(base, {
-      title: itemTitle(it), description: itemDescription(it), noindex: !indexable(it, all), robots: "noindex, follow",
+      title: itemTitle(it), description: itemDescription(it), noindex: !it._index, robots: "noindex, follow",
       image: it.photo ? ORIGIN + it.photo : null, canonical: path,
       crumbs: [["Вещи даром", "/darom"]].concat(cityLink ? [[it.city, cityLink[1]]] : []).concat([[it.title, path]]),
       body: itemHtml(it, similar, cityLink),
@@ -387,10 +461,10 @@ function page(path, d, k, app) {
   // город: «Отдам даром Новосибирск» — живые вещи этого города
   const mdc = path.match(/^\/darom\/([a-z0-9-]+)$/)
   if (mdc) {
-    const city = daromCities(app).find((c) => slugify(c) === mdc[1])
-    if (!city) return null
-    const items = listings(app).filter((l) => l.city === city)
-    return Object.assign(base, { noindex: !cityIndexable(app, city), robots: "noindex, follow",
+    const c = daromCities(app).find((x) => slugify(x.city) === mdc[1])
+    if (!c) return null
+    const city = c.city, items = find(app, PUBLIC + " && city = {:c}", "-created", 200, { c: city })
+    return Object.assign(base, { noindex: !c.indexable, robots: "noindex, follow",
       title: `Отдам даром ${inCity(city)}: вещи бесплатно — DashaBotanika`,
       description: cut(`Вещи даром ${inCity(city)}: ${items.slice(0, 4).map((l) => l.title).join(", ")}. Отдавайте ненужное и забирайте нужное бесплатно, рядом с домом.`, 200),
       crumbs: [["Вещи даром", "/darom"], [city, path]],
@@ -552,7 +626,22 @@ function render(app, path) {
   return { status, html }
 }
 
-function sitemap(app) {
+// Карта сайта. Пока вещей в поиске не больше SEO_SITEMAP_CHUNK (по умолчанию 5000) — один файл, как раньше.
+// Больше — /sitemap.xml становится оглавлением: /sitemap-pages.xml (разделы, статьи, города) и
+// /sitemap-darom-1.xml, -2… по SEO_SITEMAP_CHUNK вещей. Вещи берутся из базы постранично, только адреса.
+const chunkSize = () => Math.max(1, parseInt($os.getenv("SEO_SITEMAP_CHUNK"), 10) || 5000)
+const urlset = (urls) => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
+function countIndexable(app) {
+  const row = new DynamicModel({ n: 0 })
+  try { app.db().newQuery("SELECT COUNT(*) AS n FROM listings WHERE seo_index = TRUE").one(row) } catch (err) { return 0 }
+  return row.n
+}
+function listingUrls(app, limit, offset) {
+  const rows = arrayOf(new DynamicModel({ id: "" }))
+  try { app.db().newQuery("SELECT id FROM listings WHERE seo_index = TRUE ORDER BY created DESC, id LIMIT {:l} OFFSET {:o}").bind({ l: limit, o: offset }).all(rows) } catch (err) { return [] }
+  return rows.map((r) => `  <url><loc>${ORIGIN}/darom/v/${r.id}</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>`)
+}
+function pageUrls(app) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl)
   const urls = [["/", "weekly", "1.0"], ["/zhurnal", "daily", "0.9"], ["/eda", "monthly", "0.8"], ["/sortirovka", "monthly", "0.8"], ["/servisy", "weekly", "0.8"], ["/moda", "monthly", "0.7"],
@@ -560,14 +649,29 @@ function sitemap(app) {
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
   constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
-  // «Вещи даром»: только то, что можно индексировать (см. indexable и cityIndexable)
-  daromCities(app).filter((c) => cityIndexable(app, c)).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c)}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>`))
-  indexableListings(app).slice(0, 1000).forEach((l) => urls.push(`  <url><loc>${ORIGIN}/darom/v/${l.id}</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>`))
+  // «Вещи даром»: только города, которые можно индексировать (см. daromCities); сами вещи — listingUrls
+  daromCities(app).filter((c) => c.indexable).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c.city)}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>`))
   serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
   ;(d.articles || []).forEach((a) => {
     urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${/^\d{4}-\d\d-\d\d$/.test(a.date || "") ? `<lastmod>${a.date}</lastmod>` : ""}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
   })
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`
+  return urls
+}
+// name: "" — /sitemap.xml, "pages" — /sitemap-pages.xml, "darom-N" — /sitemap-darom-N.xml; null — такого файла нет (404)
+function sitemap(app, name) {
+  const size = chunkSize(), n = countIndexable(app), split = n > size
+  name = name || ""
+  if (!name && !split) return urlset(pageUrls(app).concat(listingUrls(app, size, 0)))
+  if (!name) {
+    const files = ["pages"]
+    for (let i = 1; i <= Math.ceil(n / size); i++) files.push("darom-" + i)
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${files.map((f) => `  <sitemap><loc>${ORIGIN}/sitemap-${f}.xml</loc></sitemap>`).join("\n")}\n</sitemapindex>\n`
+  }
+  if (!split) return null
+  if (name === "pages") return urlset(pageUrls(app))
+  const m = name.match(/^darom-([1-9]\d*)$/)
+  if (!m || (+m[1] - 1) * size >= n) return null
+  return urlset(listingUrls(app, size, (+m[1] - 1) * size))
 }
 
-module.exports = { render, sitemap, slugify, articleSlug, itemTitle, suspectedDupes }
+module.exports = { render, sitemap, slugify, articleSlug, itemTitle, suspectedDupes, afterSave, reindexAll }
