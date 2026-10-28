@@ -1713,7 +1713,8 @@ html,body{overflow-x:clip}
   .wand-ic{font-size:18px}
   .wand.away{opacity:0;transform:translateY(14px);pointer-events:none}
 }
-@media (max-width:429px){ header .social{display:none} }
+/* phones (any width, incl. 430 px Plus / Pro Max): Telegram lives in the burger menu, not in the header */
+@media (max-width:767px){ header .social{display:none} }
 @media (max-width:360px){
   .darom-btn{padding:0 10px}
   .dst-cta .btn{padding-inline:10px}
