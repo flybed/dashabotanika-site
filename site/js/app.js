@@ -2188,12 +2188,14 @@ const MOD_ROLES = ['moderator','admin'];
 const tsOf = r => Date.parse(String((r && r.created) || '').replace(' ','T')) || 0;
 function fileURL(r, field, thumb){ const f = r && r[field]; return f ? '/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+(thumb ? '?thumb='+thumb : '') : null; }
 /* load a whole collection, then reload it on every realtime change */
-function watch(coll, opts, apply){
+// onErr (optional): the first load failed — a page can say so and offer the returned load() to try again
+function watch(coll, opts, apply, onErr){
   if (!pb) return;
-  const load = ()=>pb.collection(coll).getFullList(Object.assign({batch:500, requestKey:null}, opts||{})).then(list=>{ apply(list); refresh(); }).catch(()=>{});
+  const load = ()=>pb.collection(coll).getFullList(Object.assign({batch:500, requestKey:null}, opts||{})).then(list=>{ apply(list); refresh(); }).catch(e=>{ if (onErr){ onErr(e); refresh(); } });
   load();
   let t = null;
   pb.collection(coll).subscribe('*', ()=>{ clearTimeout(t); t = setTimeout(load, 200); }).catch(()=>{});
+  return load;
 }
 
 /* ---------- community: accounts, comments, reviews, suggestions ---------- */
@@ -3085,14 +3087,20 @@ function thingsPanel(lists){
   const wantGive = new URLSearchParams(location.search).get('do')==='give';
   let picked = false;
   seg.addEventListener('click', ()=>{ picked = true; });
-  // until the listings have loaded, neither view: a quiet «Загружаем…» instead of the form flashing and switching
-  const wait = h('p',{class:'hint mk-wait',role:'status',hidden:wantGive ? '' : null},'Загружаем ваши объявления…');
+  // until the listings have loaded, neither view: «Загружаем…» instead of the form flashing and switching.
+  // A slow or failed load is never taken for «no listings»: it says so and offers to try again;
+  // the form opens only when the list is known to be empty, or by «Отдать вещь» in the switch above
+  const waitMsg = h('span',null,'Загружаем ваши объявления…'), retry = h('button',{type:'button',class:'btn ghost small',hidden:'',onclick:()=>{
+    COM.listingsErr = false; slow = false; refresh(); if (COM.reloadListings) COM.reloadListings(); setTimeout(()=>{ slow = true; refresh(); }, 8000); }},'Повторить');
+  const wait = h('div',{class:'mk-wait',role:'status',hidden:wantGive ? '' : null}, waitMsg, retry);
+  let slow = false;
   if (wantGive) showView('give');
   else { giveBox.hidden = mineBox.hidden = true;
-    // no answer in 4 s (a bad connection): show the form rather than wait forever
-    let late = false; setTimeout(()=>{ late = true; refresh(); }, 4000);
+    setTimeout(()=>{ slow = true; refresh(); }, 8000);
     live(()=>{ if (wait.hidden) return; if (picked){ wait.hidden = true; return; }
-      if (COM.listingsReady || late){ wait.hidden = true; showView(myItems().length ? 'mine' : 'give'); } }); }
+      if (COM.listingsReady){ wait.hidden = true; showView(myItems().length ? 'mine' : 'give'); return; }
+      waitMsg.textContent = COM.listingsErr ? 'Не получилось загрузить ваши объявления. Проверьте интернет и попробуйте ещё раз.' : slow ? 'Загрузка идёт дольше обычного…' : 'Загружаем ваши объявления…';
+      retry.hidden = !(COM.listingsErr || slow); }); }
   // «Отдать вещь»: the form starts at the top of the screen, no scrolling by hand
   if (wantGive){ let moved = false; const toForm = ()=>{ if (moved || !giveBox.isConnected) return; giveBox.scrollIntoView({block:'start'}); };
     addEventListener('touchstart', ()=>{ moved = true; }, {once:true, passive:true}); addEventListener('wheel', ()=>{ moved = true; }, {once:true, passive:true});
@@ -5672,7 +5680,7 @@ function maybeTour(){
   });
   watch('reviews',{sort:'-created'}, l=>{ COM.reviews = l.map(r=>({id:r.id, author:r.author, rating:r.rating, text:r.text, ts:tsOf(r)})); });
   watch('comments',{sort:'created'}, l=>{ COM.comments = l.map(r=>({id:r.id, target:r.target, author:r.author, text:r.text, ts:tsOf(r)})); });
-  watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); COM.listingsReady = true; });
+  COM.reloadListings = watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); COM.listingsReady = true; COM.listingsErr = false; }, ()=>{ if (!COM.listingsReady) COM.listingsErr = true; });
   watch('thanks',{sort:'-created'}, l=>{ COM.thanks = l.map(thanksOf); DAROM.stats = null; DAROM.people = {}; });
   watch('wants',{sort:'-created',filter:'status = "open"'}, l=>{ COM.wants = l.map(wantOf); });
   if (COM.uid){
