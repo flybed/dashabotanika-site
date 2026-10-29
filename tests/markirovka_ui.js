@@ -27,11 +27,18 @@ const ssr = async (path) => { const h = await (await fetch(B + '/api/seo/page?p=
         check(`${t}: neighbours, all codes, the article`, (!prev || r.nav.includes('← ' + prev)) && (!next || r.nav.includes(next + ' →')) && r.nav.includes('Все коды 1–7') && r.art);
         check(`${t}: no overflow, links ≥ 44 px`, !r.over && r.small === 0);
       }
+      // the blue-container question: only on 1, 2 and 5; one common note on /markirovka instead
+      for (const [path, has] of [['/markirovka/1-pet', true], ['/markirovka/2-hdpe', true], ['/markirovka/3-pvc', false], ['/markirovka/4-ldpe', false], ['/markirovka/5-pp', true], ['/markirovka/6-ps', false], ['/markirovka/7-other', false]]) {
+        await p.goto(B + path); await p.waitForSelector('.mark-nav'); await p.waitForTimeout(200);
+        const txt = await p.innerText('main'), ssrHtml = await (await fetch(B + '/api/seo/page?p=' + path)).text();
+        check(`[${w}] ${path}: blue-container question ${has ? 'present' : 'absent'} (page and server)`, txt.includes('синий контейнер') === has && ssrHtml.includes('синий контейнер') === has);
+      }
       await p.goto(B + '/markirovka'); await p.waitForSelector('.mark-t'); await p.waitForTimeout(300);
+      check(`[${w}] /markirovka: one common note on blue containers (page and server)`, (await p.locator('.mark-msk').count()) === 1 && (await (await fetch(B + '/api/seo/page?p=/markirovka')).text()).includes('Синие контейнеры в Москве'));
       const s = await ssr('/markirovka');
       check(`[${w}] /markirovka: title = server title`, (await p.title()) === s.title);
       check(`[${w}] /markirovka: links to the article`, await p.evaluate(() => [...document.querySelectorAll('main a')].some((a) => a.getAttribute('href').startsWith('/zhurnal/markirovka'))));
-      if (w === 390) await p.goto(B + '/markirovka/6-ps').then(() => p.waitForSelector('.mark-nav')).then(() => p.locator('.mark-nav').screenshot({ path: (process.env.SHOT || '.') + '/mark_nav_390.png' }));
+      if (w === 390 && process.env.SHOT) await p.goto(B + '/markirovka/6-ps').then(() => p.waitForSelector('.mark-nav')).then(() => p.locator('.mark-nav').screenshot({ path: process.env.SHOT + '/mark_nav_390.png' }));
       await c.close();
     }
   } finally { await b.close(); }
