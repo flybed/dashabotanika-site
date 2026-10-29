@@ -729,6 +729,8 @@ const MAT_REUSE = {
   textile:['Старые футболки — тряпки для уборки','Сшейте шопер или мешочки для овощей','Целые вещи — в «Вещи даром»: кому-то пригодятся'],
   bat:['Перейдите на аккумуляторы: один заменяет сотни батареек','Заряжайте и пользуйтесь годами']
 };
+// «Сортировка за 3 шага»; seo.js берёт этот список и для серверной версии /sortirovka
+const SORT_STEPS = [['🧺','Соберите','Поставьте рядом с обычным ведром второе — для сухого вторсырья.'],['🚿','Подготовьте','Ополосните, сплющите, разберите коробки. Две минуты в день.'],['♻️','Сдайте','В цветной контейнер во дворе или в пункт приёма раз в неделю.']];
 const ECO_LADDER = [
   {ic:'🚫', t:'Откажитесь', d:'То, что можно просто убрать из жизни — самый простой и самый полезный шаг.', ex:['Пакеты на кассе','Одноразовые стаканы и трубочки','Бумажные чеки — берите электронные','Рекламные листовки и пробники'], link:null},
   {ic:'🔁', t:'Замените многоразовым', d:'Один раз купили — годами не производите мусор.', ex:['Шопер','Своя кружка и бутылка','Контейнеры для еды','Сетки для овощей'], link:['/tovary','Многоразовые товары']},
@@ -754,7 +756,6 @@ function sortGuide(){
       (g => g ? h('a',{class:'btn small sg-more',href:guideUrl(g)},'Подробно: что принимают и где сдать →') : null)(RECYCLE_PAGES.find(g=>g.mat===m.k || (m.k==='tin' && g.s==='metall'))));
   }
   paint();
-  const steps = [['🧺','Соберите','Поставьте рядом с обычным ведром второе — для сухого вторсырья.'],['🚿','Подготовьте','Ополосните, сплющите, разберите коробки. Две минуты в день.'],['♻️','Сдайте','В цветной контейнер во дворе или в пункт приёма раз в неделю.']];
   return h('section',{class:'band alt',id:'sort'}, h('div',{class:'wrap'},
     h('div',{class:'sec-head'}, h('div',{class:'eyebrow'},'Эко-путь'), h(SEC_H1 ? (SEC_H1 = false, 'h1') : 'h2',null,'Начать путь в экологии — ',h('span',{class:'sg-easy'},'ЛЕГКО')),
       h('p',{class:'lead'},'Меньше мусора — это не только сортировка. Сначала откажитесь от лишнего, замените одноразовое многоразовым, используйте вещи повторно — и только то, что осталось, отправьте в переработку.')),
@@ -765,7 +766,7 @@ function sortGuide(){
       st.link ? h('a',{class:'btn ghost small',href:st.link[0].startsWith('#') ? st.link[0] : st.link[0],onclick:st.link[0].startsWith('#') ? e=>{ e.preventDefault(); const el = document.getElementById(st.link[0].slice(1)); if (el) el.scrollIntoView({behavior:'smooth'}); } : null}, st.link[1],' →') : null))),
     h('p',{class:'ladder-note'},'Чем раньше шаг — тем больше пользы: лучший мусор тот, которого не было.'),
     h('h3',{class:'sg-sub',id:'sort-scheme'},'Сортировка за 3 шага'),
-    h('div',{class:'sg-steps'}, steps.flatMap(([ic,t,d],i)=>[h('div',{class:'sg-step'}, h('span',{class:'sg-num'},i+1), h('span',{class:'sg-step-ic','aria-hidden':'true'},ic), h('b',null,t), h('p',{class:'muted'},d)), i<2 ? h('span',{class:'sg-arrow','aria-hidden':'true'},'→') : null])),
+    h('div',{class:'sg-steps'}, SORT_STEPS.flatMap(([ic,t,d],i)=>[h('div',{class:'sg-step'}, h('span',{class:'sg-num'},i+1), h('span',{class:'sg-step-ic','aria-hidden':'true'},ic), h('b',null,t), h('p',{class:'muted'},d)), i<2 ? h('span',{class:'sg-arrow','aria-hidden':'true'},'→') : null])),
     h('div',{class:'sg-main'}, ring, card)
   ));
 }
@@ -2169,7 +2170,7 @@ function examTeaser(){
 }
 
 function marketTeaser(){
-  const items = STATE.market.slice(0,3);
+  const items = STATE.market.filter(it=>!it.example).slice(0,3); // учебный пример — не вещь, его место в «Как это работает»
   const extra = h('p',{class:'muted'});
   live(()=>{ const n = publicListings().length; extra.textContent = n ? 'И ещё '+n+' '+plural(n,'вещь','вещи','вещей')+' от участников.' : 'Выставить свою вещь может любой участник — Даша проверит объявление.'; });
   return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},

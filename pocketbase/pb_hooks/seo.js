@@ -94,10 +94,15 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES", "RECYCLE_PAGES", "MYTHS"].forEach((name) => {
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES", "RECYCLE_PAGES", "MYTHS", "MATERIALS", "SORT_STEPS"].forEach((name) => {
     // DISHES — массив, который дальше превращается в объекты через .map
     const m = src.match(new RegExp(name === "DISHES" ? `const DISHES = (\\[[\\s\\S]*?\\n\\])\\.map` : `const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
+  })
+  // объекты-справочники (одной строкой: const X = {…};)
+  ;["MAT_WHERE"].forEach((name) => {
+    const m = src.match(new RegExp(`const ${name} = (\\{[\\s\\S]*?\\});`))
+    try { out[name] = m ? new Function(`return ${m[1]}`)() : {} } catch (err) { out[name] = {} }
   })
   out.NAV = out.NAV_GROUPS.reduce((all, g) => all.concat(g[1] || []), [])
   return out
@@ -361,6 +366,13 @@ const articleLink = (a) => `<article><h3><a href="/zhurnal/${esc(articleSlug(a))
 
 // Разделы, которые раньше были блоками главной, теперь — отдельные страницы со своим текстом для поиска.
 const ladderHtml = (k) => `<ol>${k.ECO_LADDER.map((r) => `<li><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p><p>${esc((r.ex || []).join(", "))}</p></li>`).join("")}</ol>`
+// «Сортировка за 3 шага» и карточки восьми видов вторсырья — то же, что сайт показывает в схеме на /sortirovka
+const sortSchemeHtml = (k) => `<h3>Сортировка за 3 шага</h3><ol>${k.SORT_STEPS.map(([, t, x]) => `<li><b>${esc(t)}</b> — ${esc(x)}</li>`).join("")}</ol>` +
+  k.MATERIALS.map((m) => {
+    const g = k.RECYCLE_PAGES.find((x) => x.mat === m.k || (m.k === "tin" && x.s === "metall"))
+    return `<article><h3>${esc(m.name)} (${esc(m.mark)})</h3>${k.MAT_WHERE[m.k] ? `<p>Куда сдавать: ${esc(k.MAT_WHERE[m.k])}</p>` : ""}` +
+      `<ol>${(m.tips || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ol>${g ? `<p><a href="${guideUrl(g)}">Подробно: что принимают и где сдать</a></p>` : ""}</article>`
+  }).join("\n")
 const SECTION_PAGES = {
   "/eda": {
     title: "Эко-еда: сезонные продукты, рецепты без отходов и меню на неделю — DashaBotanika",
@@ -377,7 +389,7 @@ const SECTION_PAGES = {
     title: "Как сортировать мусор дома: что куда сдавать и калькулятор пользы — DashaBotanika",
     description: "Простая схема сортировки отходов дома: что куда сдавать, как готовить пластик, бумагу, стекло и батарейки, и калькулятор пользы от переработки.",
     name: "Сортировка и переработка",
-    body: (d, k) => sec("sort", "Эко-путь", "Начать путь в экологии — легко", "Лучший мусор тот, которого не было.", ladderHtml(k), true) +
+    body: (d, k) => sec("sort", "Эко-путь", "Начать путь в экологии — легко", "Лучший мусор тот, которого не было.", ladderHtml(k) + sortSchemeHtml(k), true) +
       sec("calc", "Калькулятор переработки", "Сколько пользы в вашем мусорном ведре?", "Укажите, сколько отходов вы сдаёте на переработку, и посмотрите, сколько деревьев, воды и энергии это сберегает.",
         `<p><a href="/servisy">Куда сдать вторсырьё в вашем городе</a></p>`),
   },
@@ -489,13 +501,14 @@ function page(path, d, k, app) {
     })
   }
   if (path === "/darom") {
-    const items = (d.market || []).concat(listings(app)), cities = daromCities(app)
+    // учебные примеры из контента — не вещи: у них нет своей страницы, в каталог для поиска их не выводим
+    const own = (d.market || []).filter((it) => !it.example), cities = daromCities(app)
     return Object.assign(base, {
       title: "Вещи даром: отдать ненужное тем, кому пригодится — DashaBotanika",
       description: "Вещи даром на DashaBotanika: отдавайте бесплатно то, что ещё послужит другим, и забирайте нужное рядом с домом. Без продажи — каждое объявление проверяет модератор.",
       crumbs: [["Вещи даром", "/darom"]],
       body: sec("market", "Вторая жизнь вещей", "Вещи даром", "Отдавайте бесплатно то, что ещё послужит другим. Без продажи и обмена — так честно и безопасно.",
-        items.map((it) => it.id ? daromCard(it) : `<article><h3>${esc(it.title)}</h3><p>Даром · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).join("\n") +
+        own.map((it) => `<article><h3>${esc(it.title)}</h3><p>Даром · ${esc(priceLabel(it))}${it.city ? " · " + esc(it.city) : ""}</p>${it.note ? `<p>${esc(it.note)}</p>` : ""}</article>`).concat(listings(app).map(daromCard)).join("\n") +
         (cities.length ? `<h2>Вещи даром по городам</h2><p>${cities.map(({ city: c }) => `<a href="/darom/${slugify(c)}">Отдам даром ${esc(inCity(c))}</a>`).join(" · ")}</p>` : ""), true),
     })
   }
