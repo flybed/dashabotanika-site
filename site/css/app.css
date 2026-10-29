@@ -1773,3 +1773,38 @@ html,body{overflow-x:clip}
   .ex-line{padding:8px 12px;font-size:14px}
 }
 @media (max-width:360px){ .how-steps li{font-size:14px;line-height:1.35} .how-steps{padding:10px 12px} .darom-how .darom-cat-t{font-size:22px} }
+
+/* ===== home first screen on phones (variant B, 10.2026): Dasha's photo next to the headline, one main action ===== */
+.phone-only{display:none}
+.hero-top{display:contents}
+.hero-face{display:none}
+.dst-find{display:none}
+@media (max-width:640px){
+  .phone-only{display:inline}
+  .wide-only{display:none}
+  /* header: logo, the signed «🎁 Даром», the cabinet as a character, the menu — all 44 px to tap */
+  .top .wrap .logo span{display:none}
+  .logo{min-width:44px;min-height:44px;display:inline-flex;align-items:center}
+  .darom-btn{height:44px;padding:0 14px}
+  .acc-btn{min-height:44px;min-width:44px;justify-content:center}
+  .acc-btn .acc-t{display:none}
+  .acc-btn:has(.dot){padding-inline:10px}
+  .burger{width:44px;height:44px}
+  /* the name moves from the header to the line above the headline */
+  .hero .brand{display:flex;margin-bottom:8px;font-size:16px}
+  .hero-art{display:none}
+  .hero-top{display:flex;align-items:flex-start;gap:14px}
+  .hero-top h1{flex:1;min-width:0;margin:0;font-size:clamp(31px,9vw,40px);line-height:1.06}
+  .hero-face{display:block;flex:none;width:clamp(88px,26vw,112px);margin-top:6px;text-align:center}
+  .hero-face img{display:block;width:100%;aspect-ratio:1;border-radius:50%;object-fit:cover;object-position:50% 25%;box-shadow:0 6px 18px -8px rgba(40,30,10,.45)}
+  .hero-face span{display:block;margin-top:2px;font-family:var(--font-hand);font-size:20px;line-height:1;color:var(--clay);transform:rotate(-5deg)}
+  .hero-intro{margin-top:14px}
+  /* one main action; «Все разделы» is a link next to it (under it, when the screen is too narrow) */
+  .hero-cta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-top:18px}
+  .hero-cta .btn:not(.hero-all){min-height:50px;padding-inline:26px}
+  .hero-cta .hero-all{min-height:44px;padding:0;border:0;background:none;box-shadow:none;color:var(--moss);font-weight:800}
+  .hero-cta .hero-all::after{content:' →'}
+  /* «Вещи даром»: «Отдать вещь» is the main action while the catalogue fills up */
+  .dst-cta{grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;align-items:center}
+  .dst-find{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 6px;font-weight:800;color:var(--moss);text-decoration:none}
+}
