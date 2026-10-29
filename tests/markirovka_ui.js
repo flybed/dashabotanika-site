@@ -38,7 +38,7 @@ const ssr = async (path) => { const h = await (await fetch(B + '/api/seo/page?p=
       const s = await ssr('/markirovka');
       check(`[${w}] /markirovka: title = server title`, (await p.title()) === s.title);
       check(`[${w}] /markirovka: links to the article`, await p.evaluate(() => [...document.querySelectorAll('main a')].some((a) => a.getAttribute('href').startsWith('/zhurnal/markirovka'))));
-      if (w === 390) await p.goto(B + '/markirovka/6-ps').then(() => p.waitForSelector('.mark-nav')).then(() => p.locator('.mark-nav').screenshot({ path: (process.env.SHOT || '.') + '/mark_nav_390.png' }));
+      if (w === 390 && process.env.SHOT) await p.goto(B + '/markirovka/6-ps').then(() => p.waitForSelector('.mark-nav')).then(() => p.locator('.mark-nav').screenshot({ path: process.env.SHOT + '/mark_nav_390.png' }));
       await c.close();
     }
   } finally { await b.close(); }
