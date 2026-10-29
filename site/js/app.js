@@ -219,8 +219,8 @@ const RECYCLE_PAGES = [
    rel:['plastikovye-butylki','markirovka-5-pp']},
   {s:'markirovka-1-pet', kind:'mark', code:'1', ab:'PET (ПЭТ)', ic:'♳', name:'Маркировка 1 PET',
    h1:'Маркировка 1 PET (♳): что это и куда сдать',
-   title:'Маркировка 1 PET (ПЭТ) в треугольнике: что значит и куда сдать — DashaBotanika',
-   desc:'Цифра 1 в треугольнике — полиэтилентерефталат (ПЭТ). Где встречается, принимают ли его в переработку и как подготовить.',
+   title:'1 PET (ПЭТ) в треугольнике: что за пластик и куда сдать',
+   desc:'Цифра 1 в треугольнике — ПЭТ (полиэтилентерефталат): бутылки для воды и напитков, прозрачная упаковка. Его принимают чаще других пластиков, но условия зависят от пункта приёма.',
    intro:'1 PET (ПЭТ, полиэтилентерефталат) — самый распространённый и самый востребованный пластик для переработки. Из него делают бутылки для воды и напитков, а из переработанного — новые бутылки, волокно для одежды и упаковку.',
    where_found:['Бутылки из-под воды, газировки, масла','Прозрачные одноразовые стаканы и коробочки','Блистеры от некоторых товаров'],
    accept:'Принимают почти везде', level:3,
@@ -230,8 +230,8 @@ const RECYCLE_PAGES = [
    rel:['plastikovye-butylki','markirovka-2-hdpe']},
   {s:'markirovka-2-hdpe', kind:'mark', code:'2', ab:'HDPE / PEHD (ПНД)', ic:'♴', name:'Маркировка 2 HDPE',
    h1:'Маркировка 2 HDPE (ПНД, ♴): что это и куда сдать',
-   title:'Маркировка 2 HDPE / PEHD (ПНД) в треугольнике: что значит и куда сдать — DashaBotanika',
-   desc:'Цифра 2 в треугольнике — полиэтилен низкого давления (ПНД, HDPE). Где встречается и куда его сдать.',
+   title:'2 HDPE (ПНД) в треугольнике: что значит и куда сдать',
+   desc:'Цифра 2 в треугольнике — полиэтилен низкого давления (HDPE, ПНД): флаконы от шампуня и бытовой химии, канистры. Где его принимают и как подготовить к сдаче.',
    intro:'2 HDPE (PEHD, ПНД — полиэтилен низкого давления) — плотный и прочный пластик. Его хорошо принимают в переработку: из него делают новые флаконы, трубы, контейнеры.',
    where_found:['Флаконы от шампуня и бытовой химии','Канистры и бутылки из-под молока','Крышки, «шуршащие» пакеты-майки'],
    accept:'Принимают часто', level:3,
@@ -241,8 +241,8 @@ const RECYCLE_PAGES = [
    rel:['plastik','markirovka-4-ldpe']},
   {s:'markirovka-3-pvc', kind:'mark', code:'3', ab:'PVC (ПВХ)', ic:'♵', name:'Маркировка 3 PVC',
    h1:'Маркировка 3 PVC (ПВХ, ♵): что это и почему его почти не принимают',
-   title:'Маркировка 3 PVC (ПВХ) в треугольнике: что значит — DashaBotanika',
-   desc:'Цифра 3 в треугольнике — поливинилхлорид (ПВХ). Где встречается, почему его почти не перерабатывают и что с ним делать.',
+   title:'3 PVC (ПВХ) в треугольнике: что это и что с ним делать',
+   desc:'Цифра 3 в треугольнике — поливинилхлорид (ПВХ). Где он встречается, почему его редко принимают в переработку и что делать с такой упаковкой.',
    intro:'3 PVC (ПВХ, поливинилхлорид) содержит хлор, поэтому перерабатывать его сложно, и пункты приёма почти никогда его не берут. Лучший выход — по возможности выбирать товары в другой упаковке.',
    where_found:['Блистеры и «пузырьковая» упаковка','Некоторые плёнки и пищевая упаковка','Трубы, линолеум, оконные профили'],
    accept:'Принимают редко', level:1,
@@ -252,8 +252,8 @@ const RECYCLE_PAGES = [
    rel:['markirovka-6-ps','markirovka-7-other']},
   {s:'markirovka-4-ldpe', kind:'mark', code:'4', ab:'LDPE / PEBD (ПВД)', ic:'♶', name:'Маркировка 4 LDPE',
    h1:'Маркировка 4 LDPE (ПВД, ♶): пакеты и плёнка — куда сдать',
-   title:'Маркировка 4 LDPE / PEBD (ПВД) в треугольнике: что значит и куда сдать — DashaBotanika',
-   desc:'Цифра 4 в треугольнике — полиэтилен высокого давления (ПВД, LDPE): пакеты, плёнка. Где его принимают и как подготовить.',
+   title:'4 LDPE (ПВД) в треугольнике: пакеты и плёнка — куда сдать',
+   desc:'Цифра 4 в треугольнике — полиэтилен высокого давления (LDPE, ПВД): пакеты, плёнка, мягкая упаковка. Его принимают не везде — как найти пункт и подготовить плёнку.',
    intro:'4 LDPE (PEBD, ПВД — полиэтилен высокого давления) — мягкий тянущийся пластик: пакеты, стрейч-плёнка, упаковка. Его принимают не везде, но многие экоцентры собирают чистые пакеты и плёнку.',
    where_found:['Мягкие пакеты и упаковочная плёнка','Стрейч-плёнка','Пакеты от хлеба и заморозки'],
    accept:'Принимают в части пунктов', level:2,
@@ -263,8 +263,8 @@ const RECYCLE_PAGES = [
    rel:['markirovka-2-hdpe','plastik']},
   {s:'markirovka-5-pp', kind:'mark', code:'5', ab:'PP (ПП)', ic:'♷', name:'Маркировка 5 PP',
    h1:'Маркировка 5 PP (ПП, ♷): что это и куда сдать',
-   title:'Маркировка 5 PP (ПП, полипропилен) в треугольнике: что значит и куда сдать — DashaBotanika',
-   desc:'Цифра 5 в треугольнике — полипропилен (ПП). Где встречается: контейнеры, стаканчики, крышки, — и куда его сдать.',
+   title:'5 PP (полипропилен) в треугольнике: что значит и куда сдать',
+   desc:'Цифра 5 в треугольнике — полипропилен (PP, ПП): контейнеры, стаканчики, крышки. Его принимают многие пункты, но не все — как проверить свой и подготовить упаковку.',
    intro:'5 PP (ПП, полипропилен) — прочный и термостойкий пластик. Его принимают многие экоцентры и пункты приёма: из него делают новые контейнеры, ящики, детали.',
    where_found:['Контейнеры для еды, в том числе для микроволновки','Стаканчики от йогурта и сметаны','Крышки от бутылок','Одноразовые столовые приборы — часть из них'],
    accept:'Принимают часто', level:3,
@@ -274,8 +274,8 @@ const RECYCLE_PAGES = [
    rel:['kryshechki','plastik']},
   {s:'markirovka-6-ps', kind:'mark', code:'6', ab:'PS (ПС)', ic:'♸', name:'Маркировка 6 PS',
    h1:'Маркировка 6 PS (ПС, ♸): пенопласт и одноразовая посуда',
-   title:'Маркировка 6 PS (полистирол, пенопласт) в треугольнике: что значит — DashaBotanika',
-   desc:'Цифра 6 в треугольнике — полистирол (ПС), в том числе пенопласт. Где встречается, принимают ли его и что делать.',
+   title:'6 PS (полистирол) в треугольнике: пенопласт и одноразовая посуда — куда деть',
+   desc:'Цифра 6 в треугольнике — полистирол (PS, ПС): одноразовая посуда, лотки, пенопласт. Почему его принимают редко и как найти пункт, где берут.',
    intro:'6 PS (ПС, полистирол) — из него делают одноразовую посуду, лотки и пенопласт. Перерабатывать его можно, но невыгодно, поэтому принимают его редко — чаще на отдельных акциях.',
    where_found:['Пенопласт и лотки из-под мяса и овощей','Одноразовые стаканчики и приборы','Коробочки от яиц из пенопласта'],
    accept:'Принимают редко', level:1,
@@ -285,8 +285,8 @@ const RECYCLE_PAGES = [
    rel:['markirovka-3-pvc','markirovka-7-other']},
   {s:'markirovka-7-other', kind:'mark', code:'7', ab:'OTHER (O)', ic:'♹', name:'Маркировка 7 OTHER',
    h1:'Маркировка 7 OTHER (O, ♹): смешанный и другой пластик',
-   title:'Маркировка 7 OTHER (O) в треугольнике: что значит — DashaBotanika',
-   desc:'Цифра 7 в треугольнике — «другие» пластики: смешанные, многослойные, поликарбонат, биопластик. Что с ними делать.',
+   title:'7 OTHER в треугольнике: что значит и можно ли сдать',
+   desc:'Цифра 7 или OTHER в треугольнике — «другие» пластики: многослойная упаковка, поликарбонат, биопластик. Почему их почти не перерабатывают и что с ними делать.',
    intro:'7 OTHER (O) — всё, что не попадает в коды 1–6: многослойная упаковка, поликарбонат, смеси пластиков, биоразлагаемый пластик. Переработать такую упаковку почти невозможно, поэтому её почти нигде не принимают.',
    where_found:['Упаковка от чипсов и кофе (многослойная)','Многоразовые бутылки из поликарбоната','Биопластик (PLA)'],
    accept:'Почти не принимают', level:0,
@@ -1455,7 +1455,7 @@ function guidePage(path){
             h('a',{class:'btn small',href:'/servisy'},'📍 Пункты в вашем городе'),
             h('a',{class:'btn ghost small',href:'https://recyclemap.ru',target:'_blank',rel:'noopener'},'Карта RecycleMap'),
             g.mat ? h('a',{class:'btn ghost small',href:'/sortirovka#calc'},'Посчитать пользу') : null))),
-      guideFaq(g.faq), guideRel(g),
+      guideFaq(g.faq), guideRel(g), mark ? markNav(g) : null,
       h('p',{class:'hint'},'Правила приёма в разных городах отличаются. Нашли ошибку или знаете пункт рядом — ', h('a',{href:'/o-proekte#feedback'},'напишите Даше'),'.')))];
   }};
 }
@@ -1469,6 +1469,19 @@ function guideIndex(kind){
       h('span',null, h('b',null, kind==='mark' ? g.ab : g.name), h('span',{class:'hint'}, kind==='mark' ? g.accept : g.h1.replace(/^Куда сдать /,'').replace(/^./,c=>c.toUpperCase())))))),
     kind==='mark' ? null : h('div',{class:'more-row'}, h('span'), h('a',{class:'btn ghost',href:'/markirovka'},'🔎 Маркировка пластика 1–7'))));
 }
+// the practical article about plastic codes (the same as in pb_hooks/seo.js, MARK_ARTICLE): its address follows the slug
+const MARK_ARTICLE = 'ah338y2n';
+const markArticle = () => (a => a && {url:'/zhurnal/'+articleSlug(a), title:a.title})(STATE.articles.find(a=>a.id===MARK_ARTICLE));
+// a code page: the codes before and after it, and the article about what is really accepted
+function markNav(g){
+  const marks = RECYCLE_PAGES.filter(x=>x.kind==='mark'), i = marks.indexOf(g), prev = marks[i-1], next = marks[i+1], art = markArticle();
+  return h('div',{class:'card mark-nav'},
+    h('p',{class:'mark-nav-row'},
+      prev ? h('a',{href:guideUrl(prev)},'← '+prev.code+' '+prev.ab.split(' ')[0]) : h('span'),
+      h('a',{href:'/markirovka'},'Все коды 1–7'),
+      next ? h('a',{href:guideUrl(next)},next.code+' '+next.ab.split(' ')[0]+' →') : h('span')),
+    art ? h('p',{style:'margin:0'},'Какой пластик принимают на самом деле и что делать, если цифры нет, — в статье ', h('a',{href:art.url},'«'+art.title+'»'),'.') : null);
+}
 function markingHub(){
   return [h('section',{class:'band guide'}, h('div',{class:'wrap'},
     h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ', h('a',{href:'/sortirovka'},'Сортировка')),
@@ -1479,7 +1492,8 @@ function markingHub(){
       h('thead',null, h('tr',null, h('th',null,'Код'), h('th',null,'Материал'), h('th',null,'Где встречается'), h('th',null,'Принимают'))),
       h('tbody',null, RECYCLE_PAGES.filter(g=>g.kind==='mark').map(g=>h('tr',{class:'lvl-'+g.level},
         h('td',null, h('a',{href:guideUrl(g),class:'mark-code'}, g.ic+' '+g.code)), h('td',null, h('a',{href:guideUrl(g)}, g.ab)),
-        h('td',null, g.where_found.slice(0,2).join(', ')), h('td',null, g.accept))))))
+        h('td',null, g.where_found.slice(0,2).join(', ')), h('td',null, g.accept)))))),
+    (art => art ? h('p',null,'Не нашли цифру на упаковке или хотите понять, что из этого действительно сдаётся, — читайте статью ', h('a',{href:art.url},'«'+art.title+'»'),'.') : null)(markArticle())
   )), guideIndex('mark')];
 }
 
@@ -1949,7 +1963,7 @@ const PAGES = {
   '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection()]; }},
   '/eda': {title:'Эко-еда: сезонные продукты, рецепты без отходов и меню на неделю — DashaBotanika', render:()=>{ SEC_H1 = true; return [foodSection(), menuSection(), cafesSection(), helperSection(['food','pack'])]; }},
   '/sortirovka': {title:'Как сортировать мусор дома: что куда сдавать и калькулятор пользы — DashaBotanika', render:()=>{ SEC_H1 = true; return [sortGuide(), guideIndex('mat'), calcSection(), helperSection(['pack','services'])]; }},
-  '/markirovka': {title:'Маркировка пластика 1–7 в треугольнике: расшифровка и что сдаётся — DashaBotanika', render:()=>markingHub()},
+  '/markirovka': {title:'Маркировка пластика 1–7: расшифровка цифр в треугольнике', render:()=>markingHub()},
   '/moda': {title:'Эко-мода: капсульный гардероб, ткани и вторая жизнь вещей — DashaBotanika', render:()=>{ SEC_H1 = true; return [fashionSection(), marketTeaser(), goodsSection(true)]; }},
   '/vozduh': {title:'Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika', render:()=>{ SEC_H1 = true; return [airSection()]; }},
   '/mify': {title:'Мифы о переработке и экологии: что правда, а что нет — DashaBotanika', render:()=>{ SEC_H1 = true; return [mythsSection(), examTeaser()]; }},
