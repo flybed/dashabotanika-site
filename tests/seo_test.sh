@@ -41,6 +41,14 @@ check('… and the description is seo_desc', 'content="Где принимают
 check('… H1 stays the full article title', '<h1>Куда сдать батарейки: как найти пункт приёма в своём городе</h1>' in html)
 st, html, title = page('/zhurnal/kompost-v-kvartire')
 check('article without seo_title: «title — DashaBotanika»', st == 200 and title == 'Компост в квартире — DashaBotanika')
+# 2. /sortirovka: the sorting scheme the site draws is in the server HTML too
+st, html, title = page('/sortirovka')
+main = html.split('<main>')[1].split('</main>')[0]
+check('/sortirovka: «Сортировка за 3 шага» and 8 material cards in server HTML', st == 200 and '<h3>Сортировка за 3 шага</h3>' in main and main.count('<p>Куда сдавать: ') == 8)
+# 3. /darom: teaching examples from the content are not listed as things (they have no page — the link was a 404)
+st, html, title = page('/darom')
+main = html.split('<main>')[1].split('</main>')[0]
+check('/darom: no example listing and no link to /darom/v/<example id>', st == 200 and 'Пример объявления' not in main and '/darom/v/m' not in main)
 import sys; sys.exit(1 if fails else 0)
 PY
 echo "ALL OK"
