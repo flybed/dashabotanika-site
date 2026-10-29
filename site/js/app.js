@@ -478,8 +478,11 @@ function hero(){
   return h('section',{class:'hero',id:'top'}, h('div',{class:'wrap'},
     h('div',null,
       h('div',{class:'brand'},'DashaBotanika'),
-      h('h1',{html:'Меньше лишнего. <em>Больше жизни.</em>'}),
-      h('p',{class:'hero-intro'},'Вещи даром, разумные покупки, простые экопривычки и полезные идеи для жизни. Без фанатизма и лишних затрат.'),
+      // phones: Dasha's photo stands next to the headline (the big photo is for wider screens)
+      h('div',{class:'hero-top'}, h('h1',{html:'Меньше лишнего. <em>Больше жизни.</em>'}), heroFace()),
+      h('p',{class:'hero-intro'},
+        h('span',{class:'wide-only'},'Вещи даром, разумные покупки, простые экопривычки и полезные идеи для жизни. Без фанатизма и лишних затрат.'),
+        h('span',{class:'phone-only'},'Простые идеи, как жить осознаннее, экономить и давать вещам вторую жизнь.')),
       heroCta()
     ),
     heroArt()
@@ -492,8 +495,10 @@ function heroCta(){
   live(()=>{
     const steps = accState()==='member' && !firstStepsList().every(x=>x[3]);
     box.replaceChildren(
-      h('a',{class:'btn',href:steps ? '/#steps' : '/#start',onclick:e=>{ goal('home_start'); if (steps) openSteps(e); }},'Я здесь впервые'),
-      h('a',{class:'btn ghost',href:'/#interests',onclick:()=>goal('home_what')},'Все разделы')); });
+      h('a',{class:'btn',href:steps ? '/#steps' : '/#start',onclick:e=>{ goal('home_start'); if (steps) openSteps(e); }},
+        h('span',{class:'wide-only'},'Я здесь впервые'), h('span',{class:'phone-only'},'С чего начать')),
+      // on phones a quiet link: one main action on the first screen
+      h('a',{class:'btn ghost hero-all',href:'/#interests',onclick:()=>goal('home_what')},'Все разделы')); });
   return box;
 }
 // a row wider than the screen: arrows at the edges and a bar below show it scrolls, and where you are
@@ -676,6 +681,11 @@ function pickAndUpload(onDone, quiet){
 function uploadBtn(label, onDone, extraClass){
   if (!EDIT.can) return null;
   return h('button',{type:'button',class:'btn small edit-only '+(extraClass||''),onclick:()=>pickAndUpload(onDone)},label);
+}
+function heroFace(){
+  const id = STATE.photos.hero;
+  if (!id) return null;
+  return h('div',{class:'hero-face'}, photoImg(id, STATE.about.name||'Даша', '', {eager:true}), STATE.about.name ? h('span',{'aria-hidden':'true'},STATE.about.name) : null);
 }
 function heroArt(){
   const id = STATE.photos.hero;
@@ -2069,7 +2079,8 @@ const giveHref = () => accState()==='member' ? '/kabinet?tab=things&do=give#cabi
 function daromStrip(){
   const give = h('span',{style:'display:contents'}), items = h('div',{class:'dst-items'});
   live(()=>{
-    give.replaceChildren(h('a',{class:'btn ghost',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать вещь'));
+    // while the catalogue is young, giving is the main action; finding is a quiet link next to it
+    give.replaceChildren(h('a',{class:'btn',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать вещь'));
     // the newest things being given away, when there are any — the same as in the big block
     const list = publicListings().slice().sort((a,b)=>b.ts-a.ts).slice(0,3);
     items.hidden = !list.length;
@@ -2079,7 +2090,7 @@ function daromStrip(){
   return h('section',{class:'darom-strip',id:'darom-strip','aria-label':'Вещи даром'}, h('div',{class:'wrap'}, h('div',{class:'dst'},
     h('img',{class:'dst-art',src:'/img/darom-things.svg',alt:'',width:'110',height:'80',loading:'lazy',decoding:'async'}),
     h('div',{class:'dst-text'}, h('h2',{class:'dst-t'},'🎁 Вещи даром'), h('p',null,'Отдавайте хорошие вещи бесплатно и находите нужное рядом с собой.')),
-    h('div',{class:'dst-cta'}, h('a',{class:'btn',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь'), give),
+    h('div',{class:'dst-cta'}, give, h('a',{class:'dst-find',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь')),
     items)));
 }
 /* «Вещи даром» on the home page (wider screens): what is being given away now (nearest first) and two doors */
@@ -4975,9 +4986,10 @@ function accountButton(){
       // the number = what waits for you: unread messages and, for admins, listings to check and new feedback
       const parts = [[unreadCount(),'непрочитанные сообщения']].concat(COM.admin ? [[newDrafts().length,'черновики статей'],[pendingListings().length,'объявления на проверке'],[COM.feedback.filter(f=>!f.status).length,'новая обратная связь']] : []).filter(([k])=>k);
       const n = parts.reduce((s,[k])=>s+k,0);
-      b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), 'Кабинет', n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean));
+      // on phones only the character and the number are shown, so the name is in aria-label too
+      b.replaceChildren(...[h('span',{class:'dot','aria-hidden':'true'},emojiOf(COM.uid)), h('span',{class:'acc-t'},'Кабинет'), n ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},n) : null].filter(Boolean));
       if (n){ b.title = 'Ждёт внимания: '+parts.map(([k,t])=>t+' — '+k).join(', '); b.setAttribute('aria-label','Кабинет. '+b.title); }
-      else { b.removeAttribute('title'); b.removeAttribute('aria-label'); }
+      else { b.removeAttribute('title'); b.setAttribute('aria-label','Кабинет'); }
     }
     else { b.replaceChildren('Войти'); b.removeAttribute('title'); b.removeAttribute('aria-label'); }
     requestAnimationFrame(fitHeader);
