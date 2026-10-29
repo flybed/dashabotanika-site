@@ -34,7 +34,7 @@ x.href=l.getAttribute('href').replace(/&r=\d+$/,'')+'&r='+(n+1);x.onerror=functi
 setTimeout(function(){if(!x.sheet)dbCss(x,n+1)},6000);l.parentNode.insertBefore(x,l.nextSibling);l.remove()};
 setTimeout(function(){var l=document.getElementById('app-css');if(l&&!l.sheet)dbCss(l)},6000);
 </script>
-<link rel="stylesheet" href="/css/app.css?v=134" id="app-css" onload="this.dbDone=1" onerror="dbCss(this)">
+<link rel="stylesheet" href="/css/app.css?v=135" id="app-css" onload="this.dbDone=1" onerror="dbCss(this)">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "@id": "https://dashabotanika.ru/#website", "url": "https://dashabotanika.ru/", "name": "DashaBotanika", "inLanguage": "ru", "description": "Разумные покупки, вещи даром от соседей, сезонная еда, понятная сортировка и простые экопривычки — чтобы жить комфортнее, тратить осознаннее и заботиться о планете без фанатизма."}, {"@type": "Organization", "@id": "https://dashabotanika.ru/#org", "name": "DashaBotanika", "url": "https://dashabotanika.ru/", "logo": "https://dashabotanika.ru/img/hero.webp", "sameAs": ["https://t.me/dashabotanikarecipes", "https://instagram.com/dashabotanika"]}]}</script>
 <script>try{if(sessionStorage.getItem('db-splash'))document.documentElement.classList.add('no-splash')}catch(e){}</script>
@@ -114,7 +114,7 @@ setTimeout(function(){var l=document.getElementById('app-css');if(l&&!l.sheet)db
 <script>
 // Скрипты грузим по очереди: сначала PocketBase, потом сайт. Если файл не дошёл (ошибка сети),
 // просим его ещё раз через секунду, до 3 раз. Без PocketBase сайт всё равно запустится, только без входа.
-(function(){var list=['/js/pocketbase.umd.js','/js/app.js?v=134'];
+(function(){var list=['/js/pocketbase.umd.js','/js/app.js?v=135'];
 function load(i,n){if(i>=list.length)return;var s=document.createElement('script');s.src=list[i]+(n?(list[i].indexOf('?')<0?'?':'&')+'r='+n:'');
 s.onload=function(){load(i+1,0)};s.onerror=function(){s.remove();n<3?setTimeout(function(){load(i,n+1)},1000):load(i+1,0)};document.body.appendChild(s)}
 load(0,0)})();

@@ -434,7 +434,20 @@ const SECTION_PAGES = {
 // Справочник «куда сдать» (RECYCLE_PAGES из app.js): страница на каждый вид вторсырья и код пластика.
 const guideUrl = (g) => (g.kind === "mark" ? "/markirovka/" + g.s.replace("markirovka-", "") : "/sortirovka/" + g.s)
 const ul = (list) => `<ul>${(list || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
-function guideHtml(g, all) {
+// практическая статья о маркировке (та же, что MARK_ARTICLE в site/js/app.js); адрес — по её текущему slug
+const MARK_ARTICLE = "ah338y2n"
+function markArticle(d) {
+  const a = (d.articles || []).find((x) => x.id === MARK_ARTICLE)
+  return a ? { url: "/zhurnal/" + articleSlug(a), title: a.title } : null
+}
+// страница кода: соседние коды и статья о том, что принимают на самом деле
+function markNav(g, all, art) {
+  const marks = all.filter((x) => x.kind === "mark"), i = marks.indexOf(g), prev = marks[i - 1], next = marks[i + 1]
+  const link = (x, txt) => `<a href="${guideUrl(x)}">${esc(txt)}</a>`
+  return `<p>${prev ? link(prev, "← " + prev.code + " " + prev.ab.split(" ")[0]) + " · " : ""}<a href="/markirovka">Все коды 1–7</a>${next ? " · " + link(next, next.code + " " + next.ab.split(" ")[0] + " →") : ""}</p>` +
+    (art ? `<p>Какой пластик принимают на самом деле и что делать, если цифры нет, — в статье <a href="${art.url}">«${esc(art.title)}»</a>.</p>` : "")
+}
+function guideHtml(g, all, art) {
   const mark = g.kind === "mark"
   const rel = (g.rel || []).map((r) => (r === "markirovka" ? ["/markirovka", "Маркировка пластика"] : (x => x && [guideUrl(x), x.name])(all.find((x) => x.s === r)))).filter(Boolean)
   return `<section id="guide"><div class="wrap"><p><a href="${mark ? "/markirovka" : "/sortirovka"}">${mark ? "Маркировка пластика" : "Сортировка"}</a></p><h1>${esc(g.h1)}</h1><p class="lead">${esc(g.intro)}</p>\n` +
@@ -443,7 +456,7 @@ function guideHtml(g, all) {
     `<h2>Как подготовить</h2><ol>${g.prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` +
     (g.where ? `<h2>Где сдать</h2>${ul(g.where)}` : "") + `<p><a href="/servisy">Пункты приёма в вашем городе</a></p>` +
     (g.faq && g.faq.length ? `<h2>Частые вопросы</h2>${g.faq.map(([q, a]) => `<h3>${esc(q)}</h3><p>${esc(a)}</p>`).join("")}` : "") +
-    (rel.length ? `<p>Ещё по теме: ${rel.map(([u, n]) => `<a href="${u}">${esc(n)}</a>`).join(" · ")}</p>` : "") + `</div></section>`
+    (rel.length ? `<p>Ещё по теме: ${rel.map(([u, n]) => `<a href="${u}">${esc(n)}</a>`).join(" · ")}</p>` : "") + (mark ? markNav(g, all, art) : "") + `</div></section>`
 }
 const faqLd = (g) => (g.faq && g.faq.length ? [{ "@type": "FAQPage", mainEntity: g.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) }] : [])
 
@@ -568,11 +581,13 @@ function page(path, d, k, app) {
   if (path === "/markirovka") {
     const marks = k.RECYCLE_PAGES.filter((g) => g.kind === "mark")
     return Object.assign(base, {
-      title: "Маркировка пластика 1–7 в треугольнике: расшифровка и что сдаётся — DashaBotanika",
-      description: "Что значат цифры 1–7 в треугольнике на упаковке: PET, HDPE, PVC, LDPE, PP, PS, OTHER. Где встречается каждый пластик и принимают ли его в переработку.",
+      title: "Маркировка пластика 1–7: расшифровка цифр в треугольнике",
+      description: "Что значат цифры 1–7 в треугольнике на упаковке: PET, HDPE, PVC, LDPE, PP, PS и OTHER. Где встречается каждый пластик и от чего зависит, примут ли его в переработку.",
       crumbs: [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"]],
       body: `<section><div class="wrap"><h1>Маркировка пластика: что значат цифры 1–7 в треугольнике</h1><p class="lead">Цифра в треугольнике — это код материала, а не обещание, что упаковку переработают.</p>
-<table><tr><th>Код</th><th>Материал</th><th>Где встречается</th><th>Принимают</th></tr>${marks.map((g) => `<tr><td><a href="${guideUrl(g)}">${g.code}</a></td><td>${esc(g.ab)}</td><td>${esc(g.where_found.slice(0, 2).join(", "))}</td><td>${esc(g.accept)}</td></tr>`).join("")}</table></div></section>`,
+<table><tr><th>Код</th><th>Материал</th><th>Где встречается</th><th>Принимают</th></tr>${marks.map((g) => `<tr><td><a href="${guideUrl(g)}">${g.code}</a></td><td>${esc(g.ab)}</td><td>${esc(g.where_found.slice(0, 2).join(", "))}</td><td>${esc(g.accept)}</td></tr>`).join("")}</table>` +
+        ((art) => art ? `<p>Не нашли цифру на упаковке или хотите понять, что из этого действительно сдаётся, — читайте статью <a href="${art.url}">«${esc(art.title)}»</a>.</p>` : "")(markArticle(d)) +
+        `</div></section>`,
     })
   }
   const gm = path.match(/^\/(sortirovka|markirovka)\/([a-z0-9-]+)$/)
@@ -581,7 +596,7 @@ function page(path, d, k, app) {
     if (!g) return null
     return Object.assign(base, { title: g.title, description: g.desc, ld: faqLd(g),
       crumbs: g.kind === "mark" ? [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"], [g.name, path]] : [["Сортировка", "/sortirovka"], [g.name, path]],
-      body: guideHtml(g, k.RECYCLE_PAGES) })
+      body: guideHtml(g, k.RECYCLE_PAGES, markArticle(d)) })
   }
   if (path === "/kabinet") return Object.assign(base, { title: "Личный кабинет — DashaBotanika", noindex: true, crumbs: [["Личный кабинет", "/kabinet"]], body: "<h1>Личный кабинет</h1>" })
   const m = path.match(/^\/zhurnal\/([^/]+)$/)

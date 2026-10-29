@@ -1808,3 +1808,8 @@ html,body{overflow-x:clip}
   .dst-cta{grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;align-items:center}
   .dst-find{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 6px;font-weight:800;color:var(--moss);text-decoration:none}
 }
+
+/* plastic code pages: the codes before and after, all codes, the article */
+.mark-nav{display:grid;gap:8px;margin-top:16px}
+.mark-nav-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px 12px;margin:0}
+.mark-nav-row a{min-height:44px;display:inline-flex;align-items:center;font-weight:800;color:var(--moss);text-decoration:none}
