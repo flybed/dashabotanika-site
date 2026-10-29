@@ -1485,6 +1485,13 @@ function markingHub(){
 
 /* ---------- article funnel: a card on the topic in the middle, an invitation at the end, a thin bar for guests ---------- */
 function goal(name){ try{ if (window.ym && window.METRIKA_ID) ym(window.METRIKA_ID, 'reachGoal', name); }catch(e){} }
+// a result, not a click: called only after the server confirmed the action, and once per thing —
+// the mark stays in this browser, so a reload, a double tap or a repeated save does not count it again
+function goalOnce(name, id){
+  const k = 'goal:'+name+':'+id;
+  try{ if (localStorage.getItem(k)) return; localStorage.setItem(k,'1'); }catch(e){}
+  goal(name);
+}
 const ART_CTA = {
   'Научиться сортировать отходы':['♻️','Не знаете, куда сдать?','Справочник для 11 видов отходов: что принимают, как подготовить и где сдать в вашем городе.','Открыть справочник','/sortirovka#kuda-sdat'],
   'Меньше мусора и пластика':['🔎','Что значит цифра в треугольнике?','Маркировка пластика 1–7: какой пластик сдаётся, а какой лучше не покупать.','Маркировка пластика','/markirovka'],
@@ -2389,7 +2396,10 @@ function dealBtn(ref, title, seller, kind){
   return h('button',{type:'button',class:'btn small',style:'align-self:flex-start',onclick:()=>openDeal(ref, title, seller)}, dealLabel(kind));
 }
 function myItems(){ return COM.listings.filter(l=>l.seller===COM.uid); }
-function setMyItemStatus(id, status){ return write('listings/'+id, ()=>pb.collection('listings').update(id,{status})).catch(writeErr); }
+function setMyItemStatus(id, status){
+  return write('listings/'+id, ()=>pb.collection('listings').update(id,{status}))
+    .then(r=>{ if (r && r.status==='gone') goalOnce('darom_given', id); return r; }).catch(writeErr);
+}
 function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', district:r.district||'', lat:r.lat||0, lon:r.lon||0, reserved_until:r.reserved_until||'', lot:!!r.lot, items:r.items||'', more:(r.more_photos||[]).map(f=>'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+'?thumb=600x450'), chosen:r.chosen||'', claims:r.claims||0, lend_days:r.lend_days||0, return_by:r.return_by||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
 // a thing at a glance: photo, what it is, can you still get it, condition and where, who gives, what to do next.
@@ -2542,6 +2552,7 @@ function openClaim(it){
     f.addEventListener('submit', async e=>{ e.preventDefault(); btn.disabled = true;
       try{
         const r = await pb.collection('claims').create({listing:it.id, user:COM.uid, note:ta.value.trim().slice(0,300)});
+        if (r && r.id) goalOnce('darom_claim_created', r.id);
         COM.claims = (COM.claims||[]).concat([claimOf(r)]); closeModal(); refresh();
         toast('Вы в списке желающих! Даритель выберет, кому отдать, — мы сообщим');
         openDeal({listing:it.id}, it.title, it.seller);
@@ -2862,7 +2873,9 @@ function daromSubCard(){
   async function store(data, ok, onErr){
     // the owner is set once, on create; the server does not accept it again on update
     const { user, ...change } = data;
-    try{ rec = rec ? await pb.collection('darom_subs').update(rec.id, change) : await pb.collection('darom_subs').create(data);
+    try{ const created = !rec;
+      rec = rec ? await pb.collection('darom_subs').update(rec.id, change) : await pb.collection('darom_subs').create(data);
+      if (created && rec && rec.id && (rec.email || rec.tg)) goalOnce('darom_subscribed', rec.id);
       editing = false; err = ''; toast(ok); paint(); }
     catch(e){ const msg = 'Не получилось сохранить — проверьте интернет и попробуйте ещё раз.'; if (onErr) onErr(msg); else toast(msg); }
   }
@@ -3093,6 +3106,7 @@ function thingsPanel(lists){
       if (fl) fd.append('photo', framed || await fitPhoto(fl, 1200));
       if (lot.checked){ fd.append('lot','true'); fd.append('items', lotItems.value.trim().slice(0,2000)); for (const x of extra) fd.append('more_photos', await fitPhoto(x, 1200)); }
       const r = await pb.collection('listings').create(fd);
+      if (r && r.id){ goalOnce('darom_listing_created', r.id); if (r.moderation==='approved') goalOnce('darom_listing_published', r.id); }
       // show it in «Мои объявления» right away; the realtime update brings the same record a moment later
       if (r && r.id && !COM.listings.some(l=>l.id===r.id)){ COM.listings = [listingOf(r)].concat(COM.listings); refresh(); }
       f.reset(); framed = null; showFramed(); lotBox.hidden = true; lendBox.hidden = true; more.open = false;
@@ -3204,7 +3218,8 @@ function paintModeration(el){
       h('b',null,it.title),
       h('div',{style:'font-size:14px;white-space:pre-line'}, [it.condition && 'Состояние: '+it.condition, it.city && 'Где: '+it.city, it.note].filter(Boolean).join('\n')),
       h('div',{class:'cm-form',style:'flex-wrap:wrap'},
-        h('button',{type:'button',class:'btn small',onclick:()=>set({moderation:'approved', reason:''}).then(()=>toast('Опубликовано')).catch(writeErr)},'Опубликовать'),
+        // counted in the moderator's browser: how many were published, not where the giver came from (that is «created»)
+        h('button',{type:'button',class:'btn small',onclick:()=>set({moderation:'approved', reason:''}).then(r=>{ if (r && r.moderation==='approved') goalOnce('darom_listing_published', it.id); toast('Опубликовано'); }).catch(writeErr)},'Опубликовать'),
         reason,
         h('button',{type:'button',class:'btn ghost small',onclick:()=>set({moderation:'rejected', reason:reason.value.trim().slice(0,200)}).then(()=>toast('Отклонено')).catch(writeErr)},'Отклонить')));
   }) : [h('p',{class:'hint'},'Новых объявлений на проверку нет.')]));
