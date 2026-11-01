@@ -436,6 +436,7 @@ function render(){
       h('span',null,'© ', new Date().getFullYear(), ' · ', 'DashaBotanika', ' · Разумный человек — счастливая планета · ', h('a',{href:'/o-proekte'},'О проекте'), ' · ', h('a',{href:'/o-proekte#feedback'},'Обратная связь'), ' · ', h('a',{href:'/politika'},'Политика конфиденциальности'), ' · ', h('button',{type:'button',class:'linkish',onclick:()=>startTour()},'Показать подсказки')))),
     editBar()
   );
+  document.documentElement.classList.remove('js-wait'); // страница нарисована — показываем (index.html прятал серверный текст)
   fitHeader();
 }
 // the name next to the logo only when it leaves room for «Даром», the cabinet and the menu
