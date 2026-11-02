@@ -2456,7 +2456,8 @@ function userListingCard(it, full){
     h('p',{class:'lc-av '+av}, avText),
     h('ul',{class:'lc-facts'},
       it.condition ? h('li',null, h('span',{class:'lc-k'},'Состояние'), it.condition) : null,
-      place || nearLabel(it) ? h('li',null, h('span',{class:'lc-k'},'Где'), place, nearLabel(it) ? h('b',{class:'near'}, (place ? ' · ' : '')+nearLabel(it)) : null) : null,
+      // the row is a 2-column grid: the address and the distance share the second column
+      place || nearLabel(it) ? h('li',null, h('span',{class:'lc-k'},'Где'), h('span',null, place, nearLabel(it) ? h('b',{class:'near'}, (place ? ' · ' : '')+nearLabel(it)) : null)) : null,
       it.pickup ? h('li',null, h('span',{class:'lc-k'},'Передача'), it.pickup) : null),
     it.lot ? lotBlock(it) : null,
     it.note ? h('p',{class:'lc-note'+(full ? '' : ' clamp')},it.note) : null,
@@ -2697,7 +2698,10 @@ function pickedBlock(){
     if (accState()!=='member' || !PROFILE.loaded || !profileDone(PROFILE.rec)){ box.replaceChildren(); return; }
     const list = pickedForYou();
     box.replaceChildren(...(list.length ? [h('h3',{style:'margin-bottom:12px'},'🎯 Подобрано для вас'),
-      h('div',{class:'grid g3'}, list.map(({l,why})=>{ const c = userListingCard(l); c.classList.add('picked-card'); c.prepend(h('div',{class:'picked-why'}, why.slice(0,3).map(w=>h('span',null,w)))); return c; }))] : []));
+      h('div',{class:'grid g3'}, list.map(({l,why})=>{ const c = userListingCard(l); c.classList.add('picked-card');
+        // why it was picked — under the photo: the photo is pulled up to the card's edge and would cover anything above it
+        const why3 = h('div',{class:'picked-why'}, why.slice(0,3).map(w=>h('span',null,w))), pic = c.querySelector('.lc-imglink');
+        if (pic) pic.after(why3); else c.prepend(why3); return c; }))] : []));
   });
   return box;
 }
@@ -3648,12 +3652,42 @@ const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slic
 const isDasha = id => COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон';
 const worldIds = () => Object.keys(COM.members).filter(id=>COM.members[id].character)
   .sort((a,b)=>isDasha(a)!==isDasha(b) ? (isDasha(a) ? -1 : 1) : COM.members[a].joined-COM.members[b].joined);
-// first places are chosen spots on the meadow (Dasha in the middle), then a spiral around them
-function worldPos(i, n){
-  const spot = WORLD_SPOTS[i], r = Math.sqrt(i/(n+1)), a = i*2.39996;
-  return spot ? spot : [62 + Math.cos(a)*r*34, 82 + Math.sin(a)*r*11];
+// first places are chosen spots on the meadow (Dasha in the middle); every next resident takes the freest place
+// on the meadow and the hills — never in the river, on the rock with the waterfall or on the windmill hill.
+// The order is fixed, so a newcomer never moves those who already live here. Coordinates: % of the 1000×420 scene.
+const WORLD_SPOTS = [[62,80],[46,77],[78,77],[38,89],[54,91],[70,90],[87,86],[12,84],[94,78],[62,95],[46,96],[82,95]];
+// the river's banks (scene units, from WORLD_BG) with a margin for the emoji
+const riverAt = (y, xs, ys) => { for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return xs[k-1] + (xs[k]-xs[k-1])*(y-ys[k-1])/(ys[k]-ys[k-1]); return xs[xs.length-1]; };
+function worldFree(px, py){
+  const x = px*10, y = py*4.2;
+  if (y < 262 || y > 400 || x < 20 || x > 980) return false;                          // the meadow and the hills, inside the frame
+  if (y >= 290 && x > riverAt(y,[266,196,150],[296,368,420]) - 24 && x < riverAt(y,[320,300,262],[296,360,420]) + 24) return false; // river
+  if (y < 312 && x > 228 && x < 356) return false;                                      // rock, waterfall and its pool
+  if (y < 302 && x > 560 && x < 735) return false;                                      // windmill hill
+  if (y < 312 && (x < 125 || x > 890)) return false;                                    // fir trees at the edges
+  if (Math.abs(px - WORLD_SPOTS[0][0]) < 6 && py > WORLD_SPOTS[0][1] - 7 && py < WORLD_SPOTS[0][1] + 8) return false; // Dasha is big: room for her and her name
+  return true;
 }
-const WORLD_SPOTS = [[62,80],[46,77],[78,77],[38,89],[54,91],[70,90],[87,86],[30,78],[94,78],[62,95],[46,96],[82,95]];
+let WORLD_ORDER = null;
+function worldOrder(){
+  if (WORLD_ORDER) return WORLD_ORDER;
+  const cand = [];
+  for (let py = 63; py <= 95; py += 2.4) for (let px = 2.5; px <= 97.5; px += 2.5) if (worldFree(px, py)) cand.push([px, py]);
+  // a name tag is wide and low: distance counts in tags (≈90 × 30 scene units), so neighbours stand apart sideways first
+  const d2 = (a, b) => ((a[0]-b[0])*10/90)**2 + ((a[1]-b[1])*4.2/30)**2;
+  const order = WORLD_SPOTS.slice(), near = cand.map(c => Math.min(...order.map(s => d2(c, s))));
+  while (order.length < cand.length + WORLD_SPOTS.length && order.length < 160){
+    let best = -1; near.forEach((v, k) => { if (v > 0 && (best < 0 || v > near[best])) best = k; });
+    if (best < 0) break;
+    const p = cand[best]; order.push(p);
+    near.forEach((v, k) => { near[k] = Math.min(v, d2(cand[k], p)); });
+  }
+  return WORLD_ORDER = order;
+}
+function worldPos(i){
+  const o = worldOrder();
+  return o[i] || o[i % o.length];
+}
 
 /* private messages between members: a chat whose "seller" is the other member */
 async function openDM(userId){
