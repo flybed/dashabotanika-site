@@ -2728,10 +2728,18 @@ function marketSection(opts){
   const userGrid = h('div');
   const cache = new Map();
   const filters = h('div'), viewBar = h('div'), mapBox = daromMapBox();
+  const wait = h('div',{class:'darom-wait','aria-busy':'true'}, h('span',{class:'hint'},'Загружаем вещи…'));
   live(()=>{
     const all = publicListings();
     const st = accState();
     loadDaromStats([...new Set(all.map(l=>l.seller))]);
+    // until the list arrives: only a placeholder as tall as the filters and a row of cards — not «no things yet»
+    // (that was untrue for seconds). Filters and the list stay hidden meanwhile: a block that appears is not a shift,
+    // a list pushed down by the filters is (CLS)
+    const loading = !all.length && pb && !COM.listingsReady && !COM.listingsErr;
+    wait.hidden = !loading; filters.hidden = viewBar.hidden = loading;
+    if (loading){ mapBox.hidden = true; userGrid.hidden = true; return; }
+    userGrid.hidden = false;
     if (!all.length){
       filters.replaceChildren(); viewBar.replaceChildren(); mapBox.hidden = true; cache.clear();
       userGrid.replaceChildren(st==='loading' ? h('div',{class:'empty'},'Загружаем…') : h('div',{class:'empty darom-empty'},
@@ -2769,12 +2777,13 @@ function marketSection(opts){
       it.example ? null : commentsBlock('market:'+it.id));
   return h('section',{class:'band',id:'market'}, h('div',{class:'wrap'},
     h('div',{class:'darom-hero'}, head, actions),
-    daromCounter(),
     // the catalogue right under the first screen
     h('div',{id:'darom-catalog',class:'darom-catalog'},
       h('h2',{class:'darom-cat-t'},'Вещи участников'),
       pickedBlock(),
-      filters, viewBar, mapBox, userGrid),
+      wait, filters, viewBar, mapBox, userGrid),
+    // «given away / kg / thanks» comes a moment after the page: above the catalogue it pushed everything down (CLS)
+    daromCounter(),
     own.length ? h('div',{class:'darom-dasha'}, h('h3',{style:'margin-bottom:14px'},'От Даши'), h('div',{class:'grid g3'}, own.map(dashaCard))) : null,
     addForm('market','Новое объявление от Даши'),
     // how it works — after the catalogue, one short card; the example is clearly an example, never in the catalogue
@@ -5753,12 +5762,17 @@ function maybeTour(){
   setTimeout(wait, 600);
 }
 
+function startListings(){
+  COM.reloadListings = watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); COM.listingsReady = true; COM.listingsErr = false; }, ()=>{ if (!COM.listingsReady) COM.listingsErr = true; });
+}
 /* ---------- connect to the backend ---------- */
 (async ()=>{
   try{ const w = sessionStorage.getItem('db-welcome'); if (w){ sessionStorage.removeItem('db-welcome'); setTimeout(()=>toast(w), 400); } }catch(e){}
   placeAfterSignup();
   window.addEventListener('hashchange', routeHash);
   if (!pb){ COM.ready = true; refresh(); return; }
+  // a guest (from search or an ad) gets «Вещи даром» at once; a member's list waits for the sign-in check (own pending things)
+  if (!pb.authStore.isValid) startListings();
   try{
     const c = await pb.collection('content').getFirstListItem('key="site"',{requestKey:null});
     CONTENT = { id:c.id, data:JSON.parse(JSON.stringify(c.data)) };
@@ -5801,7 +5815,7 @@ function maybeTour(){
   });
   watch('reviews',{sort:'-created'}, l=>{ COM.reviews = l.map(r=>({id:r.id, author:r.author, rating:r.rating, text:r.text, ts:tsOf(r)})); });
   watch('comments',{sort:'created'}, l=>{ COM.comments = l.map(r=>({id:r.id, target:r.target, author:r.author, text:r.text, ts:tsOf(r)})); });
-  COM.reloadListings = watch('listings',{sort:'-created'}, l=>{ COM.listings = l.map(listingOf); COM.listingsReady = true; COM.listingsErr = false; }, ()=>{ if (!COM.listingsReady) COM.listingsErr = true; });
+  if (!COM.reloadListings) startListings();
   watch('thanks',{sort:'-created'}, l=>{ COM.thanks = l.map(thanksOf); DAROM.stats = null; DAROM.people = {}; });
   watch('wants',{sort:'-created',filter:'status = "open"'}, l=>{ COM.wants = l.map(wantOf); });
   if (COM.uid){
