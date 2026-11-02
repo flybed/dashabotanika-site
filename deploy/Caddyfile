@@ -61,9 +61,20 @@ dashabotanika.ru {
 	@img path /img/*
 	header @img Cache-Control "public, max-age=604800"
 
-	# Страница, скрипты и стили: браузер каждый раз сверяется с сервером (ETag → 304),
+	# Скрипт и стили с версией (?v=…) не меняются никогда: новая версия — новый адрес. Браузер берёт их из кэша
+	# без запроса к серверу.
+	@versioned {
+		path /js/* /css/*
+		query v=*
+	}
+	header @versioned Cache-Control "public, max-age=31536000, immutable"
+
+	# Страница и всё остальное: браузер каждый раз сверяется с сервером (ETag → 304),
 	# поэтому обновления сайта видны сразу, без «жёсткой» перезагрузки.
-	@fresh not path /img/* /api/* /_/*
+	@fresh {
+		not path /img/* /api/* /_/*
+		not query v=*
+	}
 	header @fresh Cache-Control "no-cache"
 
 	header {

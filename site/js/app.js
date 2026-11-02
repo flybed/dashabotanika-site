@@ -5505,6 +5505,8 @@ function toast(msg){ const n = document.querySelectorAll('.toast').length; const
 async function saveSite(){
   const btn = document.getElementById('save-btn');
   if (!EDIT.can || !CONTENT.id){ toast('Сохранять может только редактор сайта'); return; }
+  // the page's first data comes without article texts (pb_hooks/seo.js) — never save that copy over the full one
+  if (STATE._lite){ toast('Контент сайта ещё не загрузился — обновите страницу и повторите'); return; }
   for (const k of ['cafes','market']) STATE[k].forEach(it=>{ if (it.example && it._touched) delete it.example; });
   // an article whose text changed gets today as «обновлено» (search engines prefer fresh pages)
   const was = {}; ((CONTENT.data||{}).articles||[]).forEach(a=>{ was[a.id] = a; });

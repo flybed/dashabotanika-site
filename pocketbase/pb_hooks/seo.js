@@ -673,6 +673,16 @@ function counters(seo, tpl) {
   return out
 }
 
+// Данные для первого кадра страницы. Тексты статей (90% веса) нужны только на странице самой статьи: скрипт сайта
+// сразу после загрузки берёт полный контент из базы. _lite не даёт сохранить эту урезанную копию из редактора.
+const LITE_DROP = ["body", "answer", "sources"]
+function liteData(d, path) {
+  const m = path.match(/^\/zhurnal\/([^/]+)$/), cur = m ? decodeURIComponent(m[1]) : null
+  const articles = (d.articles || []).map((a) => cur && (articleSlug(a) === cur || (a.old_slugs || []).includes(cur)) ? a
+    : Object.keys(a).filter((k) => !LITE_DROP.includes(k)).reduce((o, k) => (o[k] = a[k], o), {}))
+  return Object.assign({}, d, { articles, _lite: true })
+}
+
 function render(app, path) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl), k = constants()
@@ -696,7 +706,7 @@ function render(app, path) {
   if (p.crumbs) ld.push({ "@type": "BreadcrumbList", itemListElement: [["Главная", "/"]].concat(p.crumbs).map(([name, u], i) => ({ "@type": "ListItem", position: i + 1, name, item: ORIGIN + u })) })
   if (ld.length) html = html.replace("</head>", `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": ld }).replace(/</g, "\\u003c")}</script>\n</head>`)
   html = html.replace(/<div id="app">[\s\S]*?<\/div>\s*(?=<script type="application\/json")/, () => `<div id="app">\n${nav(k)}\n<main>\n${p.body}\n</main>\n</div>\n`)
-  html = html.replace(/(<script type="application\/json" id="site-data">)[\s\S]*?(<\/script>)/, (all, a, b) => a + JSON.stringify(d).replace(/</g, "\\u003c") + b)
+  html = html.replace(/(<script type="application\/json" id="site-data">)[\s\S]*?(<\/script>)/, (all, a, b) => a + JSON.stringify(liteData(d, path)).replace(/</g, "\\u003c") + b)
   return { status, html }
 }
 

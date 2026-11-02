@@ -49,6 +49,15 @@ check('/sortirovka: «Сортировка за 3 шага» and 8 material card
 st, html, title = page('/darom')
 main = html.split('<main>')[1].split('</main>')[0]
 check('/darom: no example listing and no link to /darom/v/<example id>', st == 200 and 'Пример объявления' not in main and '/darom/v/m' not in main)
+# 4. the page's first data: article texts only on the article's own page (the site script loads the full content itself)
+def site_data(html): return json.loads(re.search(r'id="site-data">(.*?)</script>', html, re.S).group(1))
+st, html, title = page('/')
+d = site_data(html)
+check('home: site data is marked _lite and has no article texts', d.get('_lite') is True and d['articles'] and not any(a.get('body') for a in d['articles']))
+check('home: articles keep title, lead and slug for the lists', all(a.get('title') and 'lead' in a for a in d['articles']))
+st, html, title = page('/zhurnal/kuda-sdat-batareyki-kak-nayti-punkt-priema-v-svoem-gorode')
+d = site_data(html)
+check('article page: only this article carries its text', [a['id'] for a in d['articles'] if a.get('body')] == ['s1'])
 import sys; sys.exit(1 if fails else 0)
 PY
 echo "ALL OK"
