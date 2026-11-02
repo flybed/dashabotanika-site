@@ -22,6 +22,21 @@ const PAGES = ['/', '/sortirovka', '/markirovka/5-pp', '/zhurnal'];
       await c.close();
     }
   }
+  // «Вещи даром»: the list arrives late (here 1.5 s) — a placeholder meanwhile, never «no things yet», and no shift
+  for (const [dev, opts] of [['phone', devices['iPhone 13']], ['desktop', {viewport:{width:1366, height:800}}]]) {
+    const c = await b.newContext(opts), p = await c.newPage();
+    await p.route('**/api/collections/listings/records*', r => setTimeout(()=>r.continue(), 1500));
+    await p.addInitScript(()=>{ try{ sessionStorage.setItem('db-splash','1'); localStorage.setItem('db-tour-done','1'); }catch(e){}
+      window.__cls = 0; window.__empty = false; new PerformanceObserver(l=>{ for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({type:'layout-shift', buffered:true});
+      document.addEventListener('DOMContentLoaded', ()=>new MutationObserver(()=>{ if (document.querySelector('.darom-empty-t')) window.__empty = true; }).observe(document.body, {childList:true, subtree:true})); });
+    await p.goto(B+'/darom', {waitUntil:'load'});
+    const waiting = await p.evaluate(()=>{ const w = document.querySelector('.darom-wait'); return !!w && !w.hidden; });
+    await p.waitForTimeout(4000);
+    const m = await p.evaluate(()=>({cls:window.__cls, empty:window.__empty}));
+    check(`${dev} /darom: «Загружаем вещи…» while the list loads, never «Вещей пока нет»`, waiting && !m.empty);
+    check(`${dev} /darom: list 1.5 s late — CLS ${m.cls.toFixed(3)} (≤ 0.1)`, m.cls <= 0.1);
+    await c.close();
+  }
   const nojs = await b.newContext({javaScriptEnabled:false}), n = await nojs.newPage();
   await n.goto(B+'/markirovka/5-pp');
   check('without JavaScript the server text is visible', await n.evaluate(()=>getComputedStyle(document.getElementById('app')).visibility === 'visible'));
