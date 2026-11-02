@@ -210,7 +210,10 @@ function flushArticles(app) {
   const store = app.store(), list = store.get("tg_articles_queue") || []
   if (!list.length) return 0
   store.set("tg_articles_queue", [])
+  const chats = {} // одна статья — один раз в чат, даже если к нему подключены два аккаунта (Даша и Кирилл)
   for (const sub of subsWith(app, "articles")) {
+    if (chats[sub.getString("chat_id")]) continue
+    chats[sub.getString("chat_id")] = true
     for (const a of list) send(sub.getString("chat_id"), `📖 Новая статья в журнале DashaBotanika:\n<b>${esc(a.title)}</b>\n\n${esc(String(a.lead || "").slice(0, 250))}`, ["Читать", `${SITE}/zhurnal/${a.slug || a.id}`])
   }
 }

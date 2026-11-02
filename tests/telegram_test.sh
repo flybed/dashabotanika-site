@@ -126,5 +126,31 @@ n0 = len(mock('/calls'))
 st, res = req('POST','/notify/signups',None,su)
 new = [c for c in mock('/calls')[n0:] if c[0]=='sendMessage']
 check('a new member: the admin gets a message with the name and the character', res.get('sent')==1 and len(new)==1 and new[0][1]['chat_id']=='777' and 'Вика' in new[0][1]['text'] and ch[1]['emoji'] in new[0][1]['text'])
+# two admins connected to one Telegram chat (Dasha and Kirill): one message per new member, not two
+st, a2 = req('POST','/collections/users/records',{'email':'admin2@t.local','password':'secret12','passwordConfirm':'secret12','name':'Второй админ','character':ch[0]['id']})
+req('PATCH','/collections/users/records/'+a2['id'],{'role':'admin'},su)
+req('POST','/collections/tg_subs/records',{'user':a2['id'],'chat_id':'777','enabled':True,'topics':['signups'],'hour':20,'tz':180},su)
+req('POST','/notify/signups',None,su)   # admin2's own sign-up goes out first
+req('POST','/collections/users/records',{'email':'gleb@t.local','password':'secret12','passwordConfirm':'secret12','name':'Глеб','character':ch[1]['id']})
+n0 = len(mock('/calls'))
+st, res = req('POST','/notify/signups',None,su)
+new = [c for c in mock('/calls')[n0:] if c[0]=='sendMessage' and 'Глеб' in c[1]['text']]
+check('two admins in one Telegram chat: «new member» comes once', len(new)==1 and new[0][1]['chat_id']=='777')
+# the same chat with «new articles» on both accounts: a new article comes once (sent by the minute cron)
+import time
+for sub in req('GET','/collections/tg_subs/records?perPage=50',None,su)[1]['items']:
+    req('PATCH','/collections/tg_subs/records/'+sub['id'],{'topics':sub['topics']+['articles']},su)
+rec = req('GET',"/collections/content/records?filter=(key='site')",None,su)[1]['items'][0]
+data = rec['data']; data['articles'] = [{'id':'tgart1','cat':'Статья','date':'2026-11-02','title':'Статья для проверки дублей','lead':'Подводка','body':'Текст'}] + (data.get('articles') or [])
+n0 = len(mock('/calls'))
+req('PATCH','/collections/content/records/'+rec['id'],{'data':data},su)
+arts = []
+for _ in range(80):
+    time.sleep(1)
+    arts = [c for c in mock('/calls')[n0:] if c[0]=='sendMessage' and 'Статья для проверки дублей' in c[1]['text']]
+    if arts: break
+time.sleep(3)
+arts = [c for c in mock('/calls')[n0:] if c[0]=='sendMessage' and 'Статья для проверки дублей' in c[1]['text']]
+check('two accounts in one Telegram chat: a new article comes once', len(arts)==1 and arts[0][1]['chat_id']=='777')
 raise SystemExit(1 if fails else 0)
 PY

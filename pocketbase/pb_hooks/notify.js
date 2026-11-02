@@ -174,11 +174,15 @@ function flushSignups(app) {
     let ch = null
     try { ch = app.findRecordById("characters", u.getString("character")) } catch (e) {}
     const who = esc(u.getString("name") || "Участник"), pet = ch ? `${ch.getString("emoji")} ${esc(ch.getString("name"))}` : ""
+    // одна весть — один раз в чат: к одному Telegram бывают подключены два аккаунта с правами (Даша и Кирилл)
+    const chats = {}
     for (const a of admins) {
       if (a.id === id) continue
       const url = a.getString("role") === "admin" ? `${site(app)}/kabinet?tab=people#cabinet-tabs` : `${site(app)}/mir`
       for (const sub of tg.subsWith(app, "signups", a.id)) {
-        tg.send(sub.getString("chat_id"), `👤 Новый участник: <b>${who}</b>${pet ? " — " + pet : ""}\nВсего участников: ${total}`, ["Посмотреть", url]); sent++
+        if (chats[sub.getString("chat_id")]) continue
+        chats[sub.getString("chat_id")] = true
+        tg.send(sub.getString("chat_id"),`👤 Новый участник: <b>${who}</b>${pet ? " — " + pet : ""}\nВсего участников: ${total}`, ["Посмотреть", url]); sent++
       }
       for (const rec of wanting(app, "signups", a.id)) {
         if (send(app, rec, "signups", `Новый участник: ${u.getString("name") || "Участник"} — DashaBotanika`, "Новый участник",
