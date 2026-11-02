@@ -19,7 +19,7 @@
 
 - Всё из `main` сервер забирает сам каждые 5 минут (`deploy/site-update.sh`): изменения в `pocketbase/` перезапускают
   PocketBase, изменения в `deploy/` переустанавливают systemd-юниты и Caddyfile.
-- **При изменении `site/js/app.js` или `site/css/app.css` увеличивайте `?v=` в `site/index.html`** — так браузеры
+- **При изменении `site/js/app.js` или `site/css/app.css` увеличивайте `?v=` в `site/index.html`** (у `app.js` — в двух местах: `<link rel="preload">` и загрузчик внизу) — так браузеры
   гарантированно возьмут новую версию.
 
 ## Как устроен сайт
