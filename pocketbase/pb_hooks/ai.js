@@ -37,6 +37,24 @@ function staffDetail(app, userId, why) {
   return {}
 }
 
+// помощник не ответил — причина админам и модераторам в Telegram (тема «новые участники» = их служебный канал),
+// не чаще раза в 30 минут; ключа в причине нет. Так причину видно, даже когда фото загружал обычный участник
+function alertStaff(app, why) {
+  try {
+    const tg = require(`${__hooks}/tg.js`), store = app.store(), now = Date.now()
+    if (!tg.token() || now - (store.get("ai_alert_at") || 0) < 30 * 60 * 1000) return
+    store.set("ai_alert_at", now)
+    const chats = {}
+    for (const a of app.findRecordsByFilter("users", "(role = 'admin' || role = 'moderator') && hidden != true", "", 0, 0)) {
+      for (const sub of tg.subsWith(app, "signups", a.id)) {
+        if (chats[sub.getString("chat_id")]) continue
+        chats[sub.getString("chat_id")] = true
+        tg.send(sub.getString("chat_id"), "⚠️ Умный помощник не ответил участнику.\nПричина: " + String(why).replace(/&/g, "&amp;").replace(/</g, "&lt;").slice(0, 400))
+      }
+    }
+  } catch (e) { app.logger().error("ai alert failed", "error", String(e)) }
+}
+
 // max_tokens с запасом: модель сначала размышляет, иначе на сам ответ не хватит
 function analyze(app, userId, kind, image) {
   const st = status(app, userId)
@@ -44,9 +62,7 @@ function analyze(app, userId, kind, image) {
   if (!PROMPTS[kind]) return Object.assign(st, { ok: false, message: "Выберите, что на фото: еда или упаковка." })
   if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 3000000) return Object.assign(st, { ok: false, message: "Не получилось прочитать фото. Подойдёт JPG или PNG." })
   if (st.left <= 0) return Object.assign(st, { ok: false, message: `На сегодня разборы закончились (${st.limit} в день). Приходите завтра!` })
-  let res
-  try {
-    res = $http.send({
+  const ask = () => $http.send({
       url: apiUrl(), method: "POST", timeout: 60,
       headers: { "content-type": "application/json", "authorization": "Api-Key " + env("YC_API_KEY"), "x-folder-id": env("YC_FOLDER") },
       body: JSON.stringify({ model: model(), temperature: 0.4, max_tokens: 2500, messages: [
@@ -54,15 +70,26 @@ function analyze(app, userId, kind, image) {
         { role: "user", content: [{ type: "text", text: kind === "food" ? "Что скажешь про эту тарелку?" : "Куда сдать эту упаковку?" }, { type: "image_url", image_url: { url: image } }] },
       ] }),
     })
-  } catch (e) {
-    app.logger().error("ai request failed", "error", String(e))
-    return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." }, staffDetail(app, userId, "нет связи с Yandex AI Studio: " + String(e).slice(0, 200)))
+  // временный сбой Яндекса (429, 5xx, обрыв связи) — ещё одна попытка; долгий ответ (таймаут) не повторяем: человек уже ждал минуту
+  let res, err = ""
+  for (let n = 0; n < 2; n++) {
+    try { res = ask(); err = "" } catch (e) { res = null; err = String(e) }
+    const busy = res ? [429, 500, 502, 503, 504].indexOf(res.statusCode) >= 0 : !/timeout|deadline/i.test(err)
+    if (!busy || n === 1) break
+    if (typeof sleep === "function") sleep(1500)
+  }
+  if (!res) {
+    const why = "нет связи с Yandex AI Studio: " + err.slice(0, 200)
+    app.logger().error("ai request failed", "error", err)
+    alertStaff(app, why)
+    return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." }, staffDetail(app, userId, why))
   }
   const j = res.json || {}
   const text = String((((j.choices || [])[0] || {}).message || {}).content || "").trim()
   if (res.statusCode !== 200 || !text) {
     const why = "Yandex AI Studio ответил " + res.statusCode + ": " + toString(res.body).slice(0, 400)
     app.logger().error("ai answer failed", "status", res.statusCode, "body", toString(res.body).slice(0, 400))
+    alertStaff(app, why)
     return Object.assign(st, { ok: false, message: "Помощник сейчас не отвечает, попробуйте через минуту." }, staffDetail(app, userId, why))
   }
   const rec = new Record(app.findCollectionByNameOrId("ai_uses"))

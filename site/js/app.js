@@ -3917,6 +3917,26 @@ const MENU_GOALS = [['eco','🌍 Меньше следа'],['light','🥗 Лёг
 const NO_OPTS = [['dairy','без молочного'],['gluten','без глютена'],['eggs','без яиц'],['nuts','без орехов'],['fish','без рыбы']];
 const leavesOf = d => d.d==='vegan' ? 3 : d.d==='meat' ? 1 : 2;
 const MENU_KEY = 'db-menu-v1';
+// a dish from the weekly menu: what is known about it — products, time, eco score, what it suits and contains.
+// Step-by-step recipes with amounts are being written (Dasha checks them); until then — the products and a swap.
+const DIET_NAMES = {vegan:'🌱 Веганское', veg:'🥚 Вегетарианское', fish:'🐟 С рыбой', meat:'🍗 С мясом'};
+const HAS_NAMES = {dairy:'молочное', gluten:'глютен', eggs:'яйца', nuts:'орехи', fish:'рыба'};
+function dishSheet(d, mealName, isSeasonal, onSwap){
+  openModal(sheet=>{
+    const goals = MENU_GOALS.filter(([k])=>d.g.includes(k)).map(([,l])=>l);
+    sheet.append(h('div',{class:'dish-sheet'},
+      h('div',{class:'eyebrow'}, mealName),
+      h('h2',null, d.n),
+      h('p',{class:'dish-facts'}, h('span',null,'⏱ ',d.t,' мин'), h('span',null, DIET_NAMES[d.d]||''),
+        h('span',null, h('span',{class:'leaves','aria-hidden':'true'},'❦'.repeat(leavesOf(d))),' эко-оценка ',leavesOf(d),' из 3')),
+      h('h3',null,'Основные продукты'),
+      h('ul',{class:'dish-ing'}, d.ing.map(i=>h('li',null, i, isSeasonal(i) ? h('span',{class:'hint'},' 🍂 сейчас сезон') : null))),
+      goals.length ? h('p',null, h('b',null,'Подходит для цели: '), goals.join(', ')) : null,
+      d.has.length ? h('p',null, h('b',null,'Содержит: '), d.has.map(x=>HAS_NAMES[x]||x).join(', ')) : h('p',null, h('b',null,'Без '), 'молочного, глютена, яиц, орехов и рыбы'),
+      h('p',{class:'hint'},'Пошаговый рецепт с количествами готовим. Пока — продукты: они уже в списке покупок ниже.'),
+      h('div',{class:'dish-actions'}, h('button',{type:'button',class:'btn ghost',onclick:()=>{ closeModal(); onSwap(); }},'↻ Заменить блюдо'))));
+  });
+}
 function menuSection(){
   let st = {goal:'eco', diet:'all', no:[], days:7, menu:null, got:[]};
   try{ Object.assign(st, JSON.parse(localStorage.getItem(MENU_KEY)||'{}')); }catch(e){}
@@ -3964,7 +3984,7 @@ function menuSection(){
       h('b',{class:'menu-dn'},'День ',di+1),
       day.map((id,mi)=>{ const d = id==null ? null : dish(id);
         return h('div',{class:'menu-m'}, h('span',{class:'hint'},MEALS[mi][1]),
-          d ? h('div',{class:'menu-dish'}, h('span',null,d.n), h('span',{class:'hint'},'⏱ ',d.t,' мин · ', h('span',{class:'leaves','aria-label':'эко-оценка '+leavesOf(d)+' из 3'},'❦'.repeat(leavesOf(d))))) : h('span',{class:'hint'},'нет подходящих блюд'),
+          d ? h('div',{class:'menu-dish'}, h('button',{type:'button',class:'menu-dish-open','aria-haspopup':'dialog',onclick:()=>dishSheet(d, MEALS[mi][1], isSeasonal, ()=>swap(di,mi))}, d.n), h('span',{class:'hint'},'⏱ ',d.t,' мин · ', h('span',{class:'leaves','aria-label':'эко-оценка '+leavesOf(d)+' из 3'},'❦'.repeat(leavesOf(d))))) : h('span',{class:'hint'},'нет подходящих блюд'),
           d ? h('button',{type:'button',class:'menu-swap',title:'Заменить блюдо','aria-label':'Заменить «'+d.n+'»',onclick:()=>swap(di,mi)},'↻') : null); }))));
     const shopList = h('ul',{class:'shop'}, shop.map(i=>{ const on = st.got.includes(i);
       return h('li',null, h('label',{class:on?'on':''}, h('input',{type:'checkbox',checked:on?'':null,onchange:()=>{ st.got = on ? st.got.filter(x=>x!==i) : st.got.concat(i); keep(); paint(); }}),
