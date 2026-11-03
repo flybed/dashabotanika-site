@@ -974,6 +974,16 @@ footer a{color:inherit}
 .menu-m > .hint:first-child{grid-column:1 / -1;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .menu-dish{display:grid;gap:2px;font-weight:700;font-size:15px}
 .menu-dish .leaves{color:var(--moss)}
+/* the dish name opens what is known about it */
+.menu-dish-open{all:unset;cursor:pointer;font:inherit;font-weight:700;text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--moss) 35%,transparent);text-underline-offset:3px}
+.menu-dish-open:hover,.menu-dish-open:focus-visible{color:var(--moss);text-decoration-color:var(--moss)}
+.menu-dish-open:focus-visible{outline:2px solid var(--moss);outline-offset:2px;border-radius:4px}
+.dish-sheet h2{margin:4px 0 8px}
+.dish-sheet h3{margin:16px 0 6px;font-size:17px}
+.dish-facts{display:flex;flex-wrap:wrap;gap:6px 14px;font-weight:700;margin:0}
+.dish-facts .leaves{color:var(--moss)}
+.dish-ing{margin:0;padding-left:20px;display:grid;gap:4px}
+.dish-actions{margin-top:16px}
 .menu-swap{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:16px;color:var(--moss)}
 .menu-swap:hover{border-color:var(--moss)}
 .shop{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 14px}
