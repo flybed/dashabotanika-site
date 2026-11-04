@@ -1848,3 +1848,9 @@ html,body{overflow-x:clip}
 .ve-del:hover{border-color:#B0604A;color:#B0604A}
 .art-divider.ve-fixed{padding-right:40px}
 @media (max-width:640px){ .md-tools .md-bar{top:56px;padding:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none} .md-tools .md-bar::-webkit-scrollbar{display:none} .md-grp{flex-wrap:nowrap} .md-b{white-space:nowrap} .ve-ed{padding:14px;font-size:16px} }
+/* «Сайт обновился»: a small bar at the bottom, above everything */
+.upd-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 18px;border-radius:999px;background:var(--ink);color:var(--paper);box-shadow:0 14px 34px -14px rgba(0,0,0,.5);font-weight:800;max-width:calc(100vw - 32px)}
+.upd-bar > span{white-space:nowrap}
+.upd-bar .btn{background:var(--sun);color:#2A1C05;border-color:transparent}
+.upd-x{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:inherit;font-size:15px;cursor:pointer}
+@media (max-width:640px){ .upd-bar{bottom:76px} }

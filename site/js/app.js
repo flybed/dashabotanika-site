@@ -5764,6 +5764,38 @@ async function saveSite(){
   }
 }
 
+/* ---------- «Сайт обновился»: a page left open in a tab keeps the old code — offer to reload it ----------
+   Every few minutes (and when the tab comes back) the page asks the server which app.js version is current;
+   if it is newer than the one running here, a small bar offers to reload. Nothing reloads by itself:
+   an article or a listing being written is never lost without asking. */
+const APP_VER = (()=>{ const s = [...document.scripts].map(x=>x.src).find(x=>/\/js\/app\.js\?v=\d+/.test(x)); return s ? +s.match(/v=(\d+)/)[1] : 0; })();
+let updShown = false, updAt = Date.now();
+async function checkUpdate(){
+  if (!APP_VER || updShown || document.hidden || !navigator.onLine) return;
+  updAt = Date.now();
+  try{
+    const r = await fetch('/', {cache:'no-store'}); if (!r.ok) return;
+    const html = await r.text();
+    const m = html.match(/\/js\/app\.js\?v=(\d+)/);
+    if (m && +m[1] > APP_VER) showUpdate();
+  }catch(e){}
+}
+// unsaved work on the page: the site editor, an open draft, a form with typed text
+const hasUnsaved = () => EDIT.dirty || !!document.querySelector('.draft-ed, body.editing .art-editor') ||
+  [...document.querySelectorAll('main textarea, main input[type=text]')].some(x=>x.offsetParent && x.value && x.value !== x.defaultValue);
+function showUpdate(){
+  updShown = true;
+  const bar = h('div',{class:'upd-bar',role:'status'},
+    h('span',null,'🌱 Сайт обновился'),
+    h('button',{type:'button',class:'btn small',onclick:()=>{
+      if (hasUnsaved() && !confirm('На странице есть несохранённые правки. Сначала сохраните их — иначе они пропадут.\n\nОбновить сейчас?')) return;
+      location.reload(); }},'Обновить'),
+    h('button',{type:'button',class:'upd-x','aria-label':'Позже',title:'Позже',onclick:()=>bar.remove()},'✕'));
+  document.body.append(bar);
+}
+setInterval(()=>{ if (Date.now() - updAt > 5*60000) checkUpdate(); }, 60000);
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && Date.now() - updAt > 60000) checkUpdate(); });
+
 render();
 
 /* ---------- the magic wand: always at hand, «let's improve the site together» — an idea, screenshots,
