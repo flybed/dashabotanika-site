@@ -63,6 +63,13 @@ const measure = (p) => p.evaluate(() => {
       check(`${w}px level 1: every tap target ≥ 44 px, no text cut, no sideways scroll, the panel is on screen (${JSON.stringify(m1.small)})`, !m1.small.length && !m1.cut.length && !m1.hscroll && m1.inside);
       check(`${w}px level 1: lines under directions ${JSON.stringify(m1.lines)} — one line${w === 320 ? ' (two allowed at 320 px)' : ''}; the panel scrolls inside if needed (${m1.over}px)`, m1.lines.every((n) => n <= (w === 320 ? 2 : 1)) && m1.scrollable);
       if (w === 390) await p.screenshot({ path: `${process.env.OUT || '/tmp'}/nav_l1_${w}.png` });
+      // the panel scrolls to its very end (on 320 px the last links are below the fold); the page behind stays put
+      const sc = await p.evaluate(async () => { const b = document.querySelector('#site-menu .sm-b'); b.scrollTop = b.scrollHeight; await new Promise((r) => setTimeout(r, 100));
+        const last = [...b.querySelectorAll('a,button')].pop().getBoundingClientRect(), box = b.getBoundingClientRect(); const top = document.body.style.top; b.scrollTop = 0;
+        return { seen: last.bottom <= box.bottom + 1 && last.top >= box.top, top }; });
+      check(`${w}px the menu scrolls to its last link; the page behind does not move`, sc.seen && sc.top === `-${yOpen}px`);
+      const tgl = await p.evaluate(() => { const a = [...document.querySelectorAll('#site-menu a')].find((x) => /t\.me\//.test(x.href)); return a ? { svg: !!a.querySelector('svg'), plane: a.textContent.includes('✈') } : null; });
+      check(`${w}px «Telegram Даши» with the Telegram icon, not the plane emoji`, !!tgl && tgl.svg && !tgl.plane);
       await p.tap('#site-menu button:has-text("Экология")'); await p.waitForTimeout(200);
       const m2 = await measure(p);
       const l2 = await p.evaluate(() => ({ title: document.querySelector('#site-menu h2').textContent, links: [...document.querySelectorAll('#site-menu .sm-s')].map((a) => [a.getAttribute('href'), a.querySelector('small') ? a.querySelector('small').textContent : '']), back: !!document.querySelector('#site-menu .sm-back') }));
@@ -85,6 +92,15 @@ const measure = (p) => p.evaluate(() => {
       check(`${w}px Esc closes the menu, focus back on the burger`, await p.isHidden('#site-menu') && await p.evaluate(() => document.activeElement.classList.contains('burger')));
       await p.tap('.burger'); await p.tap('#site-menu .sm-x'); await p.waitForTimeout(150);
       check(`${w}px «✕» closes the menu; no script errors`, await p.isHidden('#site-menu') && !errs.length);
+      // no sideways scroll on the main pages; the home page keeps its direct «Найти вещь» and «Отдать вещь»
+      const wide = [];
+      for (const path of ['/', '/darom', '/eda', '/sortirovka', '/zhurnal', '/mir']) {
+        await p.goto(B + path, { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
+        if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth)) wide.push(path);
+        if (path === '/') check(`${w}px home: direct «Найти вещь» and «Отдать вещь» buttons in «Вещи даром»`,
+          await p.isVisible('a.dst-find:has-text("Найти вещь")') && await p.isVisible('.dst-cta a:has-text("Отдать вещь")'));
+      }
+      check(`${w}px no sideways scroll on /, /darom, /eda, /sortirovka, /zhurnal, /mir (${wide.join(', ') || 'none'})`, !wide.length);
       await c.close();
     }
     // a guest goes to the challenges from the menu, signs in — and lands on the challenges

@@ -1875,6 +1875,9 @@ html.sm-lock body{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .sm-small a,.sm-small button{min-height:44px;display:inline-flex;align-items:center;padding:0 10px;border:0;border-radius:12px;background:none;
   color:var(--muted);font:inherit;font-weight:700;font-size:14px;text-decoration:none;cursor:pointer}
 .sm-small a:hover,.sm-small button:hover{background:var(--soft);color:var(--ink)}
+.sm-small a{gap:7px}
+.sm-tg{display:inline-flex;width:20px;height:20px;color:#229ED9}
+.sm-tg svg{width:20px;height:20px;display:block;fill:currentColor}
 .sm-t2{display:flex;align-items:center;gap:10px;margin:2px 12px 8px;font-family:var(--font-display);font-size:21px}
 .sm-t2 span{font-size:24px}
 .sm-s{min-height:48px;padding:8px 12px;border-radius:12px}

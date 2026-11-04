@@ -516,7 +516,7 @@ function siteMenu(path){
               : row('a',{class:'sm-r sm-acc',href:'/kabinet'}, '👤', 'Войти или зарегистрироваться', 'Чтобы отдавать вещи и расти в мире', true)),
             NAV_FOOT.map(([href, t, d])=>h('li',null, row('a',{class:'sm-r',href,'aria-current':here(href)?'page':null}, '🌱', t, d, false)))),
           h('div',{class:'sm-small'},
-            tg ? h('a',{href:'https://t.me/'+tg,target:'_blank',rel:'noopener'},'✈️ Telegram Даши') : null,
+            tg ? h('a',{href:'https://t.me/'+tg,target:'_blank',rel:'noopener'}, h('span',{class:'sm-tg','aria-hidden':'true',html:TG_ICON}), 'Telegram Даши') : null,
             h('button',{type:'button',onclick:()=>{ set(false); openWand(); }},'✨ Улучшим сайт вместе'))));
     } else {
       const [t, items, o] = NAV_GROUPS[group];
