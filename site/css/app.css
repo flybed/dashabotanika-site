@@ -1826,3 +1826,5 @@ html,body{overflow-x:clip}
 .mark-nav-row a{min-height:44px;display:inline-flex;align-items:center;font-weight:800;color:var(--moss);text-decoration:none}
 .mark-msk{margin-top:16px;display:grid;gap:6px}
 .mark-msk h2{font-size:20px;margin:0}
+/* a special status instead of the level: Dasha — «Эко-создатель» */
+.title-badge{display:inline-flex;align-items:center;gap:4px;width:max-content;font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:999px;background:linear-gradient(90deg,#F6C85F,#F3D35B);color:#2A1C05}
