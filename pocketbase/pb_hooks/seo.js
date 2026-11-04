@@ -94,7 +94,7 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "DISHES", "RECYCLE_PAGES", "MYTHS", "MATERIALS", "SORT_STEPS"].forEach((name) => {
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "NAV_FOOT", "DISHES", "RECYCLE_PAGES", "MYTHS", "MATERIALS", "SORT_STEPS"].forEach((name) => {
     // DISHES — массив, который дальше превращается в объекты через .map
     const m = src.match(new RegExp(name === "DISHES" ? `const DISHES = (\\[[\\s\\S]*?\\n\\])\\.map` : `const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
@@ -104,7 +104,8 @@ function constants() {
     const m = src.match(new RegExp(`const ${name} = (\\{[\\s\\S]*?\\});`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : {} } catch (err) { out[name] = {} }
   })
-  out.NAV = out.NAV_GROUPS.reduce((all, g) => all.concat(g[1] || []), [])
+  // every menu link, both levels (the menu on the site is drawn by the script; search engines get the same links here)
+  out.NAV = out.NAV_GROUPS.reduce((all, g) => all.concat(g[1] || []), []).concat(out.NAV_FOOT || [])
   return out
 }
 
