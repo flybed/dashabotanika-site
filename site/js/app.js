@@ -34,12 +34,23 @@ const LEAF = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M
 /* ---------- static content ---------- */
 // menu in three groups; the server reads this list too (pb_hooks/seo.js) to give search engines the links
 // «Вещи даром» sits above the groups as the hot link, so it is not repeated here
+// the site menu: six directions, each opens its sections (the second and last level); every link is an ordinary
+// address — pb_hooks/seo.js reads NAV_GROUPS and NAV_FOOT and puts all of them into the server HTML for search engines.
+// [direction, [[href, name, what is there], …], {ic, d — one short line, hot — the main one, direct — a plain link}]
 const NAV_GROUPS = [
-  ['Каждый день', [['/eda','Еда и рецепты'],['/eda#menu','Меню на неделю'],['/sortirovka','Сортировка и переработка'],['/servisy','Куда сдать: полезные сервисы'],['/kabinet?tab=challenges#cabinet-tabs','Эко-челленджи']]],
-  ['Дом и стиль', [['/moda','Мода и вещи'],['/tovary','Товары'],['/eda#cafes','Кафе'],['/vozduh','Чистота воздуха']]],
-  ['Узнать и проверить себя', [['/mify','Мифы об экологии'],['/eko-test','Эко-тест'],['/igra','Игра «Эко-уборка»']]],
-  ['Сообщество', [['/mir','Счастливый мир'],['/zhurnal','Журнал'],['/o-proekte','О проекте и обратная связь']]]
+  ['Вещи даром', [['/darom#darom-catalog','Найти вещь рядом','Что отдают сейчас'],['/kabinet?tab=things&do=give#cabinet-tabs','Отдать вещь','Фото и пара слов — и готово'],
+    ['/darom#darom-how','Как это работает','Три шага и правила'],['/darom','Все вещи даром','','all']], {ic:'🎁', d:'Отдать и забрать бесплатно', hot:1}],
+  ['Еда и рецепты', [['/eda','Сезонные продукты и рецепты','Что есть сейчас и как не выбрасывать'],['/eda#menu','Меню на неделю','Под вашу диету, со списком покупок'],
+    ['/eda#cafes','Эко-кафе','Где поесть без лишней упаковки'],['/eda#helper','Помощник по фото','Оценит тарелку или упаковку']], {ic:'🍽️', d:'Меню, рецепты, кафе'}],
+  ['Экология', [['/sortirovka','Сортировка и переработка','Что куда выбрасывать дома'],['/servisy','Куда сдать в вашем городе','Пункты приёма и сервисы'],
+    ['/markirovka','Маркировка пластика','Что значат цифры 1–7'],['/kabinet?tab=challenges#cabinet-tabs','Эко-челленджи','Привычки с напоминаниями'],
+    ['/vozduh','Чистота воздуха','Воздух в городе сейчас']], {ic:'♻️', d:'Сортировка, куда сдать, воздух'}],
+  ['Дом и стиль', [['/moda','Мода и вещи','Гардероб, ткани, вторая жизнь вещей'],['/tovary','Эко-товары','Что правда делает мир чище']], {ic:'🏡', d:'Одежда и эко-товары'}],
+  ['Журнал', [['/zhurnal','Журнал','Статьи и советы Даши']], {ic:'📖', d:'Статьи и советы Даши', direct:1}],
+  ['Сообщество', [['/mir','Счастливый мир','Ваш житель среди других'],['/eko-test','Эко-тест','10 вопросов и сертификат'],
+    ['/igra','Игра «Эко-уборка»','Сортируйте мусор на скорость'],['/mify','Мифы об экологии','Правда и вымысел']], {ic:'💚', d:'Мир участников, тест и игра'}]
 ];
+const NAV_FOOT = [['/o-proekte','О проекте и обратная связь','Кто такая Даша, как ей написать']];
 // the home page: one block «Что тебе интересно» — six topics, each says what you get and leads to real features; 1 marks the hottest link
 const INTERESTS = [
   ['🥗','Еда и рецепты','/eda','Сезонные продукты, меню на неделю, рецепты из остатков.',[['Меню на неделю','/eda#menu',1],['Кафе','/eda#cafes'],['ИИ по фото','/eda#helper']]],
@@ -416,6 +427,7 @@ function sectionHead(eyebrow, title, lead){
 }
 
 function render(){
+  if (currentPath() !== '/kabinet') try{ sessionStorage.setItem('db-last-page', location.pathname+location.search+location.hash); }catch(e){}
   LIVE = [];
   PAGE_UNSUBS.forEach(u=>{ try{u();}catch(e){} }); PAGE_UNSUBS = [];
   const path = currentPath(), page = pageOf(path);
@@ -459,29 +471,89 @@ function socialLinks(){
     // Instagram is no longer in the header (owner's decision, 27.10.2026)
     handle(c.telegram) ? h('a',{class:'soc',href:'https://t.me/'+handle(c.telegram),target:'_blank',rel:'noopener','aria-label':'Telegram Даши: @'+handle(c.telegram),title:'Telegram @'+handle(c.telegram),html:TG_ICON}) : null);
 }
-/* burger menu: all sections in a drop-down list, plus cabinet and sign-out */
+/* the site menu: a panel on the right — six directions with a short line on what is inside, a tap opens the sections
+   with «‹ Назад»; below — the cabinet (or sign-in) and «О проекте». Admin tools and sign-out live in the cabinet.
+   The page behind does not scroll while the menu is open and stays where it was. */
+let MENU_Y = null;
+function menuLock(on){
+  const b = document.body;
+  if (on && MENU_Y === null){ MENU_Y = window.scrollY; b.style.top = -MENU_Y+'px'; document.documentElement.classList.add('sm-lock'); }
+  else if (!on && MENU_Y !== null){ const y = MENU_Y; MENU_Y = null; document.documentElement.classList.remove('sm-lock'); b.style.top = ''; window.scrollTo({top:y, behavior:'instant'}); }
+}
+// a guest is sent to sign-up and comes back to the section after it (?next=…, see accountForm)
+const navHref = href => accState()==='member' ? href
+  : href.startsWith('/kabinet?tab=things') ? '/kabinet?tab=register&next=things'
+  : href.startsWith('/kabinet?tab=challenges') ? '/kabinet?tab=register&next=challenges' : href;
+const navNote = (href, d) => accState()!=='member' && href.startsWith('/kabinet?tab=') ? d+' · после входа' : d;
 function siteMenu(path){
+  menuLock(false); // a new page: never keep the old page locked
+  // the panel lives at the end of <body>: inside the header (it has a backdrop filter) a fixed panel would be cut to the header's height
+  document.querySelectorAll('body > .sm, body > .sm-shade').forEach(x=>x.remove());
   const btn = h('button',{type:'button',class:'burger','aria-label':'Меню','aria-expanded':'false','aria-controls':'site-menu'}, h('span'),h('span'),h('span'));
-  const tail = h('div',{class:'menu-tail'});
-  const panel = h('nav',{class:'menu',id:'site-menu','aria-label':'Разделы сайта',hidden:true},
-    h('a',{class:'menu-hot',href:'/darom','aria-current':path==='/darom'?'page':null}, h('span',{'aria-hidden':'true'},'🎁'), h('span',null, h('b',null,'Вещи даром'), h('small',null,'отдать и забрать бесплатно, рядом с домом'))),
-    NAV_GROUPS.map(([g, items])=>h('div',{class:'menu-g'}, h('div',{class:'menu-gt'},g), items.map(([href,t])=>h('a',{href,'aria-current':href===path?'page':null},t)))), tail);
-  live(()=>{
-    const tg = String((STATE.contacts||{}).telegram||'').trim().replace(/^@/,'');
-    tail.replaceChildren(...[
-      tg ? h('a',{class:'menu-tg',href:'https://t.me/'+tg,target:'_blank',rel:'noopener'},'✈️ Telegram Даши') : null,
-      h('button',{type:'button',class:'menu-edit',onclick:()=>openWand()},'✨ Улучшим сайт вместе'),
-      EDIT.can && !EDIT.on ? h('button',{type:'button',class:'menu-edit',onclick:startEditing},'✏️ Редактировать сайт') : null,
-      ...(accState()==='member'
-      ? [h('a',{href:'/kabinet','aria-current':path==='/kabinet'?'page':null},'Личный кабинет'), h('button',{type:'button',class:'menu-out',onclick:logout},'Выйти из аккаунта')]
-      : [h('a',{href:'/kabinet'},'Войти или зарегистрироваться')])].filter(Boolean));
-  });
-  const set = open => { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.classList.toggle('open', open); };
+  const shade = h('div',{class:'sm-shade',hidden:true});
+  const panel = h('nav',{class:'sm',id:'site-menu','aria-label':'Меню сайта',hidden:true});
+  let group = -1;
+  const here = href => { const u = new URL(href, location.origin); return u.pathname === path && (!u.hash || u.hash === location.hash); };
+  const inGroup = g => g[1].some(([href])=>new URL(href, location.origin).pathname === path);
+  const close = h('button',{type:'button',class:'sm-x','aria-label':'Закрыть меню',onclick:()=>set(false)},'✕');
+  const row = (tag, attrs, ic, t, d, more) => h(tag, attrs, h('span',{class:'sm-ic','aria-hidden':'true'}, ic), h('span',{class:'sm-tx'}, h('b',null,t), d ? h('small',null,d) : null), more ? h('span',{class:'sm-ch','aria-hidden':'true'},'›') : null);
+  function paint(){
+    if (group < 0){
+      const tg = String((STATE.contacts||{}).telegram||'').trim().replace(/^@/,'');
+      const member = accState()==='member';
+      panel.replaceChildren(
+        h('div',{class:'sm-h'}, h('h2',{class:'sm-title',id:'sm-title'},'Меню'), close),
+        h('div',{class:'sm-b'},
+          h('ul',{class:'sm-list','aria-labelledby':'sm-title'}, NAV_GROUPS.map((g, i)=>{
+            const [t, items, o] = g, cur = inGroup(g);
+            return h('li',null, o.direct
+              ? row('a',{class:'sm-r'+(cur?' cur':''),href:items[0][0],'aria-current':here(items[0][0])?'page':null}, o.ic, t, o.d, false)
+              : row('button',{type:'button',class:'sm-r'+(o.hot?' hot':'')+(cur?' cur':''),'aria-label':t+': '+o.d+'. Открыть подразделы',onclick:()=>{ group = i; paint(); focusFirst(); }}, o.ic, t, o.d, true)); })),
+          h('div',{class:'sm-sep',role:'presentation'}),
+          h('ul',{class:'sm-list'},
+            h('li',null, member
+              ? row('a',{class:'sm-r sm-acc',href:'/kabinet','aria-current':path==='/kabinet'?'page':null}, emojiOf(COM.uid), 'Личный кабинет', 'Ваш житель, вещи, сообщения', true)
+              : row('a',{class:'sm-r sm-acc',href:'/kabinet'}, '👤', 'Войти или зарегистрироваться', 'Чтобы отдавать вещи и расти в мире', true)),
+            NAV_FOOT.map(([href, t, d])=>h('li',null, row('a',{class:'sm-r',href,'aria-current':here(href)?'page':null}, '🌱', t, d, false)))),
+          h('div',{class:'sm-small'},
+            tg ? h('a',{href:'https://t.me/'+tg,target:'_blank',rel:'noopener'},'✈️ Telegram Даши') : null,
+            h('button',{type:'button',onclick:()=>{ set(false); openWand(); }},'✨ Улучшим сайт вместе'))));
+    } else {
+      const [t, items, o] = NAV_GROUPS[group];
+      panel.replaceChildren(
+        h('div',{class:'sm-h'}, h('button',{type:'button',class:'sm-back',onclick:()=>{ const was = group; group = -1; paint(); const b = panel.querySelectorAll('.sm-list button')[NAV_GROUPS.slice(0, was).filter(g=>!g[2].direct).length]; if (b) b.focus(); }},'‹ Назад'), h('span',{class:'sm-sp'}), close),
+        h('div',{class:'sm-b'},
+          h('h2',{class:'sm-t2',id:'sm-title'}, h('span',{'aria-hidden':'true'}, o.ic), ' ', t),
+          h('ul',{class:'sm-list','aria-labelledby':'sm-title'}, items.map(([href, name, d, kind])=>h('li',null,
+            kind === 'all'
+              ? h('a',{class:'sm-s all',href:navHref(href),'aria-current':here(href)?'page':null}, h('span',{class:'sm-tx'}, h('b',null, name+' →')))
+              : h('a',{class:'sm-s',href:navHref(href),'aria-current':here(href)?'page':null,onclick:href.startsWith('/kabinet?tab=things') ? ()=>goal('darom_give_page') : null},
+                  h('span',{class:'sm-tx'}, h('b',null,name), d ? h('small',null,navNote(href, d)) : null), h('span',{class:'sm-ch','aria-hidden':'true'},'›')))))));
+    }
+    panel.scrollTop = 0; const b = panel.querySelector('.sm-b'); if (b) b.scrollTop = 0;
+  }
+  const focusFirst = ()=>{ const f = panel.querySelector('.sm-b a, .sm-b button'); if (f) f.focus(); };
+  function set(open){
+    if (open === !panel.hidden) return;
+    if (open){ group = -1; paint(); }
+    panel.hidden = shade.hidden = !open; btn.setAttribute('aria-expanded', String(open)); btn.classList.toggle('open', open);
+    menuLock(open);
+    if (open) close.focus();
+  }
   btn.addEventListener('click', e=>{ e.stopPropagation(); set(panel.hidden); });
-  panel.addEventListener('click', e=>{ if (e.target.closest('a,button')) set(false); });
-  document.addEventListener('click', e=>{ if (!panel.hidden && !panel.contains(e.target)) set(false); });
-  document.addEventListener('keydown', e=>{ if (e.key==='Escape' && !panel.hidden){ set(false); btn.focus(); } });
-  return h('div',{class:'menu-wrap'}, btn, panel);
+  shade.addEventListener('click', ()=>set(false));
+  // a link closes the menu and opens its page; the page behind comes back to its place first
+  panel.addEventListener('click', e=>{ if (e.target.closest('a')) set(false); });
+  document.addEventListener('keydown', e=>{
+    if (panel.hidden || !panel.isConnected) return;
+    if (e.key === 'Escape'){ e.preventDefault(); set(false); btn.focus(); return; }
+    // Tab stays inside the open menu
+    if (e.key === 'Tab'){ const f = [...panel.querySelectorAll('a,button')].filter(x=>x.offsetParent); if (!f.length) return;
+      if (e.shiftKey && document.activeElement === f[0]){ e.preventDefault(); f[f.length-1].focus(); }
+      else if (!e.shiftKey && document.activeElement === f[f.length-1]){ e.preventDefault(); f[0].focus(); } }
+  });
+  document.body.append(shade, panel);
+  return h('div',{class:'menu-wrap'}, btn);
 }
 // the first screen says what you get here, in plain words; who Dasha is and the game come further down
 function hero(){
@@ -2956,7 +3028,7 @@ function marketSection(opts){
     own.length ? h('div',{class:'darom-dasha'}, h('h3',{style:'margin-bottom:14px'},'От Даши'), h('div',{class:'grid g3'}, own.map(dashaCard))) : null,
     addForm('market','Новое объявление от Даши'),
     // how it works — after the catalogue, one short card; the example is clearly an example, never in the catalogue
-    h('div',{class:'darom-how'},
+    h('div',{class:'darom-how',id:'darom-how'},
       h('h2',{class:'darom-cat-t'},'Как это работает'),
       h('ol',{class:'card how-steps'},
         [['Размести вещь','фото и пара слов, Даша проверит'],
@@ -4615,6 +4687,7 @@ function cabinetHead(){
       h('div',{class:'cab-hero-acts'},
         me.title ? null : h('button',{type:'button',class:'btn small grow-cta','aria-expanded':String(GROW_OPEN),'aria-controls':'grow-ways',onclick:()=>{ GROW_OPEN = !GROW_OPEN; refresh(); if (GROW_OPEN) setTimeout(()=>{ const w = document.getElementById('grow-ways'); if (w) w.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50); }}, GROW_OPEN ? 'Свернуть' : '🌱 Растить персонажа'),
         me.title ? null : h('a',{class:'btn ghost small',href:'/kabinet?tab=path#cabinet-tabs'},'🎓 Уровни и достижения'),
+        COM.admin ? editSiteBtn() : null,
         COM.admin ? h('a',{class:'btn ghost small admin-entry',href:'/kabinet?tab='+(pendingListings().length || openReports().length ? 'moder' : 'articles')+'#cabinet-tabs'},'🛠 Управление сайтом', waiting ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},waiting) : null) : null),
       GROW_OPEN && !me.title ? growWays() : null].filter(Boolean));
   });
@@ -5763,7 +5836,8 @@ function editBar(){
 }
 function setEditing(on){ EDIT.on=on; document.body.classList.toggle('editing',on); }
 // «Редактировать сайт» lives in the menu (☰) and in the cabinet's «Управление сайтом», not in the footer
-function startEditing(){ setEditing(true); if (currentPath()==='/kabinet') go('/'); else render(); }
+// editing starts on the page the admin came to the cabinet from (the menu no longer has the button), else on the home page
+function startEditing(){ setEditing(true); if (currentPath()==='/kabinet'){ let back = '/'; try{ back = sessionStorage.getItem('db-last-page') || '/'; }catch(e){} go(back); } else render(); }
 const editSiteBtn = () => EDIT.can && !EDIT.on ? h('button',{type:'button',class:'btn ghost small',onclick:startEditing},'✏️ Редактировать сайт') : null;
 function toast(msg){ const n = document.querySelectorAll('.toast').length; const t=h('div',{class:'toast',role:'status',style:n ? 'margin-bottom:'+(n*54)+'px' : null},msg); document.body.append(t); setTimeout(()=>t.remove(),2600); }
 async function saveSite(){
