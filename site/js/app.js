@@ -560,7 +560,8 @@ function worldTeaser(){
     const ids = Object.keys(COM.members).filter(id=>COM.members[id].character).sort((a,b)=>COM.members[b].joined-COM.members[a].joined);
     row.replaceChildren(...ids.slice(0,14).map(id=>h('span',{class:'wt-em',title:COM.members[id].nick}, emojiOf(id))));
     const all = worldIds();
-    mini.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...all.slice(0,60).map((id,i)=>{ const [x,y] = worldPos(i, all.length);
+    const {pos} = worldLayout(Math.min(all.length, WORLD_TOP));
+    mini.replaceChildren(h('div',{html:worldBg(420),style:'position:absolute;inset:0'}), ...pos.map((p,i)=>{ const id = all[i], x = p[0]/10, y = p[1]/4.2;
       return h('span',{class:'wt-dw'+(isDasha(id)?' first':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%'}, emojiOf(id)); }));
     count.textContent = 'Создай своего жителя — животное или растение — и расти его экопривычками вместе с другими участниками.'+(ids.length ? ' Жителей в мире: '+ids.length+'.' : '');
     // a newcomer sees how to join: the resident is chosen at sign-up
@@ -3615,7 +3616,8 @@ function routeHash(){
 }
 
 /* ---------- happy world ---------- */
-const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'+
+// the scene is 1000 units wide; it is 420 tall and grows down with the meadow when more residents arrive (worldLayout)
+const worldBg = H => '<svg viewBox="0 0 1000 '+H+'" preserveAspectRatio="none" aria-hidden="true">'+
   '<defs>'+
   '<linearGradient id="wsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BFDDEE"/><stop offset=".55" stop-color="#E6EEE4"/><stop offset="1" stop-color="#F3ECD9"/></linearGradient>'+
   '<radialGradient id="wsun"><stop offset="0" stop-color="#FFE6A3"/><stop offset=".45" stop-color="#F6C85F"/><stop offset="1" stop-color="#F6C85F" stop-opacity="0"/></radialGradient>'+
@@ -3634,7 +3636,7 @@ const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slic
   '<path d="M0 250 L120 200 L210 236 L300 186 L420 240 L540 198 L660 244 L760 196 L880 232 L1000 204 V310 H0Z" fill="#8FA5B5" opacity=".9"/>'+
   '<g fill="#F7FAFC"><path d="M230 112 L252 132 L240 128 L230 138 L220 128 L208 132Z"/><path d="M590 128 L610 146 L598 143 L590 152 L582 143 L570 146Z"/><path d="M790 118 L812 138 L800 134 L790 144 L780 134 L768 138Z"/></g>'+
   // холмы
-  '<path d="M0 262 Q150 222 300 252 T620 240 T1000 236 V420 H0Z" fill="#A9C784"/>'+
+  '<path d="M0 262 Q150 222 300 252 T620 240 T1000 236 V'+H+' H0Z" fill="#A9C784"/>'+
   // скала с водопадом
   '<path d="M240 300 L250 214 L274 190 L312 186 L336 206 L344 300Z" fill="#8C877B"/><path d="M250 214 L274 190 L312 186 L300 200 L270 206Z" fill="#A39E92"/>'+
   '<rect x="282" y="196" width="22" height="98" fill="url(#wfall)"/>'+
@@ -3646,7 +3648,7 @@ const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slic
   '<path d="M630 268 L654 268 L648 204 L636 204Z" fill="#F2E8D5" stroke="#8B7A5E" stroke-width="2"/><path d="M630 206 L642 186 L654 206Z" fill="#B0604A"/><rect x="638" y="250" width="8" height="18" rx="3" fill="#8B7A5E"/><rect x="637" y="222" width="10" height="10" rx="2" fill="#9CC3DA" stroke="#8B7A5E"/>'+
   '<g class="w-blades" fill="#F7F1E4" stroke="#8B7A5E" stroke-width="1.5"><path d="M642 196 L637 152 L647 152Z"/><path d="M642 196 L686 191 L686 201Z"/><path d="M642 196 L647 240 L637 240Z"/><path d="M642 196 L598 201 L598 191Z"/><circle cx="642" cy="196" r="4" fill="#8B7A5E"/></g></g>'+
   // луг
-  '<path d="M0 300 Q200 278 420 296 T1000 290 V420 H0Z" fill="url(#wmeadow)"/>'+
+  '<path d="M0 300 Q200 278 420 296 T1000 290 V'+H+' H0Z" fill="url(#wmeadow)"/>'+
   // река от водопада
   '<path d="M266 296 C238 322 206 342 196 368 S178 410 150 420 L262 420 C270 400 282 378 300 360 S334 322 320 296Z" fill="url(#wwater)"/>'+
   '<path d="M290 304 C272 330 246 352 238 376" stroke="#fff" stroke-width="2" fill="none" opacity=".45" stroke-linecap="round"/>'+
@@ -3655,6 +3657,7 @@ const WORLD_BG = '<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid slic
   '<g><rect x="503" y="282" width="6" height="18" fill="#6B4E31"/><circle cx="506" cy="274" r="16" fill="#5C8C45"/><rect x="842" y="284" width="6" height="18" fill="#6B4E31"/><circle cx="845" cy="275" r="17" fill="#5C8C45"/><circle cx="855" cy="268" r="10" fill="#6E9E52"/></g>'+
   // цветы
   '<g><circle cx="380" cy="352" r="3" fill="#F3D35B"/><circle cx="560" cy="378" r="3" fill="#E98AA0"/><circle cx="720" cy="340" r="3" fill="#F3D35B"/><circle cx="880" cy="370" r="3" fill="#E98AA0"/><circle cx="640" cy="400" r="3" fill="#FFFFFF"/><circle cx="460" cy="404" r="3" fill="#F3D35B"/><circle cx="960" cy="400" r="3" fill="#FFFFFF"/></g>'+
+  worldLow(H)+
   '</svg>';
 
 // who lives in the world and where: Dasha first, then by the day they joined
@@ -3665,7 +3668,7 @@ const worldIds = () => Object.keys(COM.members).filter(id=>COM.members[id].chara
 // on the meadow and the hills — never in the river, on the rock with the waterfall or on the windmill hill.
 // The order is fixed, so a newcomer never moves those who already live here. Coordinates: % of the 1000×420 scene.
 const WORLD_SPOTS = [[62,80],[46,77],[78,77],[38,89],[54,91],[70,90],[87,86],[12,84],[94,78],[62,95],[46,96],[82,95]];
-// the river's banks (scene units, from WORLD_BG) with a margin for the emoji
+// the river's banks (scene units, from worldBg) with a margin for the emoji
 const riverAt = (y, xs, ys) => { for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return xs[k-1] + (xs[k]-xs[k-1])*(y-ys[k-1])/(ys[k]-ys[k-1]); return xs[xs.length-1]; };
 function worldFree(px, py){
   const x = px*10, y = py*4.2;
@@ -3677,25 +3680,62 @@ function worldFree(px, py){
   if (Math.abs(px - WORLD_SPOTS[0][0]) < 6 && py > WORLD_SPOTS[0][1] - 7 && py < WORLD_SPOTS[0][1] + 8) return false; // Dasha is big: room for her and her name
   return true;
 }
+// the first WORLD_TOP residents live on the meadow under the mountains (the farthest free place each time);
+// everyone after them lives in rows on the meadow below, which grows one row at a time. Nobody ever moves:
+// a newcomer only takes the next place. Coordinates are scene units (x 0…1000, y from the top).
+const WORLD_TOP = 32, ROW_Y0 = 452, ROW_H = 50;
 let WORLD_ORDER = null;
-function worldOrder(){
-  if (WORLD_ORDER) return WORLD_ORDER;
-  const cand = [];
-  for (let py = 63; py <= 95; py += 2.4) for (let px = 2.5; px <= 97.5; px += 2.5) if (worldFree(px, py)) cand.push([px, py]);
-  // a name tag is wide and low: distance counts in tags (≈90 × 30 scene units), so neighbours stand apart sideways first
-  const d2 = (a, b) => ((a[0]-b[0])*10/90)**2 + ((a[1]-b[1])*4.2/30)**2;
-  const order = WORLD_SPOTS.slice(), near = cand.map(c => Math.min(...order.map(s => d2(c, s))));
-  while (order.length < cand.length + WORLD_SPOTS.length && order.length < 160){
-    let best = -1; near.forEach((v, k) => { if (v > 0 && (best < 0 || v > near[best])) best = k; });
-    if (best < 0) break;
-    const p = cand[best]; order.push(p);
-    near.forEach((v, k) => { near[k] = Math.min(v, d2(cand[k], p)); });
+function worldOrder(n){
+  if (!WORLD_ORDER){
+    const cand = [];
+    for (let py = 63; py <= 95; py += 2.4) for (let px = 2.5; px <= 97.5; px += 2.5) if (worldFree(px, py)) cand.push([px, py]);
+    // a name tag is wide and low: distance counts in tags (≈90 × 30 scene units), so neighbours stand apart sideways first
+    const d2 = (a, b) => ((a[0]-b[0])*10/90)**2 + ((a[1]-b[1])*4.2/30)**2;
+    const order = WORLD_SPOTS.slice(), near = cand.map(c => Math.min(...order.map(s => d2(c, s))));
+    while (order.length < WORLD_TOP){
+      let best = -1; near.forEach((v, k) => { if (v > 0 && (best < 0 || v > near[best])) best = k; });
+      if (best < 0) break;
+      const p = cand[best]; order.push(p);
+      near.forEach((v, k) => { near[k] = Math.min(v, d2(cand[k], p)); });
+    }
+    WORLD_ORDER = order.map(([px, py]) => [px*10, py*4.2]);
+    WORLD_ORDER.rows = 0;
   }
-  return WORLD_ORDER = order;
+  const o = WORLD_ORDER;
+  while (o.length < n) { o.push(...worldRow(o.rows)); o.rows++; }
+  return o;
 }
-function worldPos(i){
-  const o = worldOrder();
-  return o[i] || o[i % o.length];
+// the river leaves the scene on the left below the first meadow: its right bank, in scene units
+const riverLowRight = y => y < 420 ? 262 : Math.max(0, 262 - (y-420)*1.9);
+// one row of the low meadow: places from the middle outwards, every other row shifted half a step, none in the river
+function worldRow(r){
+  const y = ROW_Y0 + r*ROW_H, xs = [];
+  for (let x = r%2 ? 122 : 80; x <= 920; x += 84) if (x > riverLowRight(y) + 46) xs.push(x);
+  // a small fixed nudge per place, so the rows look like a meadow, not a classroom
+  return xs.sort((a, b) => Math.abs(a-500) - Math.abs(b-500) || a - b).map(x => [x + ((x*5 + r*13) % 7) - 3, y + ((x*3 + r*11) % 9) - 4]);
+}
+// places of the first n residents and the scene height that fits them all
+function worldLayout(n){
+  const pos = worldOrder(n).slice(0, n);
+  const low = pos.reduce((m, p) => Math.max(m, p[1]), 0);
+  return {pos, H: low > 410 ? Math.ceil(low + 38) : 420};
+}
+// the low meadow: the river runs out to the left, flowers and grass between the places, bushes at the edges
+function worldLow(H){
+  if (H <= 420) return '';
+  let g = '<path d="M150 418 C128 446 84 470 0 482 L0 560 C100 540 196 492 264 418Z" fill="#5F9FC6"/>'+
+    '<path d="M196 438 C160 470 100 494 30 506" stroke="#fff" stroke-width="2" fill="none" opacity=".4" stroke-linecap="round"/>';
+  const cols = ['#F3D35B','#E98AA0','#FFFFFF','#C9A6E8'];
+  for (let r = 0, y = ROW_Y0; y - ROW_H/2 < H; r++, y += ROW_H){
+    for (let x = r%2 ? 80 : 122, k = 0; x <= 940; x += 84, k++){
+      const fy = y + (k%2 ? -6 : 8);
+      if (x < riverLowRight(fy) + 30) continue;
+      if ((r*5 + k*3) % 4 === 0) g += '<path d="M'+(x-5)+' '+(fy+5)+' q2 -9 5 -10 q2 4 5 10" stroke="#5E8C43" stroke-width="2" fill="none"/>';
+      else g += '<circle cx="'+x+'" cy="'+fy+'" r="3" fill="'+cols[(r+k)%4]+'"/>';
+    }
+    if (r % 2 === 0) g += '<circle cx="'+(r%4 ? 18 : 984)+'" cy="'+(y+14)+'" r="16" fill="#5C8C45"/><circle cx="'+(r%4 ? 30 : 972)+'" cy="'+(y+6)+'" r="10" fill="#6E9E52"/>';
+  }
+  return g;
 }
 
 /* private messages between members: a chat whose "seller" is the other member */
@@ -3726,12 +3766,14 @@ function worldSection(){
     const key = ids.map(id=>id+COM.members[id].character+COM.members[id].nick+COM.members[id].level).join()+COM.characters.length+COM.levels.map(l=>l.name).join()+'|'+COM.uid;
     if (key === lastKey) return; lastKey = key;
     const n = ids.length;
-    box.replaceChildren(h('div',{html:WORLD_BG,style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
+    const {pos, H} = worldLayout(n);
+    box.style.aspectRatio = '1000/'+H;
+    box.replaceChildren(h('div',{html:worldBg(H),style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
       const m = COM.members[id];
-      const [x, y] = worldPos(i, n);
+      const [x, y] = pos[i].map((v, k) => k ? v/H*100 : v/10);
       const label = m.nick+' · '+levelName(m.level);
       const el = h('div',{class:'dweller st-'+(m.level||1)+(isDasha(id)?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%','aria-label':label,tabindex:'0'},
-        h('span',{class:'em'}, emojiOf(id)), n <= 40 || isDasha(id) || id===COM.uid ? h('span',{class:'nm'}, m.nick) : null,
+        h('span',{class:'em'}, emojiOf(id)), h('span',{class:'nm'}, m.nick),
         h('div',{class:'pop'}, h('b',null, emojiOf(id),' ',m.nick), h('span',{class:'hint'}, levelName(m.level)),
           id===COM.uid ? h('span',{class:'hint'},'Это вы') : h('button',{type:'button',class:'btn small',onclick:e=>{ e.stopPropagation(); openDM(id); }},'✉ Написать')));
       el.addEventListener('click', ()=>{ const was = el.classList.contains('open'); box.querySelectorAll('.dweller.open').forEach(d=>d.classList.remove('open')); if (!was) el.classList.add('open'); });
