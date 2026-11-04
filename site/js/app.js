@@ -4799,12 +4799,21 @@ function cabinetTabs(tab, tid){
 /* ---------- article drafts: read, fix, publish ---------- */
 const newDrafts = () => (COM.drafts||[]).filter(d=>!d.status);
 const DRAFT_OPEN = {};
+// an open draft keeps its very own editor while the list repaints on realtime updates (someone came online,
+// a like, a message): the cursor, the scroll and unsaved edits stay; only «Свернуть» or publishing rebuilds it
+const DRAFT_BOX = {};
+// put the nodes in order without taking out the ones already in place — a node taken out loses the cursor
+function keepOrder(el, nodes){
+  const want = new Set(nodes);
+  [...el.childNodes].forEach(n=>{ if (!want.has(n)) n.remove(); });
+  nodes.forEach((n, i)=>{ if (el.childNodes[i] !== n) el.insertBefore(n, el.childNodes[i] || null); });
+}
 function paintDrafts(el){
-  // keep an open editor while realtime updates arrive
-  if (el.querySelector('.draft-ed textarea:focus, .draft-ed input:focus')) return;
   const list = (COM.drafts||[]).slice().sort((a,b)=>(!a.status ? 0 : 1) - (!b.status ? 0 : 1));
   const st = d => d.status==='published' ? h('span',{class:'status accepted'},'Опубликовано') : d.status==='rejected' ? h('span',{class:'status declined'},'Отклонено') : h('span',{class:'status'},'Новый');
-  el.replaceChildren(...(list.length ? list.map(d=>{
+  for (const id in DRAFT_BOX) if (!list.some(d=>d.id===id && DRAFT_OPEN[id] && !d.status)) delete DRAFT_BOX[id];
+  keepOrder(el, list.length ? list.map(d=>{
+    if (DRAFT_BOX[d.id]) return DRAFT_BOX[d.id];
     const box = h('div',{class:'li draft'});
     const head = h('div',{class:'meta'}, st(d), h('span',null,d.cat||'Статья'), h('span',null,dt(tsOf(d))), d.keywords ? h('span',{class:'hint'},'🔎 '+d.keywords) : null);
     if (!DRAFT_OPEN[d.id] || d.status){
@@ -4820,12 +4829,24 @@ function paintDrafts(el){
     const alt = h('input',{maxlength:'150',value:d.image_alt||'',placeholder:'Что на картинке'});
     const answer = h('textarea',{maxlength:'600',style:'min-height:70px'}); answer.value = d.answer||'';
     const cover = h('div',{class:'draft-cover'});
-    const paintCover = () => cover.replaceChildren(...[image ? photoImg(image, alt.value||d.title, '') : h('p',{class:'hint'},'Картинки пока нет.'),
+    const paintCover = () => { cover.replaceChildren(...[image ? photoImg(image, alt.value||d.title, '') : h('p',{class:'hint'},'Картинки пока нет.'),
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
         EDIT.can ? h('button',{type:'button',class:'btn ghost small',onclick:()=>pickAndUpload(nid=>{ image = nid; paintCover(); }, true)}, image ? 'Заменить картинку' : 'Загрузить картинку') : null,
         image ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ image = ''; paintCover(); }},'Убрать') : null)].filter(Boolean));
+      cover.dispatchEvent(new Event('input',{bubbles:true})); };
     paintCover();
     const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value, image, image_alt:alt.value.trim(), answer:answer.value.trim()});
+    // every change is saved by itself a couple of seconds later: nothing is lost if Dasha looks away or closes the page
+    const saveState = h('span',{class:'hint draft-saved',role:'status'});
+    let saveTimer = null, savedJson = JSON.stringify(vals()), saving = false;
+    const autosave = async ()=>{ clearTimeout(saveTimer); const v = vals(), j = JSON.stringify(v); if (j === savedJson) return;
+      if (saving){ saveTimer = setTimeout(autosave, 1000); return; }
+      saving = true; saveState.textContent = 'Сохраняю…';
+      try{ await pb.collection('drafts').update(d.id, v, {requestKey:null}); savedJson = j; saveState.textContent = '✓ Сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
+      catch(e){ saveState.textContent = '⚠️ Не сохранилось — проверьте интернет, попробую ещё раз'; saveTimer = setTimeout(autosave, 10000); }
+      saving = false; };
+    const changed = ()=>{ saveState.textContent = 'Есть изменения…'; clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 2500); };
+    box.addEventListener('input', changed); box.addEventListener('change', changed);
     box.append(head, h('div',{class:'form draft-ed'},
       h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead),
       h('div',null, h('div',{class:'ae-l'},'Картинка превью'), cover), h('label',null,'Что на картинке (alt)',alt), h('label',null,'Коротко: прямой ответ (видно над текстом и в поиске)',answer),
@@ -4834,11 +4855,12 @@ function paintDrafts(el){
       d.note ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Заметка помощника: '), d.note) : null,
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
         h('button',{type:'button',class:'btn small',onclick:e=>publishDraft(d, vals(), e.currentTarget)},'Опубликовать'),
-        h('button',{type:'button',class:'btn ghost small',onclick:()=>pb.collection('drafts').update(d.id, vals()).then(()=>toast('Черновик сохранён')).catch(writeErr)},'Сохранить черновик'),
-        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ DRAFT_OPEN[d.id] = false; paintDrafts(el); }},'Свернуть'),
-        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отклонить черновик?')) pb.collection('drafts').update(d.id,{status:'rejected'}).catch(writeErr); }},'Отклонить'))));
-    return box;
-  }) : [h('p',{class:'hint'},'Черновиков пока нет. Помощник присылает новые каждое утро.')]));
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ savedJson = ''; autosave().then(()=>toast('Черновик сохранён')); }},'Сохранить черновик'),
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ DRAFT_OPEN[d.id] = false; delete DRAFT_BOX[d.id]; paintDrafts(el); }},'Свернуть'),
+        h('button',{type:'button',class:'btn ghost small',onclick:()=>{ if (confirm('Отклонить черновик?')) pb.collection('drafts').update(d.id,{status:'rejected'}).catch(writeErr); }},'Отклонить'),
+        saveState)));
+    return DRAFT_BOX[d.id] = box;
+  }) : [h('p',{class:'hint'},'Черновиков пока нет. Помощник присылает новые каждое утро.')]);
 }
 async function publishDraft(d, v, btn){
   if (!v.title || !v.body){ toast('Нужны заголовок и текст'); return; }

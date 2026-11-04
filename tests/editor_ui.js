@@ -66,9 +66,22 @@ const code = 'const MD_LINK = /^(https?:\\/\\/|\\/)[^\\s()]+$/;\n' + cut('const 
     const md = await q.evaluate(() => document.querySelector('.draft-ed .md-tools + textarea').value);
     check('buttons write the same marks the site reads: ## heading, **bold**, > tip, --- divider',
       /\n## Новый раздел\n\nВажное слово \*\*здесь\*\*\n\n> 💡 Совет:\n> Не забывайте кружку\n\n---$/.test(md) && md.startsWith('Кофе с собой — это **одноразовый стакан**.'));
+    // the site changes meanwhile (here: another draft arrives) — the open editor stays as it is, with the cursor in it
+    await q.evaluate(() => { document.querySelector('.ve-ed').dataset.mark = '1'; });
+    await q.keyboard.type(' и сумку');
+    const other = await api('POST', '/collections/drafts/records', { author: admin.id, cat: 'Статья', title: 'Ещё один черновик', lead: 'x', body: 'x' }, su);
+    await q.waitForTimeout(1500);
+    const kept = await q.evaluate(() => { const e = document.querySelector('.ve-ed'); return { same: e.dataset.mark === '1', focus: document.activeElement === e, text: e.innerText.includes('и сумку') }; });
+    check('a change elsewhere on the site does not reset the editor: same text, cursor still there', kept.same && kept.focus && kept.text && (await q.locator('.draft', { hasText: 'Ещё один черновик' }).count()) === 1);
+    await api('DELETE', '/collections/drafts/records/' + other.id, null, su);
+    // edits save themselves a couple of seconds later, without pressing anything
+    await q.waitForTimeout(4000);
+    const md2 = await q.evaluate(() => document.querySelector('.draft-ed .md-tools + textarea').value);
+    const auto = (await api('GET', '/collections/drafts/records/' + draft.id, null, su)).body;
+    check('edits are saved by themselves: the server has the text, «✓ Сохранено» is shown', auto === md2 && md2.includes('и сумку') && (await q.textContent('.draft-saved')).includes('Сохранено'));
     await q.getByRole('button', { name: 'Сохранить черновик' }).click(); await q.waitForTimeout(800);
     const saved = (await api('GET', '/collections/drafts/records/' + draft.id, null, su)).body;
-    check('«Сохранить черновик» saves the text from the editor', saved === md);
+    check('«Сохранить черновик» saves the text from the editor', saved === md2);
     await q.getByRole('button', { name: /^Показать текст со значками/ }).click();
     check('«Разметка» shows the marks for those who know them', await q.locator('.draft-ed .md-tools + textarea').isVisible());
     check('no script errors', errs.length === 0);
