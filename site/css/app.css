@@ -1828,3 +1828,23 @@ html,body{overflow-x:clip}
 .mark-msk h2{font-size:20px;margin:0}
 /* a special status instead of the level: Dasha — «Эко-создатель» */
 .title-badge{display:inline-flex;align-items:center;gap:4px;width:max-content;font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:999px;background:linear-gradient(90deg,#F6C85F,#F3D35B);color:#2A1C05}
+/* the article editor: the article as it will look, with the toolbar staying on top while scrolling */
+.md-tools .md-bar{position:sticky;top:64px;z-index:4;padding:8px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(6px);gap:6px 10px}
+.md-grp{display:flex;flex-wrap:wrap;gap:6px}
+.md-grp + .md-grp{padding-left:10px;border-left:1px solid var(--line)}
+.md-bar.raw .md-grp:not(:last-child){opacity:.35;pointer-events:none}
+.md-b b,.md-b i{font-size:15px}
+.ve-ed{min-height:320px;padding:18px 20px;border:1.5px solid var(--line);border-radius:14px;background:var(--paper);font-size:16.5px;line-height:1.65;font-weight:400;outline:none;cursor:text;overflow-wrap:anywhere}
+.ve-ed:focus{border-color:var(--moss);box-shadow:0 0 0 3px color-mix(in srgb,var(--moss) 18%,transparent)}
+.ve-ed > *{margin:0 0 .9em}
+.ve-ed > p:first-child::first-letter{float:none;font:inherit;padding:0;color:inherit}
+.ve-ed h2{margin-top:1em}
+.ve-fixed{position:relative;user-select:none}
+.ve-darom{padding:14px 44px 14px 16px;border-radius:14px;border:1.5px dashed var(--sun);background:color-mix(in srgb,var(--sun) 12%,var(--surface));font-weight:700;font-size:.92em}
+.ve-ed .art-fig img{max-height:320px}
+.ve-ed figcaption{user-select:text;outline:none;border-bottom:1px dashed var(--line);min-height:1.4em;cursor:text}
+.ve-ed figcaption:empty::before{content:attr(data-ph);color:var(--muted);font-family:var(--font-body,inherit);font-size:15px}
+.ve-del{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;cursor:pointer;display:grid;place-items:center;letter-spacing:0;line-height:1}
+.ve-del:hover{border-color:#B0604A;color:#B0604A}
+.art-divider.ve-fixed{padding-right:40px}
+@media (max-width:640px){ .md-tools .md-bar{top:56px;padding:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none} .md-tools .md-bar::-webkit-scrollbar{display:none} .md-grp{flex-wrap:nowrap} .md-b{white-space:nowrap} .ve-ed{padding:14px;font-size:16px} }

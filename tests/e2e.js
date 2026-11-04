@@ -333,8 +333,13 @@ const T = '#cabinet-tabs ';
   check('article shows its cover picture', !!(await p.$('#article .art-cover img')));
   check('a member gets «Читайте дальше» and a link to subscribe instead of the invitation', (await p.textContent('.art-join')).includes('Читайте дальше') && !(await p.$('.art-join a[href="/kabinet?tab=register"]')) && !!(await p.$('.art-join a[href="/kabinet?tab=profile#notify"]')));
   // the article text with marks: headings, bold, a tip, a divider, lists, a photo — via the editor buttons and typing
-  await p.click('#edit-slot button'); await p.waitForSelector('#ae-body');
+  await p.click('#edit-slot button'); await p.waitForSelector('.ve-ed');
+  // the editor shows the article itself; the marks are behind «Разметка»
+  await p.click('.md-b:has-text("Разметка")'); await p.waitForSelector('#ae-body', {state:'visible'});
   await p.fill('#ae-body', 'Плёнка служит минуту, а лежит на свалке веками. Вот чем я её заменила.\n\n## Восковые салфетки\nОни **обнимают миску** и служат около года.\n\n> 💡 Совет:\n> мойте прохладной водой\n\n---\n\n## Крышки и контейнеры\n- стеклянные банки\n- силиконовые крышки\n\n## Что выбрать\n1. Начните с одной салфетки\n2. Добавьте крышки\n\n![Мои салфетки на кухне](/img/coffee.webp)');
+  await p.click('.md-b:has-text("Разметка")');
+  { const v = await p.$eval('.ve-ed', e=>({h2:e.querySelectorAll('h2').length, tip:e.querySelectorAll('.art-tip').length, fig:e.querySelectorAll('figure').length, marks:/\*\*|##|^>/m.test(e.innerText)}));
+    check('editor: the article shows as it will look — headings, a tip, a photo, no ** or ##', v.h2===3 && v.tip===1 && v.fig===1 && !v.marks); }
   await p.click('.md-b:has-text("Предпросмотр")');
   check('editor: buttons for marks and a live preview', (await p.$$('.md-bar .md-b')).length >= 9 && !!(await p.$('.md-preview h2')));
   await p.click('#save-btn'); await p.waitForSelector('.toast:has-text("Сохранено")',{timeout:5000}); await p.waitForTimeout(400);

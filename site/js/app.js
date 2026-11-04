@@ -1401,34 +1401,199 @@ function articleBody(text, mid){
       h('ol',null, heads.map(([id,t])=>h('li',null, h('a',{href:'#'+id}, mdPlain(t)))))) : null,
     h('div',{class:'art-body'}, nodes)];
 }
-/* buttons above the article text: put the marks in without remembering them, and a live preview */
+/* ---------- the article editor: Dasha sees the article as it will look, not the marks ----------
+   The text is still stored with the same simple marks (## , **, > …), so published articles do not change:
+   veFromMd draws them as an editable page, veToMd turns the page back into marks after every change.
+   «Разметка» shows the marks themselves for those who like them. */
+const VE_BULLET = /^[-—–•*]\s+/, VE_NUM = /^\d+[.)]\s+/;
+function veInlineHtml(text){
+  const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let out = '', last = 0, m;
+  const re = /\*\*([^*]+)\*\*|(?:^|(?<=[\s(«"]))_([^_]+)_|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  const plain = t => esc(t).replace(/\n/g,'<br>');
+  while ((m = re.exec(text))){
+    out += plain(text.slice(last, m.index));
+    if (m[1]) out += '<strong>'+plain(m[1])+'</strong>';
+    else if (m[2]) out += '<em>'+plain(m[2])+'</em>';
+    else out += '<a href="'+esc(m[4]).replace(/"/g,'&quot;')+'">'+plain(m[3])+'</a>';
+    last = re.lastIndex;
+  }
+  return out + plain(text.slice(last));
+}
+// blocks that are not typed in: a photo with its caption, the divider, the «Вещи даром» card
+function veFixed(kind, extra){
+  const del = '<button type="button" class="ve-del" contenteditable="false" title="Убрать" aria-label="Убрать">✕</button>';
+  if (kind === 'div') return '<div class="ve-fixed art-divider" contenteditable="false" data-md="---">❦'+del+'</div>';
+  if (kind === 'darom') return '<div class="ve-fixed ve-darom" contenteditable="false" data-md="[[darom]]">🎁 Здесь в статье будет живой блок «Вещи даром»: вещи, которые сейчас отдают, и кнопки'+del+'</div>';
+  const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  return '<figure class="ve-fixed art-fig" contenteditable="false" data-src="'+esc(extra.src)+'"><img src="'+esc(extra.src)+'" alt="">'+
+    '<figcaption contenteditable="true" data-ph="Подпись к фото (и автор, если фото не ваше)">'+esc(extra.cap)+'</figcaption>'+del+'</figure>';
+}
+function veFromMd(src){
+  const lines = String(src||'').replace(/\r/g,'').split('\n'), out = [];
+  let para = [], list = null, quote = null;
+  const flushPara = ()=>{ if (para.length){ out.push('<p>'+veInlineHtml(para.join('\n'))+'</p>'); para = []; } };
+  const flushList = ()=>{ if (list){ out.push('<'+list.tag+'>'+list.items.map(x=>'<li>'+veInlineHtml(x)+'</li>').join('')+'</'+list.tag+'>'); list = null; } };
+  const flushQuote = ()=>{ if (quote){ out.push('<aside class="art-tip">'+quote.map(q=>'<p>'+(veInlineHtml(q)||'<br>')+'</p>').join('')+'</aside>'); quote = null; } };
+  const flush = ()=>{ flushPara(); flushList(); flushQuote(); };
+  for (let i = 0; i < lines.length; i++){
+    const line = lines[i].trim(); let m;
+    if (!line){ flushPara(); flushQuote();
+      if (list){ const nx = (lines.slice(i+1).find(x=>x.trim())||'').trim(); if (!(list.tag==='ol' ? VE_NUM : VE_BULLET).test(nx)) flushList(); }
+      continue; }
+    if ((m = line.match(/^(#{1,3})\s+(.+)$/))){ flush(); const t = m[1].length === 3 ? 'h3' : 'h2'; out.push('<'+t+'>'+veInlineHtml(m[2])+'</'+t+'>'); continue; }
+    if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(line)){ flush(); out.push(veFixed('div')); continue; }
+    if (/^\[\[darom\]\]$/i.test(line)){ flush(); out.push(veFixed('darom')); continue; }
+    if ((m = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/))){ flush(); out.push(veFixed('fig', {src:m[2], cap:m[1]})); continue; }
+    if ((m = line.match(/^>\s?(.*)$/))){ flushPara(); flushList(); (quote = quote || []).push(m[1]); continue; }
+    if ((m = line.match(/^\d+[.)]\s+(.+)$/))){ flushPara(); flushQuote(); if (!list || list.tag!=='ol'){ flushList(); list = {tag:'ol', items:[]}; } list.items.push(m[1]); continue; }
+    if ((m = line.match(/^[-—–•*]\s+(.+)$/))){ flushPara(); flushQuote(); if (!list || list.tag!=='ul'){ flushList(); list = {tag:'ul', items:[]}; } list.items.push(m[1]); continue; }
+    flushList(); flushQuote(); para.push(line);
+  }
+  flush();
+  return out.join('') || '<p><br></p>';
+}
+function veInlineMd(node){
+  let s = '';
+  for (const n of node.childNodes){
+    if (n.nodeType === 3){ s += n.nodeValue.replace(/ /g,' ').replace(/​/g,''); continue; }
+    if (n.nodeType !== 1 || n.classList.contains('ve-del')) continue;
+    const t = n.tagName, inner = veInlineMd(n);
+    const mark = (a, b) => { const m = inner.match(/^(\s*)([\s\S]*?)(\s*)$/); return m[2] ? m[1]+a+m[2]+b+m[3] : inner; };
+    if (t === 'BR') s += '\n';
+    else if (t === 'STRONG' || t === 'B') s += mark('**','**');
+    else if (t === 'EM' || t === 'I') s += mark('_','_');
+    else if (t === 'A'){ const href = n.getAttribute('href')||''; s += href ? '['+inner+']('+href+')' : inner; }
+    else if (t === 'DIV' || t === 'P') s += (s && !s.endsWith('\n') ? '\n' : '') + inner;
+    else s += inner;
+  }
+  return s;
+}
+function veToMd(root){
+  const blocks = [];
+  const line = t => t.replace(/[ \t]+\n/g,'\n').replace(/\n{2,}/g,'\n').trim();
+  let loose = null; // text typed straight into the editor, outside any block
+  const flushLoose = ()=>{ if (loose){ const t = line(veInlineMd(loose)); if (t) blocks.push(t); loose = null; } };
+  for (const n of root.childNodes){
+    if (n.nodeType === 3 || (n.nodeType === 1 && /^(STRONG|B|EM|I|A|SPAN|BR|FONT)$/.test(n.tagName))){ (loose = loose || document.createElement('p')).append(n.cloneNode(true)); continue; }
+    flushLoose();
+    if (n.nodeType !== 1) continue;
+    const t = n.tagName;
+    if (n.dataset && n.dataset.md){ blocks.push(n.dataset.md); continue; }
+    if (t === 'FIGURE'){ const cap = n.querySelector('figcaption'); blocks.push('!['+line(cap ? veInlineMd(cap) : '').replace(/\n/g,' ').replace(/[\[\]]/g,'')+']('+n.dataset.src+')'); continue; }
+    if (t === 'H1' || t === 'H2' || t === 'H3'){ const x = line(veInlineMd(n)).replace(/\n/g,' '); if (x) blocks.push((t === 'H3' ? '### ' : '## ')+x); continue; }
+    if (t === 'UL' || t === 'OL'){ const items = [...n.children].filter(li=>li.tagName==='LI').map(li=>line(veInlineMd(li)).replace(/\n/g,' ')).filter(Boolean);
+      if (items.length) blocks.push(items.map((x,i)=>(t === 'OL' ? (i+1)+'. ' : '- ')+x).join('\n')); continue; }
+    if (t === 'ASIDE' || t === 'BLOCKQUOTE'){ const ps = [...n.childNodes].map(c=>c.nodeType === 1 && /^(P|DIV)$/.test(c.tagName) ? line(veInlineMd(c)) : null);
+      const rows = (ps.some(x=>x!==null) ? ps.filter(x=>x!==null) : [line(veInlineMd(n))]).join('\n').split('\n').map(x=>x.trim());
+      while (rows.length && !rows[rows.length-1]) rows.pop();
+      if (rows.some(Boolean)) blocks.push(rows.map(x=>x ? '> '+x : '>').join('\n')); continue; }
+    if (t === 'HR'){ blocks.push('---'); continue; }
+    const x = line(veInlineMd(n)); if (x) blocks.push(x);
+  }
+  flushLoose();
+  return blocks.join('\n\n');
+}
 function mdTools(ta){
   const fire = ()=>ta.dispatchEvent(new Event('input',{bubbles:true}));
-  const wrap = (a, b, ph) => { const s0 = ta.selectionStart, s1 = ta.selectionEnd, sel = ta.value.slice(s0, s1) || ph;
-    ta.setRangeText(a+sel+b, s0, s1, 'end'); if (s0===s1){ ta.selectionStart = s0+a.length; ta.selectionEnd = s0+a.length+sel.length; } ta.focus(); fire(); };
-  const prefix = (pre, ph) => { const v = ta.value, s0 = v.lastIndexOf('\n', ta.selectionStart-1)+1, e0 = ta.selectionEnd, end = v.indexOf('\n', e0) < 0 ? v.length : v.indexOf('\n', e0);
-    const block = v.slice(s0, end) || ph; ta.setRangeText(block.split('\n').map(l=>l.trim() ? pre+l.replace(/^(#{1,3}|>|[-—–•*]|\d+[.)])\s+/,'') : l).join('\n'), s0, end, 'end'); ta.focus(); fire(); };
-  const insert = t => { ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, 'end'); ta.focus(); fire(); };
+  const ed = h('div',{class:'art-body ve-ed',contenteditable:'true',role:'textbox','aria-multiline':'true','aria-label':'Текст статьи',spellcheck:'true'});
+  ed.innerHTML = veFromMd(ta.value);
+  ta.hidden = true;
+  // the editor sits inside a <label>: a click must not send the focus to the hidden marks
+  ed.addEventListener('click', e=>{ e.preventDefault(); const del = e.target.closest('.ve-del'); if (del){ del.parentElement.remove(); sync(); } });
+  try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(e){}
+  let last = ta.value;
+  const sync = ()=>{ const v = veToMd(ed); if (v !== last){ last = v; ta.value = v; fire(); } if (!ed.firstChild) ed.innerHTML = '<p><br></p>'; paint(); paintState(); };
+  ed.addEventListener('input', sync);
+  // pasted text comes in as plain text: no foreign fonts and colours from other sites
+  ed.addEventListener('paste', e=>{ const t = e.clipboardData && e.clipboardData.getData('text/plain'); if (t == null) return; e.preventDefault(); document.execCommand('insertText', false, t); });
+  // the selection survives a tap on a button
+  let range = null;
+  document.addEventListener('selectionchange', ()=>{ const s = getSelection(); if (s.rangeCount && ed.contains(s.anchorNode)){ range = s.getRangeAt(0).cloneRange(); paintState(); } });
+  const restore = ()=>{ ed.focus(); if (range){ const s = getSelection(); s.removeAllRanges(); s.addRange(range); } };
+  const top = ()=>{ let n = range && range.startContainer; while (n && n.parentNode !== ed) n = n.parentNode; return n && n.parentNode === ed ? n : null; };
+  const placeIn = el => { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); range = r.cloneRange(); };
+  // Enter on an empty line of a tip, or in a photo caption, goes on with ordinary text below
+  ed.addEventListener('keydown', e=>{
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const s = getSelection(); if (!s.rangeCount) return;
+    const node = s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement;
+    const cap = node.closest('figcaption'), tipP = node.closest('.art-tip > p');
+    if (cap || (tipP && !tipP.textContent.trim())){
+      e.preventDefault();
+      const block = cap ? cap.closest('figure') : tipP.parentElement;
+      if (tipP) tipP.remove();
+      const p = h('p',null,h('br')); block.after(p); placeIn(p); sync();
+    }
+  });
+  const block = tag => { restore(); const cur = top(); const same = cur && cur.tagName === tag.toUpperCase(); document.execCommand('formatBlock', false, same ? 'p' : tag); sync(); };
+  const inline = cmd => { restore(); document.execCommand(cmd); sync(); };
+  const list = cmd => { restore(); document.execCommand(cmd); sync(); };
+  const insertBlock = html => { restore(); const cur = top(), tmp = h('div'); tmp.innerHTML = html; const el = tmp.firstChild, p = h('p',null,h('br'));
+    if (cur && !(cur.tagName === 'P' && !cur.textContent.trim())) cur.after(el); else if (cur) cur.replaceWith(el); else ed.append(el);
+    el.after(p); placeIn(p); sync(); return el; };
+  const tip = ()=>{ restore(); const cur = top();
+    if (cur && cur.tagName === 'ASIDE'){ const ps = [...cur.children]; cur.replaceWith(...(ps.length ? ps : [h('p',null,h('br'))])); sync(); return; }
+    const text = cur && !cur.dataset.md && cur.tagName !== 'FIGURE' ? cur.textContent.trim() : '';
+    const a = h('aside',{class:'art-tip'}, h('p',null,'💡 Совет:'), h('p',null, text || h('br')));
+    if (cur && text && /^(P|DIV|H2|H3)$/.test(cur.tagName)) cur.replaceWith(a); else if (cur) cur.after(a); else ed.append(a);
+    placeIn(a.lastChild); sync(); };
+  const link = ()=>{ restore();
+    const s = getSelection(), had = s.rangeCount && !s.isCollapsed;
+    const cur = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement).closest('a');
+    if (cur && ed.contains(cur)){ if (confirm('Убрать эту ссылку? Текст останется.')){ cur.replaceWith(...cur.childNodes); sync(); } return; }
+    let url = prompt('Куда ведёт ссылка?\nСтраница сайта — например /sortirovka или /darom,\nдругой сайт — полный адрес https://…', '/');
+    if (!url) return; url = url.trim();
+    if (!MD_LINK.test(url)){ if (/^[\w-]+(\.[\w-]+)+/.test(url)) url = 'https://'+url; else { toast('Адрес должен начинаться с / (страница сайта) или с https://'); return; } }
+    restore();
+    if (had) document.execCommand('createLink', false, url);
+    else { const t = prompt('Текст ссылки — какие слова будут ссылкой?', ''); if (!t) return; restore(); document.execCommand('insertHTML', false, '<a href="'+url.replace(/"/g,'&quot;')+'">'+t.replace(/</g,'&lt;')+'</a>&nbsp;'); }
+    sync(); };
+  const clear = ()=>{ restore(); document.execCommand('removeFormat'); const s = getSelection(); const a = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement).closest('a');
+    if (a && ed.contains(a)) a.replaceWith(...a.childNodes); const cur = top(); if (cur && /^(H2|H3)$/.test(cur.tagName)) document.execCommand('formatBlock', false, 'p'); sync(); };
+  // which buttons are «on» where the cursor is
+  const btns = {};
+  const paintState = ()=>{ const cur = top(), tag = cur ? cur.tagName : '';
+    const q = c => { try{ return document.queryCommandState(c); }catch(e){ return false; } };
+    const on = {h2:tag === 'H2', h3:tag === 'H3', b:q('bold'), i:q('italic'), ul:tag === 'UL', ol:tag === 'OL', tip:tag === 'ASIDE'};
+    for (const k in btns) if (k in on){ btns[k].classList.toggle('on', on[k]); btns[k].setAttribute('aria-pressed', String(!!on[k])); } };
   const preview = h('div',{class:'md-preview',hidden:true});
   const paint = ()=>{ if (!preview.hidden) preview.replaceChildren(...articleBody(ta.value).filter(Boolean)); };
-  ta.addEventListener('input', paint);
-  const b = (t, title, fn) => h('button',{type:'button',class:'md-b',title,onclick:fn}, t);
-  return h('div',{class:'md-tools'},
-    h('div',{class:'md-bar',role:'toolbar','aria-label':'Оформление текста'},
-      b('Заголовок','Раздел статьи: ## Заголовок', ()=>prefix('## ','Заголовок раздела')),
-      b('Подзаголовок','### Подзаголовок', ()=>prefix('### ','Подзаголовок')),
-      b('Ж','Жирный: **текст**', ()=>wrap('**','**','важное')),
-      b('К','Курсив: _текст_', ()=>wrap('_','_','акцент')),
-      b('• Список','Каждый пункт с новой строки: - пункт', ()=>prefix('- ','пункт')),
-      b('1. Список','1. пункт', ()=>prefix('1. ','пункт')),
-      b('💡 Совет','Выделенная плашка: > текст', ()=>prefix('> ','💡 Совет: ')),
-      b('❦ Разделитель','Декоративный разделитель: ---', ()=>insert('\n\n---\n\n')),
-      b('🎁 Вещи даром','Врезка «Вещи даром»: живой блок с вещами и кнопками', ()=>insert('\n\n[[darom]]\n\n')),
-      b('🔗 Ссылка','[текст](https://…)', ()=>wrap('[','](https://)','текст ссылки')),
-      EDIT.can ? b('📷 Фото','Фото с подписью внутри статьи', ()=>pickAndUpload(url=>insert('\n\n!['+'Подпись к фото'+']('+url+')\n\n'))) : null,
-      b('👁 Предпросмотр','Как это будет выглядеть', e=>{ preview.hidden = !preview.hidden; e.currentTarget.classList.toggle('on', !preview.hidden); paint(); })),
-    h('p',{class:'hint'},'Выделите текст и нажмите кнопку. Заголовки делят статью на части, «Совет» — цветная плашка, «Разделитель» — завиток между частями.'),
-    preview);
+  const b = (key, t, title, fn) => { const el = h('button',{type:'button',class:'md-b',title,'aria-label':title,onmousedown:e=>e.preventDefault(),onclick:fn}, t); if (key) btns[key] = el; return el; };
+  // «Разметка»: the marks themselves, for those who know them; back to the page view with the same button
+  const rawBtn = b(null,'</> Разметка','Показать текст со значками разметки (для опытных)', ()=>{
+    const toRaw = !ed.hidden;
+    if (!toRaw){ ed.innerHTML = veFromMd(ta.value); last = ta.value; }
+    ed.hidden = toRaw; ta.hidden = !toRaw; bar.classList.toggle('raw', toRaw); rawBtn.classList.toggle('on', toRaw);
+    help.textContent = toRaw ? HELP_RAW : HELP; (toRaw ? ta : ed).focus(); });
+  const HELP = 'Пишите как в обычном редакторе: выделите слова и нажмите кнопку. Никакие значки набирать не нужно — статья будет выглядеть так же, как здесь.';
+  const HELP_RAW = 'Режим разметки: ## заголовок · ### подзаголовок · **жирный** · _курсив_ · - пункт · 1. пункт · > совет · --- разделитель · [текст](адрес) — ссылка. Нажмите «Разметка» ещё раз, чтобы вернуться.';
+  const help = h('p',{class:'hint'}, HELP);
+  const bar = h('div',{class:'md-bar',role:'toolbar','aria-label':'Оформление текста'},
+    h('span',{class:'md-grp'},
+      b('h2','Заголовок','Заголовок раздела — делит статью на части и попадает в оглавление', ()=>block('h2')),
+      b('h3','Подзаголовок','Подзаголовок внутри раздела', ()=>block('h3')),
+      b(null,'Обычный текст','Сделать строку обычным абзацем', ()=>block('p'))),
+    h('span',{class:'md-grp'},
+      b('b', h('b',null,'Ж'),'Жирный — выделить важное', ()=>inline('bold')),
+      b('i', h('i',null,'К'),'Курсив — мягкий акцент', ()=>inline('italic')),
+      b(null,'🔗 Ссылка','Сделать выделенные слова ссылкой (или убрать ссылку)', link),
+      b(null,'⌫ Без оформления','Убрать жирный, курсив, ссылку и заголовок у выделенного', clear)),
+    h('span',{class:'md-grp'},
+      b('ul','• Список','Список с точками', ()=>list('insertUnorderedList')),
+      b('ol','1. Список','Нумерованный список — для шагов', ()=>list('insertOrderedList')),
+      b('tip','💡 Совет','Цветная плашка с советом или предупреждением', tip)),
+    h('span',{class:'md-grp'},
+      EDIT.can ? b(null,'📷 Фото','Вставить фото с подписью', ()=>{ const keep = range; pickAndUpload(url=>{ range = keep; const f = insertBlock(veFixed('fig',{src:url, cap:''})); const c = f.querySelector('figcaption'); c.focus(); placeIn(c); }); }) : null,
+      b(null,'❦ Разделитель','Завиток между крупными частями статьи', ()=>insertBlock(veFixed('div'))),
+      b(null,'🎁 Вещи даром','Живой блок «Вещи даром» с вещами и кнопками', ()=>insertBlock(veFixed('darom')))),
+    h('span',{class:'md-grp'},
+      b(null,'↶','Отменить', ()=>inline('undo')), b(null,'↷','Вернуть', ()=>inline('redo')),
+      b(null,'👁 Предпросмотр','Как статья будет выглядеть на сайте', e=>{ preview.hidden = !preview.hidden; e.currentTarget.classList.toggle('on', !preview.hidden); paint(); }),
+      rawBtn));
+  // typing in the marks keeps the preview fresh too
+  ta.addEventListener('input', ()=>{ if (!ta.hidden) paint(); });
+  return h('div',{class:'md-tools'}, bar, help, ed, preview);
 }
 
 /* ---------- «куда сдать»: a page for every kind of recyclables and every plastic code ---------- */
