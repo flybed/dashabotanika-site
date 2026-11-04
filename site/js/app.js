@@ -2259,12 +2259,15 @@ function accState(){
   if (!COM.ready) return 'loading';
   return COM.uid && COM.me ? 'member' : 'signedout';
 }
-function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), friendUntil:r.friend_until||'', character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, gameBest:r.game_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||''}; }
+function memberOf(r){ return {nick:r.name||'Участник', joined:tsOf(r), friendUntil:r.friend_until||'', character:r.character||'', level:r.level||1, role:r.role||'member', history:Array.isArray(r.level_history) ? r.level_history : [], leaves:r.leaves||0, xp:r.xp||0, stage:r.stage||1, examBest:r.exam_best||0, gameBest:r.game_best||0, verified:!!r.verified, customEmoji:r.custom_emoji||'', customName:r.custom_name||'', title:r.title||''}; }
 function nameOf(id){ const m = COM.members[id]; return (m && m.nick) || 'Участник'; }
 function charOf(id){ return COM.characters.find(c=>c.id===id) || null; }
 function emojiOf(memberId){ const m = COM.members[memberId]; if (m && m.customEmoji) return m.customEmoji; const c = m && charOf(m.character); return c ? c.emoji : '🌱'; }
 function levelOf(rank){ return COM.levels.find(l=>l.rank===rank) || null; }
 const levelName = rank => (levelOf(rank) || {}).name || 'Эко малыш';
+// a special status instead of the level (Dasha — «Эко-создатель»): no levels, points or certificates for its owner
+const statusOf = m => (m && m.title) || levelName(m && m.level);
+const titleBadge = m => h('span',{class:'title-badge'},'🌟 ', m.title);
 const dt = ts => { const d = new Date(ts); return isNaN(d) ? '' : d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'}); };
 const canDelete = author => author === COM.uid || COM.admin;
 const WQ = {};
@@ -3385,7 +3388,7 @@ function paintPeople(el, force){
         h('div',{class:'meta'}, h('span',{class:'online-dot'+(on?' on':''),'aria-hidden':'true'}), h('span',{'aria-hidden':'true'},emojiOf(id)), h('b',null,m.nick), id===COM.uid ? h('span',{class:'status'},'Это вы') : null,
           m.role==='admin' ? h('span',{class:'status accepted'},'Администратор') : isMod ? h('span',{class:'status accepted'},'Модератор') : null,
           a && a.hidden ? h('span',{class:'status'},'Скрыт') : null,
-          h('span',null,levelName(m.level))),
+          m.title ? titleBadge(m) : h('span',null,levelName(m.level))),
         h('div',{class:'hint'}, seenLabel(seen(id)), ' · с нами с ', dt(m.joined), m.verified ? ' · ✓ почта' : ' · почта не подтверждена',
           (()=>{ const r = COM.refs.find(x=>x.invited===id); return r ? ' · пришёл(ла) по приглашению: '+nameOf(r.inviter) : ''; })(),
           (()=>{ const n = COM.refs.filter(x=>x.inviter===id).length; return n ? ' · пригласил(а): '+n : ''; })()),
@@ -3661,7 +3664,7 @@ const worldBg = H => '<svg viewBox="0 0 1000 '+H+'" preserveAspectRatio="none" a
   '</svg>';
 
 // who lives in the world and where: Dasha first, then by the day they joined
-const isDasha = id => COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон';
+const isDasha = id => !!COM.members[id].title || (COM.members[id].role==='admin' && (charOf(COM.members[id].character)||{}).name==='Слон');
 const worldIds = () => Object.keys(COM.members).filter(id=>COM.members[id].character)
   .sort((a,b)=>isDasha(a)!==isDasha(b) ? (isDasha(a) ? -1 : 1) : COM.members[a].joined-COM.members[b].joined);
 // first places are chosen spots on the meadow (Dasha in the middle); every next resident takes the freest place
@@ -3771,10 +3774,10 @@ function worldSection(){
     box.replaceChildren(h('div',{html:worldBg(H),style:'position:absolute;inset:0'}), ...ids.map((id,i)=>{
       const m = COM.members[id];
       const [x, y] = pos[i].map((v, k) => k ? v/H*100 : v/10);
-      const label = m.nick+' · '+levelName(m.level);
+      const label = m.nick+' · '+statusOf(m);
       const el = h('div',{class:'dweller st-'+(m.level||1)+(isDasha(id)?' first':'')+(id===COM.uid?' me':''),style:'left:'+x.toFixed(1)+'%;top:'+y.toFixed(1)+'%','aria-label':label,tabindex:'0'},
         h('span',{class:'em'}, emojiOf(id)), h('span',{class:'nm'}, m.nick),
-        h('div',{class:'pop'}, h('b',null, emojiOf(id),' ',m.nick), h('span',{class:'hint'}, levelName(m.level)),
+        h('div',{class:'pop'}, h('b',null, emojiOf(id),' ',m.nick), m.title ? titleBadge(m) : h('span',{class:'hint'}, levelName(m.level)),
           id===COM.uid ? h('span',{class:'hint'},'Это вы') : h('button',{type:'button',class:'btn small',onclick:e=>{ e.stopPropagation(); openDM(id); }},'✉ Написать')));
       el.addEventListener('click', ()=>{ const was = el.classList.contains('open'); box.querySelectorAll('.dweller.open').forEach(d=>d.classList.remove('open')); if (!was) el.classList.add('open'); });
       return el;
@@ -4438,16 +4441,17 @@ function cabinetHead(){
     const me = COM.me; if (!me) return;
     const g = growProgress(me), waiting = adminWaiting();
     head.replaceChildren(...[
-      h('div',{class:'cab-pet st-'+me.level}, h('span',{class:'grow-em',role:'img','aria-label':g.chName+', уровень «'+levelName(me.level)+'»'}, emojiOf(COM.uid))),
+      h('div',{class:'cab-pet st-'+(me.title ? 5 : me.level)}, h('span',{class:'grow-em',role:'img','aria-label':me.title ? g.chName+', '+me.title : g.chName+', уровень «'+levelName(me.level)+'»'}, emojiOf(COM.uid))),
       h('div',{class:'cab-who'}, h('div',{class:'eyebrow'},'Личный кабинет'), h('h1',{class:'cab-name'},me.nick),
-        h('div',{class:'hint'}, g.chName,' — ',levelName(me.level),' · с нами с ', dt(me.joined), COM.verified ? h('span',{class:'mail-ok'},' · ✓ почта подтверждена') : null)),
+        me.title ? titleBadge(me) : null,
+        h('div',{class:'hint'}, g.chName, me.title ? '' : ' — '+levelName(me.level),' · с нами с ', dt(me.joined), COM.verified ? h('span',{class:'mail-ok'},' · ✓ почта подтверждена') : null)),
       h('button',{type:'button',class:'btn ghost small cab-logout',onclick:logout},'Выйти'),
-      h('div',{class:'cab-prog'}, growSteps(me, false), ...growBar(me, g)),
+      me.title ? null : h('div',{class:'cab-prog'}, growSteps(me, false), ...growBar(me, g)),
       h('div',{class:'cab-hero-acts'},
-        h('button',{type:'button',class:'btn small grow-cta','aria-expanded':String(GROW_OPEN),'aria-controls':'grow-ways',onclick:()=>{ GROW_OPEN = !GROW_OPEN; refresh(); if (GROW_OPEN) setTimeout(()=>{ const w = document.getElementById('grow-ways'); if (w) w.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50); }}, GROW_OPEN ? 'Свернуть' : '🌱 Растить персонажа'),
-        h('a',{class:'btn ghost small',href:'/kabinet?tab=path#cabinet-tabs'},'🎓 Уровни и достижения'),
+        me.title ? null : h('button',{type:'button',class:'btn small grow-cta','aria-expanded':String(GROW_OPEN),'aria-controls':'grow-ways',onclick:()=>{ GROW_OPEN = !GROW_OPEN; refresh(); if (GROW_OPEN) setTimeout(()=>{ const w = document.getElementById('grow-ways'); if (w) w.scrollIntoView({behavior:'smooth',block:'nearest'}); }, 50); }}, GROW_OPEN ? 'Свернуть' : '🌱 Растить персонажа'),
+        me.title ? null : h('a',{class:'btn ghost small',href:'/kabinet?tab=path#cabinet-tabs'},'🎓 Уровни и достижения'),
         COM.admin ? h('a',{class:'btn ghost small admin-entry',href:'/kabinet?tab='+(pendingListings().length || openReports().length ? 'moder' : 'articles')+'#cabinet-tabs'},'🛠 Управление сайтом', waiting ? h('span',{class:'status',style:'background:var(--sun);color:#2A1C05'},waiting) : null) : null),
-      GROW_OPEN ? growWays() : null].filter(Boolean));
+      GROW_OPEN && !me.title ? growWays() : null].filter(Boolean));
   });
   // not confirmed e-mail: one short line; the details about «Спам» open on demand
   const verify = !COM.verified && COM.email ? h('div',{class:'card cab-verify'},
@@ -4457,7 +4461,7 @@ function cabinetHead(){
     h('details',{class:'cab-verify-more'}, h('summary',null,'Письма нет?'), h('p',{class:'hint spam-hint'},'📬 Загляните в «Спам» и «Промоакции» — и нажмите «Не спам», чтобы следующие письма приходили во «Входящие».'))) : null;
   const nudge = h('div');
   if (!PROFILE.loaded) loadProfile();
-  live(()=>{ nudge.replaceChildren(PROFILE.loaded && !profileDone(PROFILE.rec) ? h('div',{class:'card pf-nudge'},
+  live(()=>{ nudge.replaceChildren(PROFILE.loaded && !profileDone(PROFILE.rec) && !(COM.me && COM.me.title) ? h('div',{class:'card pf-nudge'},
     h('span',{'aria-hidden':'true',style:'font-size:24px'},'📝'),
     h('div',{style:'flex:1;min-width:200px'}, h('b',null,'Заполните профиль — +'+rulePoints('profile_complete',20)+' к росту'), h('div',{class:'hint'},'Возраст, город и ваша эко-цель — пара минут.')),
     h('a',{class:'btn small',href:'/kabinet?tab=profile#cabinet-tabs'},'Заполнить')) : ''); });
@@ -4483,7 +4487,9 @@ function cabinetTabs(tab, tid){
     const row = list => h('div',{class:'tabs',role:'tablist'}, list.map(([k,l])=>{ const b = h('button',{type:'button',role:'tab','aria-selected':String(k===cur),'data-l':l,onclick:()=>{ cur=k; openTid=null; history.replaceState(null,'','/kabinet?tab='+k); paint(true); }},l); tabBtns[k]=b; return b; }));
     const out = [adminMode ? h('div',{class:'admin-bar'}, row(adminTabs)) : row(mineTabs)];
     if (cur==='things') out.push(...thingsPanel(lists));
-    if (cur==='path'){ const gb = h('div'); live(()=>gb.replaceChildren(growthBlock() || '')); out.push(gb, ecoPath(), xpHistory(), inviteCard()); }
+    if (cur==='path' && COM.me && COM.me.title) out.push(h('div',{class:'card grow-detail'}, titleBadge(COM.me),
+      h('p',{class:'muted'},'Особый статус создательницы проекта. Уровни, очки роста и сертификаты — для участников, вам они не нужны: в «Счастливом мире» и на сайте вас видно по этому статусу.')), inviteCard());
+    else if (cur==='path'){ const gb = h('div'); live(()=>gb.replaceChildren(growthBlock() || '')); out.push(gb, ecoPath(), xpHistory(), inviteCard()); }
     if (cur==='challenges') out.push(challengesSection());
     if (cur==='chats'){ if (openTid && COM.threads[openTid]) out.push(...threadView(openTid, ()=>{ openTid=null; paint(true); })); else { lists.chats = h('div',{class:'list'}); out.push(lists.chats); } }
     if (cur==='moder'){ lists.moder = h('div',{class:'list'}); lists.svc = h('div',{class:'list'});
@@ -5864,14 +5870,14 @@ function startListings(){
   setTimeout(maybeElephant, 7000);
   magicWand();
   let myLevel = COM.me ? COM.me.level : 0, myXp = COM.me ? COM.me.xp : 0;
-  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden,friend_until'}, l=>{
+  watch('users',{fields:'id,collectionId,name,created,character,custom_emoji,custom_name,level,level_history,role,leaves,xp,stage,exam_best,game_best,verified,hidden,friend_until,title'}, l=>{
     const m = {}; l.forEach(r=>{ if ((r.role!=='writer' && !r.hidden) || r.id===COM.uid) m[r.id] = memberOf(r); }); // the article helper (and anyone hidden by the admin) is not a dweller
     COM.members = m;
     if (COM.uid && m[COM.uid]){
       COM.me = m[COM.uid];
-      if (COM.me.level > myLevel && myLevel){ toast('Ваш персонаж вырос: новый уровень «'+levelName(COM.me.level)+'»! Сертификат — в кабинете'); }
+      if (COM.me.level > myLevel && myLevel && !COM.me.title){ toast('Ваш персонаж вырос: новый уровень «'+levelName(COM.me.level)+'»! Сертификат — в кабинете'); }
       myLevel = COM.me.level;
-      if (COM.me.xp > myXp && myXp) toast('+'+(COM.me.xp-myXp)+' к росту персонажа');
+      if (COM.me.xp > myXp && myXp && !COM.me.title) toast('+'+(COM.me.xp-myXp)+' к росту персонажа');
       myXp = COM.me.xp;
     }
   });
