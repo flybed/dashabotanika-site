@@ -1854,3 +1854,4 @@ html,body{overflow-x:clip}
 .upd-bar .btn{background:var(--sun);color:#2A1C05;border-color:transparent}
 .upd-x{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:inherit;font-size:15px;cursor:pointer}
 @media (max-width:640px){ .upd-bar{bottom:76px} }
+.draft-saved{align-self:center;font-weight:700}
