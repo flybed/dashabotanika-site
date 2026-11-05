@@ -1908,3 +1908,8 @@ html.sm-lock body{position:fixed;left:0;right:0;width:100%;overflow:hidden}
   .dst .hc-count{grid-column:1/-1;margin:0;font-size:14px}
   .dst .hc-all{grid-column:1/-1;margin-top:0}
 }
+
+/* «Отдать вещь»: the place is found by the phone — a button under «Город / Район» */
+.mk-geo{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:-4px}
+.mk-geo-btn{min-height:44px}
+.mk-geo-msg:empty{display:none}
