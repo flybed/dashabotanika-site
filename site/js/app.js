@@ -3328,8 +3328,27 @@ function thingsPanel(lists){
   const cond = h('input',{id:'mk-cond',maxlength:'60',placeholder:'Например: как новое, есть царапины'});
   const city = h('input',{id:'mk-city',maxlength:'80',placeholder:'Город',value:(PROFILE.rec && PROFILE.rec.city)||'',autocomplete:'address-level2'});
   const mkDistrict = h('input',{id:'mk-district',maxlength:'80',placeholder:'Район или метро',value:(PROFILE.rec && PROFILE.rec.district)||''});
+  // the place fills itself: from the profile, and — when the profile has none — from the phone's location
+  const geoMsg = h('span',{class:'hint mk-geo-msg',role:'status'});
+  const geoBtn = h('button',{type:'button',class:'btn ghost small mk-geo-btn',onclick:()=>findPlace(false)},'📍 Определить автоматически');
+  async function findPlace(quiet){
+    geoBtn.disabled = true; geoMsg.textContent = 'Определяем, где вы…';
+    try{
+      const r = await detectPlace();
+      if (!r.city){ geoMsg.textContent = 'Не получилось определить город — впишите его, пожалуйста.'; return; }
+      city.value = r.city; mkDistrict.value = r.district || '';
+      geoMsg.textContent = '✓ '+[r.city, r.district].filter(Boolean).join(', ')+' — можно поправить вручную';
+    }catch(e){
+      geoMsg.textContent = quiet ? '' : e && e.code === 1 ? 'Нет доступа к местоположению. Разрешите его в настройках браузера или впишите город вручную.'
+        : e && e.message === 'nogeo' ? 'Этот браузер не умеет определять место — впишите город вручную.' : 'Не получилось определить место — впишите город вручную.';
+    }finally{ geoBtn.disabled = false; }
+  }
+  // asks nothing: runs by itself only when the browser already allowed the location for this site
+  const autoPlace = ()=>{ if (city.value.trim()) return;
+    try{ navigator.permissions.query({name:'geolocation'}).then(st=>{ if (st.state === 'granted' && !city.value.trim()) findPlace(true); }, ()=>{}); }catch(e){} };
   // the profile may still be loading: fill in the place when it comes
-  if (!PROFILE.loaded && COM.uid) loadProfile().then(p=>{ if (p){ if (!city.value) city.value = p.city||''; if (!mkDistrict.value) mkDistrict.value = p.district||''; } });
+  if (!PROFILE.loaded && COM.uid) loadProfile().then(p=>{ if (p){ if (!city.value) city.value = p.city||''; if (!mkDistrict.value) mkDistrict.value = p.district||''; } autoPlace(); });
+  else setTimeout(autoPlace);
   const cat = h('select',{id:'mk-cat',required:'','aria-required':'true'}, [h('option',{value:''},'Выберите категорию…')].concat(DAROM_CATS.map(([c,ic])=>h('option',{value:c},ic+' '+c))));
   const pickup = h('input',{id:'mk-pickup',maxlength:'120',placeholder:'Например: м. Чкаловская, будни после 19:00'});
   const lot = h('input',{id:'mk-lot',type:'checkbox'});
@@ -3375,6 +3394,7 @@ function thingsPanel(lists){
     h('label',{for:'mk-cat'}, h('span',null,'Категория',req.cloneNode(true)), cat, h('span',{class:'hint'},'По ней вещь найдут в фильтре и пришлют подписчикам.')),
     h('label',{for:'mk-cond'},'Состояние',cond),
     h('div',{class:'fields mk-place'}, h('label',{for:'mk-city'},'Город',city), h('label',{for:'mk-district'},'Район',mkDistrict)),
+    h('div',{class:'mk-geo'}, geoBtn, geoMsg),
     h('p',{class:'hint',style:'margin:-4px 0 0'},'Точный адрес не нужен и никому не показывается — на карте вещь видна примерно.'),
     more,
     h('div',{class:'mk-send'}, btn, h('span',{class:'hint'}, req.cloneNode(true),' — обязательно, остальное по желанию')));
