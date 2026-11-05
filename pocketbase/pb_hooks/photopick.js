@@ -9,8 +9,11 @@ const WM = () => String($os.getenv("PHOTOPICK_COMMONS") || "https://commons.wiki
 const LICENSES = { cc0: "CC0", pdm: "Public domain", by: "CC BY", "by-sa": "CC BY-SA" }
 
 function staff(app, id) { try { const r = app.findRecordById("users", id).getString("role"); return r === "admin" || r === "moderator" } catch (e) { return false } }
+let LOG = []
 function get(url) {
-  try { const res = $http.send({ url, method: "GET", timeout: 15, headers: { "user-agent": UA } }); return res } catch (e) { return null }
+  const t0 = Date.now()
+  try { const res = $http.send({ url, method: "GET", timeout: 15, headers: { "user-agent": UA } }); LOG.push(url.replace(/\?.*$/, "") + " → " + res.statusCode + " " + (Date.now() - t0) + "ms"); return res }
+  catch (e) { LOG.push(url.replace(/\?.*$/, "") + " → " + String(e).slice(0, 80)); return null }
 }
 const clean = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
 
@@ -62,7 +65,7 @@ function commons(q, page) {
 }
 
 // поиск: сначала Commons (быстро), потом Openverse; если по всем словам мало — укорачиваем запрос по словам
-function search(app, userId, draftId, q, page) {
+function search(app, userId, draftId, q, page, debug) {
   if (!staff(app, userId)) return { ok: false, message: "Только для команды сайта" }
   page = Math.max(1, Math.min(10, page | 0 || 1))
   let topic = String(q || "").trim()
@@ -73,13 +76,15 @@ function search(app, userId, draftId, q, page) {
   for (let n = words.length - 1; n >= 2; n--) tries.push(words.slice(0, n).join(" "))
   const out = [], seen = {}, from = {}, started = Date.now()
   let answered = false
-  const add = (list, name) => { if (!list) return; answered = true; for (const x of list) if (!seen[x.source + x.id]) { seen[x.source + x.id] = 1; out.push(x); from[name] = 1 } }
+  LOG = []
+  // the same picture often comes twice (two uploads, two sizes): one per author and title
+  const add = (list, name) => { if (!list) return; answered = true; for (const x of list) { const k = (x.author + "|" + x.title).toLowerCase(); if (!seen[x.source + x.id] && !seen[k]) { seen[x.source + x.id] = seen[k] = 1; out.push(x); from[name] = 1 } } }
   for (const t of tries) { if (out.length >= 9 || Date.now() - started > 8000) break; add(commons(t, page), "Wikimedia Commons") }
   // Openverse отвечает медленно (до 10 с) и находит только фото, где есть все слова, — спрашиваем его 3 и 2 первыми словами
   const short = words.length <= 2 ? [en] : [...new Set([words.slice(0, 3).join(" "), words.slice(0, 2).join(" ")])]
   for (const t of short) { if (out.length >= 9 || Date.now() - started > 25000) break; add(openverse(t, page), "Openverse") }
-  if (!answered) return { ok: false, query: en, message: "Сервисы фото сейчас не отвечают — попробуйте через минуту" }
-  return { ok: true, query: en, from: Object.keys(from).join(" и ") || "—", items: out.slice(0, 9) }
+  if (!answered) return { ok: false, query: en, message: "Сервисы фото сейчас не отвечают — попробуйте через минуту", log: debug ? LOG : undefined }
+  return { ok: true, query: en, from: Object.keys(from).join(" и ") || "—", items: out.slice(0, 9), log: debug ? LOG : undefined }
 }
 
 // миниатюра через наш сервер: только разрешённые хосты, только картинки, запоминаем последние 120
