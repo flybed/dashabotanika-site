@@ -70,11 +70,16 @@ function openverse(q, page) {
 // Pixabay: бесплатно, в том числе на коммерческом сайте, подпись не обязательна (ставим автора всё равно);
 // фото нужно хранить у себя, а не показывать с их сервера — мы так и делаем (take скачивает к нам)
 const PIXABAY_LICENSE = "https://pixabay.com/service/license-summary/"
+// from the server in Russia the connection to Pixabay (behind Cloudflare) is often reset: after a failure
+// Pixabay is skipped for an hour, so searches do not wait for it; then it is tried again by itself
 function pixabay(q, page) {
   const key = pixabayKey()
   if (!key) return null
+  const store = $app.store()
+  if ((store.get("pixabay_down_until") || 0) > Date.now()) { LOG.push("pixabay: пропущен — не было связи, попробуем снова через час"); return null }
   const res = get(`${PB_API()}/api/?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&image_type=photo&orientation=horizontal&safesearch=true&min_width=900&per_page=20&page=${page}&lang=en`)
-  if (!res || res.statusCode !== 200) return null
+  if (!res) { store.set("pixabay_down_until", Date.now() + 3600000); return null }
+  if (res.statusCode !== 200) return null
   return ((res.json || {}).hits || []).filter((x) => okSize(x.imageWidth, x.imageHeight)).map((x) => ({
     source: "pb", id: String(x.id), title: clean(x.tags) || "Фото", author: clean(x.user) || "автор не указан", license: "Pixabay",
     thumb: thumbVia(String(x.webformatURL || x.previewURL || "")) }))
