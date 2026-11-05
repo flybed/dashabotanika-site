@@ -56,12 +56,16 @@ function commons(q, page) {
     `&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=480`)
   if (!res || res.statusCode !== 200) return null
   const pages = Object.values(((res.json || {}).query || {}).pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0))
-  return pages.map((p) => {
+  const why = {}
+  const list = pages.map((p) => {
     const ii = (p.imageinfo || [])[0] || {}, m = ii.extmetadata || {}, lic = clean((m.LicenseShortName || {}).value)
-    if (!/^(cc0|public domain|cc by(-sa)? \d)/i.test(lic) || !okSize(ii.width, ii.height) || !THUMB_HOSTS.test(ii.thumburl || "")) return null
+    const no = !/^(cc0|public domain|cc by(-sa)? \d)/i.test(lic) ? "licence " + lic : !okSize(ii.width, ii.height) ? "size" : !THUMB_HOSTS.test(ii.thumburl || "") ? "thumb " + String(ii.thumburl || "").slice(0, 60) : ""
+    if (no) { why[no] = (why[no] || 0) + 1; return null }
     return { source: "wm", id: String(p.pageid), title: clean(p.title).replace(/^File:/, "").replace(/\.[a-z]+$/i, ""),
       author: clean((m.Artist || {}).value).slice(0, 80) || "автор не указан", license: lic, thumb: thumbVia(ii.thumburl) }
   }).filter(Boolean)
+  LOG.push("commons «" + q + "»: " + pages.length + " found, " + list.length + " fit; dropped " + JSON.stringify(why).slice(0, 300) + (pages.length ? "" : " · " + toString(res.body).slice(0, 200)))
+  return list
 }
 
 // поиск: сначала Commons (быстро), потом Openverse; если по всем словам мало — укорачиваем запрос по словам
