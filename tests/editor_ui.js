@@ -60,6 +60,15 @@ const code = 'const MD_LINK = /^(https?:\\/\\/|\\/)[^\\s()]+$/;\n' + cut('const 
       const a = e.querySelector('a'); const ev2 = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }); const url = location.href; a.dispatchEvent(ev2);
       return { label: !!e.closest('label'), prevented: ev.defaultPrevented, stayed: location.href === url, field: (e.closest('.md-field') || {}).textContent || '' }; });
     check('a tap in the text is not cancelled, the editor is not in a <label>, a link in the text keeps you on the page', !tap.label && !tap.prevented && tap.stayed && tap.field.startsWith('Текст статьи'));
+    // Safari on iPhone (Dasha's video): a tap focuses the text but puts the cursor at the very end and scrolls down there.
+    // Here a script does the same right after the tap; the editor must put the cursor back under the finger and the page back.
+    await ed.evaluate((e) => { e.addEventListener('click', () => { const r = document.createRange(); r.selectNodeContents(e); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      e.lastElementChild.scrollIntoView({ block: 'end', behavior: 'instant' }); }, { once: true }); });
+    const p0 = ed.locator('p').first(); await p0.scrollIntoViewIfNeeded();
+    const y0 = await q.evaluate(() => scrollY), box0 = await p0.boundingBox();
+    await q.mouse.click(box0.x + 30, box0.y + box0.height / 2); await q.waitForTimeout(700);
+    const back = await q.evaluate((y0) => { const s = getSelection(), n = s.anchorNode, el = n && (n.nodeType === 1 ? n : n.parentElement); return { inFirst: !!el && el.closest('.ve-ed > p') === document.querySelector('.ve-ed > p'), dy: Math.abs(scrollY - y0) }; }, y0);
+    check(`a tap whose cursor the browser throws to the end: the cursor comes back under the finger, the page back in place (Δ ${back.dy}px)`, back.inFirst && back.dy < 80);
     check('draft opens as the article looks: heading, list, tip, bold, link — no ** ## > marks', v.h2 === 1 && v.li === 2 && v.tip === 1 && v.b === 1 && v.a === 1 && !v.marks);
     await ed.locator('p').last().click(); await q.keyboard.press('End'); await q.keyboard.press('Enter'); await q.keyboard.type('Новый раздел');
     await q.getByRole('button', { name: /^Заголовок раздела/ }).click();

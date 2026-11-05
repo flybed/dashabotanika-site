@@ -1578,6 +1578,37 @@ function mdTools(ta){
     const d = document.createElement('div'); d.className = (l.className ? l.className+' ' : '')+'md-field'; d.setAttribute('role','group');
     while (l.firstChild) d.append(l.firstChild); l.replaceWith(d); });
   ed.addEventListener('click', e=>{ const del = e.target.closest('.ve-del'); if (del){ e.preventDefault(); del.parentElement.remove(); sync(); } });
+  // a tap puts the cursor exactly where the finger was, and the page stays where it was. Safari on iPhone sometimes
+  // focuses the text with the cursor at its very end and scrolls down there (Dasha's video): we notice the tap, and if
+  // the cursor did not land under the finger, we put it there ourselves and bring the page back.
+  let tap = null;
+  const caretAt = (x, y) => { if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    if (document.caretPositionFromPoint){ const c = document.caretPositionFromPoint(x, y); if (!c) return null; const r = document.createRange(); r.setStart(c.offsetNode, c.offset); r.collapse(true); return r; } return null; };
+  ed.addEventListener('pointerdown', e=>{ if (e.target.closest('.ve-fixed:not(figcaption)') && !e.target.closest('figcaption')) { tap = null; return; }
+    tap = {x:e.clientX, y:e.clientY, top:window.scrollY, target:e.target, at:Date.now()}; }, {passive:true});
+  const settle = ()=>{
+    const t = tap; tap = null;
+    if (!t || Date.now() - t.at > 1500) return;
+    const sel = getSelection();
+    // a selection made on purpose (a long press, a drag) is left alone
+    if (sel.rangeCount && !sel.isCollapsed) return;
+    const node = sel.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
+    const moved = Math.abs(window.scrollY - t.top) > 80;
+    let typed = false; const stop = ()=>{ typed = true; }; ed.addEventListener('keydown', stop, {once:true, capture:true});
+    const late = ()=>setTimeout(()=>{ ed.removeEventListener('keydown', stop, true); const s2 = getSelection(), n2 = s2.anchorNode, e2 = n2 && (n2.nodeType === 1 ? n2 : n2.parentElement);
+      if (!typed && e2 && t.target.contains(e2) && Math.abs(window.scrollY - t.top) > 400) window.scrollTo({top:t.top, behavior:'instant'}); }, 450);
+    if (el && t.target.contains(el) && !moved){ late(); return; } // the cursor is where the finger was
+    if (moved) window.scrollTo({top:t.top, behavior:'instant'});
+    const y = t.y + (t.top - window.scrollY), r = caretAt(t.x, y);
+    if (r && ed.contains(r.startContainer)){ sel.removeAllRanges(); sel.addRange(r); range = r.cloneRange(); }
+    // the keyboard comes up a moment later and Safari may scroll again: a small shift is fine, a jump far away is not
+    late();
+  };
+  // once a key is pressed the cursor belongs to the person: nothing is moved any more
+  ed.addEventListener('keydown', ()=>{ tap = null; }, true);
+  ed.addEventListener('beforeinput', ()=>{ tap = null; }, true);
+  ed.addEventListener('click', ()=>setTimeout(settle, 0));
+  ed.addEventListener('focus', ()=>setTimeout(()=>{ if (tap) settle(); }, 60));
   try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(e){}
   let last = ta.value;
   const sync = ()=>{ const v = veToMd(ed); if (v !== last){ last = v; ta.value = v; fire(); } if (!ed.firstChild) ed.innerHTML = '<p><br></p>'; paint(); paintState(); };
