@@ -6,13 +6,20 @@
 const UA = "DashaBotanikaBot/1.0 (https://dashabotanika.ru; dashabotanika.site@yandex.com)"
 const OV = () => String($os.getenv("PHOTOPICK_OPENVERSE") || "https://api.openverse.org").replace(/\/+$/, "")
 const WM = () => String($os.getenv("PHOTOPICK_COMMONS") || "https://commons.wikimedia.org").replace(/\/+$/, "")
+const PX = () => String($os.getenv("PHOTOPICK_PEXELS") || "https://api.pexels.com").replace(/\/+$/, "")
+// ключ Pexels: переменная окружения сервера или строка PEXELS_API_KEY в админке (/_/ → settings); пусто — Pexels выключен
+function pexelsKey() {
+  const env = String($os.getenv("PEXELS_API_KEY") || "").trim()
+  if (env) return env
+  try { return String($app.findFirstRecordByData("settings", "key", "PEXELS_API_KEY").getString("value") || "").trim() } catch (e) { return "" }
+}
 const LICENSES = { cc0: "CC0", pdm: "Public domain", by: "CC BY", "by-sa": "CC BY-SA" }
 
 function staff(app, id) { try { const r = app.findRecordById("users", id).getString("role"); return r === "admin" || r === "moderator" } catch (e) { return false } }
 let LOG = []
-function get(url) {
+function get(url, headers) {
   const t0 = Date.now()
-  try { const res = $http.send({ url, method: "GET", timeout: 15, headers: { "user-agent": UA } }); LOG.push(url.replace(/\?.*$/, "") + " → " + res.statusCode + " " + (Date.now() - t0) + "ms"); return res }
+  try { const res = $http.send({ url, method: "GET", timeout: 15, headers: Object.assign({ "user-agent": UA }, headers || {}) }); LOG.push(url.replace(/\?.*$/, "") + " → " + res.statusCode + " " + (Date.now() - t0) + "ms"); return res }
   catch (e) { LOG.push(url.replace(/\?.*$/, "") + " → " + String(e).slice(0, 80)); return null }
 }
 const clean = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
@@ -34,7 +41,7 @@ function englishQuery(app, text) {
 
 // миниатюры показываем через наш сервер (/api/photopick/thumb): у Даши в России сервер Openverse не открывается или
 // грузится минутами, а наш сервер до него достаёт. Пускаем только эти хосты — это не прокси «для всего».
-const THUMB_HOSTS = /^https:\/\/(upload\.wikimedia\.org|thumb\.wikimedia\.org|api\.openverse\.org|live\.staticflickr\.com|farm\d+\.staticflickr\.com)\//
+const THUMB_HOSTS = /^https:\/\/(images\.pexels\.com|upload\.wikimedia\.org|thumb\.wikimedia\.org|api\.openverse\.org|live\.staticflickr\.com|farm\d+\.staticflickr\.com)\//
 const thumbVia = (u, fallback) => "/api/photopick/thumb?u=" + encodeURIComponent(u) + (fallback ? "&f=" + encodeURIComponent(fallback) : "")
 const okSize = (w, h) => (w || 0) >= 800 && (w || 0) >= (h || 0) * 0.9 // горизонтальные и квадратные, от 800 px
 
@@ -49,6 +56,18 @@ function openverse(q, page) {
       license: (LICENSES[x.license] || ("CC " + String(x.license || "").toUpperCase())) + (x.license_version && x.license !== "pdm" ? " " + x.license_version : ""),
       thumb: flickr ? thumbVia(flickr, own) : thumbVia(own) }
   })
+}
+// Pexels: качественные современные фото (еда, дом, природа); лицензия Pexels — можно на сайте бесплатно,
+// подпись автора желательна (ставим её, как и для остальных). Нужен ключ; без него не спрашиваем.
+const PEXELS_LICENSE = "https://www.pexels.com/license/"
+function pexels(q, page) {
+  const key = pexelsKey()
+  if (!key) return null
+  const res = get(`${PX()}/v1/search?query=${encodeURIComponent(q)}&per_page=15&page=${page}&orientation=landscape`, { authorization: key })
+  if (!res || res.statusCode !== 200) return null
+  return ((res.json || {}).photos || []).filter((x) => okSize(x.width, x.height)).map((x) => ({
+    source: "px", id: String(x.id), title: clean(x.alt) || "Фото", author: clean(x.photographer) || "автор не указан", license: "Pexels",
+    thumb: thumbVia(String((x.src || {}).medium || "")) }))
 }
 // Wikimedia Commons: отвечает за секунду, ищет и по описаниям и категориям
 function commons(q, page) {
@@ -83,6 +102,8 @@ function search(app, userId, draftId, q, page, debug) {
   LOG = []
   // the same picture often comes twice (two uploads, two sizes): one per author and title
   const add = (list, name) => { if (!list) return; answered = true; for (const x of list) { const k = (x.author + "|" + x.title).toLowerCase(); if (!seen[x.source + x.id] && !seen[k]) { seen[x.source + x.id] = seen[k] = 1; out.push(x); from[name] = 1 } } }
+  // Pexels — первым, если подключён (лучшие фото для еды и быта); он ищет по смыслу, длинный запрос ему не мешает
+  if (pexelsKey()) for (const t of [en, words.slice(0, 3).join(" ")].filter((x, i, a) => x && a.indexOf(x) === i)) { if (out.length >= 9) break; add(pexels(t, page), "Pexels") }
   for (const t of tries) { if (out.length >= 9 || Date.now() - started > 8000) break; add(commons(t, page), "Wikimedia Commons") }
   // Openverse отвечает медленно (до 10 с) и находит только фото, где есть все слова, — спрашиваем его 3 и 2 первыми словами
   const short = words.length <= 2 ? [en] : [...new Set([words.slice(0, 3).join(" "), words.slice(0, 2).join(" ")])]
@@ -95,7 +116,7 @@ function search(app, userId, draftId, q, page, debug) {
 function thumb(app, u, f) {
   const store = app.store(), cache = store.get("photopick_thumbs") || { keys: [], map: {} }
   for (const url of [u, f]) {
-    if (!url || !THUMB_HOSTS.test(url) && url.indexOf(OV() + "/") !== 0) continue
+    if (!url || !THUMB_HOSTS.test(url) && ![OV(), WM(), PX()].some((b) => url.indexOf(b + "/") === 0)) continue
     if (cache.map[url]) return cache.map[url]
     const res = get(url)
     const type = res && res.headers ? String(((res.headers["Content-Type"] || res.headers["content-type"] || [])[0]) || "") : ""
@@ -123,6 +144,13 @@ function resolve(it) {
     tries.push(`${OV()}/v1/images/${x.id}/thumb/?full_size=true`)
     return { tries, credit: { author: clean(x.creator) || "автор не указан", authorUrl: x.creator_url || "", page: x.foreign_landing_url || "",
       license: lic + (x.license_version && x.license !== "pdm" ? " " + x.license_version : ""), licenseUrl: x.license_url || "" } }
+  }
+  if (it.source === "px" && /^\d+$/.test(it.id) && pexelsKey()) {
+    const res = get(`${PX()}/v1/photos/${it.id}`, { authorization: pexelsKey() })
+    const x = res && res.statusCode === 200 ? res.json : null
+    if (!x || !x.src) return null
+    return { tries: [x.src.large2x, x.src.large, x.src.original].filter(Boolean),
+      credit: { author: clean(x.photographer) || "автор не указан", authorUrl: x.photographer_url || "", page: x.url || "", license: "Pexels", licenseUrl: PEXELS_LICENSE } }
   }
   if (it.source === "wm" && /^\d+$/.test(it.id)) {
     const res = get(`${WM()}/w/api.php?action=query&format=json&pageids=${it.id}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600`)

@@ -1,7 +1,8 @@
 // Черновики статей: «✨ Подобрать другое фото» — варианты свободных фото по теме, нажатие ставит фото на обложку,
 // сайт сам скачивает его к себе и переписывает строку «Фото на обложке: автор, лицензия». Только для команды сайта.
 // Openverse и Wikimedia Commons подменены маленьким сервером здесь же (порт 8097): PocketBase нужно запустить с
-// PHOTOPICK_OPENVERSE=http://127.0.0.1:8097 PHOTOPICK_COMMONS=http://127.0.0.1:8097.
+// PHOTOPICK_OPENVERSE=http://127.0.0.1:8097 PHOTOPICK_COMMONS=http://127.0.0.1:8097 (и для проверки Pexels — ещё
+// PHOTOPICK_PEXELS=http://127.0.0.1:8097 PEXELS_API_KEY=test-key, а тест запустить с PEXELS_TEST=1).
 //   BASE=http://localhost:8088 SU_EMAIL=... SU_PASS=... node tests/photopick_ui.js
 const { chromium, devices } = require('playwright');
 const http = require('http'), zlib = require('zlib');
@@ -21,11 +22,18 @@ const IDS = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-22
 const OV = 'http://127.0.0.1:8097';
 const item = (id, i) => ({ id, title: 'Reusable cup ' + i, creator: 'Автор ' + i, creator_url: 'https://www.flickr.com/people/a' + i, foreign_landing_url: 'https://www.flickr.com/photos/a' + i + '/1(2)',
   license: i === 1 ? 'by' : 'by-sa', license_version: '2.0', license_url: 'https://creativecommons.org/licenses/by/2.0/', width: 1600, height: 1000, provider: 'flickr', url: 'http://example.invalid/x.jpg', thumbnail: OV + '/v1/images/' + id + '/thumb/' });
-let searched = [], commonsAsked = 0;
+let searched = [], commonsAsked = 0, pexelsAsked = [];
 const mock = http.createServer((req, res) => {
   const u = new URL(req.url, OV);
   // like the real one: a query of many words finds nothing, two words find photos
   if (u.pathname === '/v1/images/') { const q = u.searchParams.get('q'); searched.push(q); res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ results: q.split(' ').length > 2 ? [] : IDS.map((id, i) => item(id, i + 1)) })); }
+  // Pexels: the key must come in the Authorization header
+  if (u.pathname === '/v1/search') { pexelsAsked.push(req.headers.authorization || ''); res.setHeader('content-type', 'application/json');
+    if (req.headers.authorization !== 'test-key') { res.statusCode = 401; return res.end('{}'); }
+    return res.end(JSON.stringify({ photos: [7, 8].map((n) => ({ id: n, width: 4000, height: 2600, alt: 'Frozen berries ' + n, photographer: 'Фотограф ' + n, photographer_url: 'https://www.pexels.com/@ph' + n, url: 'https://www.pexels.com/photo/' + n + '/', src: { medium: OV + '/px/' + n + '.png' } })) })); }
+  const px = u.pathname.match(/^\/v1\/photos\/(\d+)$/);
+  if (px) { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ id: +px[1], photographer: 'Фотограф ' + px[1], photographer_url: 'https://www.pexels.com/@ph' + px[1], url: 'https://www.pexels.com/photo/' + px[1] + '/', src: { large2x: OV + '/px/big' + px[1] + '.png' } })); }
+  if (/^\/px\//.test(u.pathname)) { res.setHeader('content-type', 'image/png'); return res.end(png(/big/.test(u.pathname) ? 320 : 160, /big/.test(u.pathname) ? 200 : 100, [200, 60, 90])); }
   if (u.pathname === '/w/api.php') { commonsAsked++; res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ query: { pages: {} } })); }
   const m = u.pathname.match(/^\/v1\/images\/([0-9a-f-]{36})\/(thumb\/)?$/);
   if (m && m[2]) { res.setHeader('content-type', 'image/png'); return res.end(png(m[1] === IDS[1] ? 320 : 160, m[1] === IDS[1] ? 200 : 100, [IDS.indexOf(m[1]) * 80, 120, 60])); }
@@ -74,6 +82,16 @@ const mock = http.createServer((req, res) => {
     check('one\'s own words are searched («coffee cup»)', searched[searched.length - 1] === 'coffee cup');
     await p.fill('.pp-head input', 'berry puree ice tray'); await p.click('.pp-head button[type=submit]'); await p.waitForSelector('.pp-item'); await p.waitForTimeout(500);
     check('a long query that finds nothing is shortened by words until photos are found', searched.includes('berry puree') && commonsAsked >= 3 && (await p.locator('.pp-item').count()) === 3);
+    // Pexels (when the site has its key): asked first, previews load through the site, a photo is taken with «Pexels» in the credit line
+    if (process.env.PEXELS_TEST) {
+      const at = (await api('POST', '/collections/users/auth-with-password', { identity: 'pp-admin@test.local', password: 'Passw0rd123' })).token;
+      const r = await (await fetch(B + '/api/photopick/search?q=frozen%20berries', { headers: { authorization: at } })).json();
+      const th = r.items && r.items[0] ? await fetch(B + r.items[0].thumb) : { status: 0 };
+      check(`Pexels first, with the key in the header (${r.from}): ${(r.items || []).slice(0, 2).map((i) => i.author + ' · ' + i.license).join(' | ')}; preview ${th.status}`,
+        r.ok && /^Pexels/.test(r.from) && r.items[0].source === 'px' && r.items[0].license === 'Pexels' && pexelsAsked[0] === 'test-key' && th.status === 200);
+      const tk = await (await fetch(B + '/api/photopick/take', { method: 'POST', headers: { authorization: at, 'content-type': 'application/json' }, body: JSON.stringify({ source: 'px', id: '7' }) })).json();
+      check('a Pexels photo is taken to the site with «Pexels» and the photographer in the credit', tk.ok && /^\/api\/files\/photos\//.test(tk.url) && tk.credit.license === 'Pexels' && tk.credit.author === 'Фотограф 7' && /pexels\.com\/license/.test(tk.credit.licenseUrl));
+    }
     check('no script errors', !errs.length);
     await c.close();
   } finally {

@@ -5022,7 +5022,8 @@ function paintDrafts(el){
           picker.hidden = true; paintCover();
           toast('Обложка заменена. Опишите новое фото в поле «Что на картинке»'); alt.focus(); }},
           h('img',{src:it.thumb,alt:'',loading:'lazy'}), h('span',{class:'pp-cap'}, it.author+' · '+it.license)))),
-        h('div',{class:'pp-foot'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>photoPick(false)},'Ещё варианты'), h('span',{class:'hint'},'Источник: '+r.from)));
+        h('div',{class:'pp-foot'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>photoPick(false)},'Ещё варианты'), h('span',{class:'hint'},'Источник: '+r.from),
+          /Pexels/.test(r.from||'') ? h('a',{class:'hint',href:'https://www.pexels.com',target:'_blank',rel:'noopener'},'Фото предоставлены Pexels') : null));
     }
     paintCover();
     const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value, image, image_alt:alt.value.trim(), answer:answer.value.trim()});
