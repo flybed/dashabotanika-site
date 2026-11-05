@@ -34,7 +34,7 @@ function englishQuery(app, text) {
 
 // миниатюры показываем через наш сервер (/api/photopick/thumb): у Даши в России сервер Openverse не открывается или
 // грузится минутами, а наш сервер до него достаёт. Пускаем только эти хосты — это не прокси «для всего».
-const THUMB_HOSTS = /^https:\/\/(upload\.wikimedia\.org|api\.openverse\.org|live\.staticflickr\.com|farm\d+\.staticflickr\.com)\//
+const THUMB_HOSTS = /^https:\/\/(upload\.wikimedia\.org|thumb\.wikimedia\.org|api\.openverse\.org|live\.staticflickr\.com|farm\d+\.staticflickr\.com)\//
 const thumbVia = (u, fallback) => "/api/photopick/thumb?u=" + encodeURIComponent(u) + (fallback ? "&f=" + encodeURIComponent(fallback) : "")
 const okSize = (w, h) => (w || 0) >= 800 && (w || 0) >= (h || 0) * 0.9 // горизонтальные и квадратные, от 800 px
 
