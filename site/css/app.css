@@ -1307,7 +1307,7 @@ details.fold[open] > summary{margin-bottom:12px}
 
 /* safety net: a stray decoration a couple of pixels wider than a narrow phone must not give the page a sideways scroll (clip, unlike hidden, keeps the sticky header working) */
 html,body{overflow-x:clip}
-.draft-cover{display:grid;gap:8px}
+.draft-cover{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
 .draft-cover img{width:100%;max-width:420px;aspect-ratio:1200/630;object-fit:cover;border-radius:12px;display:block}
 @media (max-width:520px){.people-filters>label,.pf-field{flex-basis:100%}}
 .art-answer{margin:18px 0 6px;padding:16px 18px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--moss)}
@@ -1913,3 +1913,18 @@ html.sm-lock body{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .mk-geo{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:-4px}
 .mk-geo-btn{min-height:44px}
 .mk-geo-msg:empty{display:none}
+
+/* drafts: «✨ Подобрать другое фото» — free photos on the topic, a tap puts one on the cover */
+.pp{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;min-width:0;margin-top:10px;padding:12px;border:1.5px dashed var(--line);border-radius:14px;background:var(--paper)}
+.pp[hidden]{display:none}
+.pp-head{display:flex;gap:8px;align-items:center}
+.pp-head input{flex:1;min-width:0;width:auto}
+.pp-head .btn{flex:none}
+.pp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:640px){.pp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pp-item{display:grid;gap:4px;padding:4px;border:2px solid transparent;border-radius:12px;background:var(--surface);cursor:pointer;font:inherit;text-align:left;color:var(--ink)}
+.pp-item:hover,.pp-item.on{border-color:var(--moss)}
+.pp-item:disabled{opacity:.6;cursor:wait}
+.pp-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:block;background:var(--soft)}
+.pp-cap{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap}

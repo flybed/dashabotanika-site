@@ -1665,6 +1665,7 @@ function mdTools(ta){
       rawBtn));
   // typing in the marks keeps the preview fresh too
   ta.addEventListener('input', ()=>{ if (!ta.hidden) paint(); });
+  ta.addEventListener('ve:reload', ()=>{ ed.innerHTML = veFromMd(ta.value); last = ta.value; paint(); });
   return h('div',{class:'md-tools'}, bar, help, ed, preview);
 }
 
@@ -4911,6 +4912,17 @@ function cabinetTabs(tab, tid){
 /* ---------- article drafts: read, fix, publish ---------- */
 const newDrafts = () => (COM.drafts||[]).filter(d=>!d.status);
 const DRAFT_OPEN = {};
+// a new cover's author and licence go into the article's last line (the licences require it); the in-text part stays
+function coverCredit(body, c){
+  const u = x => String(x||'').replace(/\(/g,'%28').replace(/\)/g,'%29');
+  const who = String(c.author||'автор не указан').replace(/[\[\]]/g,'');
+  const line = 'Фото на обложке: '+(c.authorUrl || c.page ? '['+who+']('+u(c.authorUrl || c.page)+')' : who)+', '+(c.licenseUrl ? '['+c.license+']('+u(c.licenseUrl)+')' : c.license)+'.';
+  const lines = String(body||'').split('\n'), i = lines.findIndex(l=>/^Фото на обложке:/.test(l.trim()));
+  if (i < 0) return String(body||'').replace(/\s+$/,'')+'\n\n'+line;
+  const tail = lines[i].indexOf('Фото в тексте:');
+  lines[i] = line + (tail >= 0 ? ' '+lines[i].slice(tail) : '');
+  return lines.join('\n');
+}
 // an open draft keeps its very own editor while the list repaints on realtime updates (someone came online,
 // a like, a message): the cursor, the scroll and unsaved edits stay; only «Свернуть» or publishing rebuilds it
 const DRAFT_BOX = {};
@@ -4944,8 +4956,38 @@ function paintDrafts(el){
     const paintCover = () => { cover.replaceChildren(...[image ? photoImg(image, alt.value||d.title, '') : h('p',{class:'hint'},'Картинки пока нет.'),
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
         EDIT.can ? h('button',{type:'button',class:'btn ghost small',onclick:()=>pickAndUpload(nid=>{ image = nid; paintCover(); }, true)}, image ? 'Заменить картинку' : 'Загрузить картинку') : null,
-        image ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ image = ''; paintCover(); }},'Убрать') : null)].filter(Boolean));
+        image ? h('button',{type:'button',class:'btn ghost small',onclick:()=>{ image = ''; paintCover(); }},'Убрать') : null,
+        EDIT.can ? h('button',{type:'button',class:'btn ghost small',onclick:()=>photoPick(true)},'✨ Подобрать другое фото') : null)].filter(Boolean), picker);
       cover.dispatchEvent(new Event('input',{bubbles:true})); };
+    // «✨ Подобрать другое фото»: free photos on the article's topic (the site searches Openverse / Wikimedia and writes the credit line)
+    const picker = h('div',{class:'pp',hidden:true});
+    let ppQ = '', ppPage = 1;
+    async function photoPick(fresh, q){
+      if (fresh){ ppPage = 1; if (q === undefined) q = ppQ; } else ppPage++;
+      picker.hidden = false;
+      const qIn = h('input',{type:'search',value:q||ppQ,placeholder:'Что должно быть на фото',maxlength:'120','aria-label':'Что должно быть на фото'});
+      const head = h('form',{class:'pp-head',onsubmit:e=>{ e.preventDefault(); ppQ = qIn.value.trim(); photoPick(true, ppQ); }}, qIn, h('button',{type:'submit',class:'btn ghost small'},'Найти'),
+        h('button',{type:'button',class:'btn ghost small','aria-label':'Закрыть подбор фото',onclick:()=>{ picker.hidden = true; }},'✕'));
+      picker.replaceChildren(head, h('p',{class:'hint'},'Ищу свободные фото по теме статьи…'));
+      let r;
+      try{ r = await fetch('/api/photopick/search?draft='+encodeURIComponent(d.id)+'&q='+encodeURIComponent(q||ppQ||'')+'&page='+ppPage, {headers:{Authorization:pb.authStore.token}}).then(x=>x.json()); }
+      catch(e){ r = {ok:false, message:'Нет связи с сайтом — попробуйте ещё раз'}; }
+      if (r.query && !qIn.value) qIn.value = r.query;
+      if (!r.ok || !(r.items||[]).length){ picker.replaceChildren(head, h('p',{class:'hint'}, r.message || 'Ничего не нашлось — попробуйте другие слова (лучше по-английски, например: coffee cup)')); return; }
+      const msg = h('p',{class:'hint',role:'status'},'Нажмите на фото, чтобы поставить его на обложку. Все фото со свободной лицензией, автор подпишется сам.');
+      picker.replaceChildren(head, msg,
+        h('div',{class:'pp-grid'}, r.items.map(it=>h('button',{type:'button',class:'pp-item',title:it.title,onclick:async e=>{
+          const b = e.currentTarget; picker.querySelectorAll('.pp-item').forEach(x=>x.disabled = true); b.classList.add('on'); msg.textContent = 'Загружаю фото на сайт…';
+          let t; try{ t = await fetch('/api/photopick/take',{method:'POST',headers:{'content-type':'application/json',Authorization:pb.authStore.token},body:JSON.stringify({source:it.source,id:it.id})}).then(x=>x.json()); }
+          catch(err){ t = {ok:false, message:'Нет связи с сайтом — попробуйте ещё раз'}; }
+          if (!t.ok){ msg.textContent = t.message || 'Не получилось — выберите другое фото'; picker.querySelectorAll('.pp-item').forEach(x=>x.disabled = false); b.classList.remove('on'); return; }
+          image = t.url; alt.value = '';
+          f.body.value = coverCredit(f.body.value, t.credit); f.body.dispatchEvent(new Event('ve:reload'));
+          picker.hidden = true; paintCover();
+          toast('Обложка заменена. Опишите новое фото в поле «Что на картинке»'); alt.focus(); }},
+          h('img',{src:it.thumb,alt:'',loading:'lazy'}), h('span',{class:'pp-cap'}, it.author+' · '+it.license)))),
+        h('div',{class:'pp-foot'}, h('button',{type:'button',class:'btn ghost small',onclick:()=>photoPick(false)},'Ещё варианты'), h('span',{class:'hint'},'Источник: '+r.from)));
+    }
     paintCover();
     const vals = () => ({title:f.title.value.trim(), lead:f.lead.value.trim(), body:f.body.value.trim(), cat:f.cat.value, image, image_alt:alt.value.trim(), answer:answer.value.trim()});
     // every change is saved by itself a couple of seconds later: nothing is lost if Dasha looks away or closes the page
