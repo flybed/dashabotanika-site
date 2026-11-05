@@ -1928,3 +1928,8 @@ html.sm-lock body{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .pp-item img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:block;background:var(--soft)}
 .pp-cap{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pp-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* the article text field: a block with the same look as the other fields' labels (not a <label> — see mdTools) */
+.form .md-field{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--muted)}
+.art-editor .md-field{gap:6px;font-weight:700;font-size:14px}
+.md-field .ve-ed,.md-field .md-tools{color:var(--ink)}

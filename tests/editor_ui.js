@@ -54,6 +54,12 @@ const code = 'const MD_LINK = /^(https?:\\/\\/|\\/)[^\\s()]+$/;\n' + cut('const 
     await q.locator('.draft', { hasText: 'Автотест редактора' }).getByText('Читать и править').click();
     const ed = q.locator('.ve-ed'); await ed.waitFor();
     const v = await ed.evaluate((e) => ({ h2: e.querySelectorAll('h2').length, li: e.querySelectorAll('li').length, tip: e.querySelectorAll('.art-tip').length, b: e.querySelectorAll('strong').length, a: e.querySelectorAll('a').length, marks: /\*\*|##|^>|\]\(/m.test(e.innerText) }));
+    // a tap in the text is left to the browser: the editor is not inside a <label> and the tap is not cancelled
+    // (cancelling it made Safari on iPhone put the cursor at the end and scroll down); a link in the text does not leave the page
+    const tap = await ed.evaluate((e) => { const p = e.querySelector('p'); const ev = new MouseEvent('click', { bubbles: true, cancelable: true }); p.dispatchEvent(ev);
+      const a = e.querySelector('a'); const ev2 = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }); const url = location.href; a.dispatchEvent(ev2);
+      return { label: !!e.closest('label'), prevented: ev.defaultPrevented, stayed: location.href === url, field: (e.closest('.md-field') || {}).textContent || '' }; });
+    check('a tap in the text is not cancelled, the editor is not in a <label>, a link in the text keeps you on the page', !tap.label && !tap.prevented && tap.stayed && tap.field.startsWith('Текст статьи'));
     check('draft opens as the article looks: heading, list, tip, bold, link — no ** ## > marks', v.h2 === 1 && v.li === 2 && v.tip === 1 && v.b === 1 && v.a === 1 && !v.marks);
     await ed.locator('p').last().click(); await q.keyboard.press('End'); await q.keyboard.press('Enter'); await q.keyboard.type('Новый раздел');
     await q.getByRole('button', { name: /^Заголовок раздела/ }).click();

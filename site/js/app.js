@@ -1571,8 +1571,13 @@ function mdTools(ta){
   const ed = h('div',{class:'art-body ve-ed',contenteditable:'true',role:'textbox','aria-multiline':'true','aria-label':'Текст статьи',spellcheck:'true'});
   ed.innerHTML = veFromMd(ta.value);
   ta.hidden = true;
-  // the editor sits inside a <label>: a click must not send the focus to the hidden marks
-  ed.addEventListener('click', e=>{ e.preventDefault(); const del = e.target.closest('.ve-del'); if (del){ del.parentElement.remove(); sync(); } });
+  // the editor must not live inside a <label>: a tap there belongs to the label's (hidden) field, and stopping it
+  // (as it was done before) made Safari on iPhone put the cursor at the end of the text and scroll down there.
+  // So the label around the text becomes an ordinary block, with the same look.
+  queueMicrotask(()=>{ const l = ta.closest('label'); if (!l) return;
+    const d = document.createElement('div'); d.className = (l.className ? l.className+' ' : '')+'md-field'; d.setAttribute('role','group');
+    while (l.firstChild) d.append(l.firstChild); l.replaceWith(d); });
+  ed.addEventListener('click', e=>{ const del = e.target.closest('.ve-del'); if (del){ e.preventDefault(); del.parentElement.remove(); sync(); } });
   try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(e){}
   let last = ta.value;
   const sync = ()=>{ const v = veToMd(ed); if (v !== last){ last = v; ta.value = v; fire(); } if (!ed.firstChild) ed.innerHTML = '<p><br></p>'; paint(); paintState(); };
@@ -2253,7 +2258,7 @@ function goTo(id){ go('/#'+id); }
 document.addEventListener('click', e=>{
   if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   const a = e.target.closest && e.target.closest('a[href]');
-  if (!a || a.target) return;
+  if (!a || a.target || a.closest('[contenteditable="true"]')) return;
   const href = a.getAttribute('href');
   if (!href.startsWith('/') || href.startsWith('//') || /^\/(api|_|img|css|js)\//.test(href)) return;
   e.preventDefault(); go(href);
