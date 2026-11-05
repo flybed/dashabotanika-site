@@ -29,30 +29,39 @@ function englishQuery(app, text) {
   return q
 }
 
-// Openverse: свободные лицензии, горизонтальные, не меньше 900 px в ширину
+// миниатюры показываем через наш сервер (/api/photopick/thumb): у Даши в России сервер Openverse не открывается или
+// грузится минутами, а наш сервер до него достаёт. Пускаем только эти хосты — это не прокси «для всего».
+const THUMB_HOSTS = /^https:\/\/(upload\.wikimedia\.org|api\.openverse\.org|live\.staticflickr\.com|farm\d+\.staticflickr\.com)\//
+const thumbVia = (u, fallback) => "/api/photopick/thumb?u=" + encodeURIComponent(u) + (fallback ? "&f=" + encodeURIComponent(fallback) : "")
+const okSize = (w, h) => (w || 0) >= 800 && (w || 0) >= (h || 0) * 0.9 // горизонтальные и квадратные, от 800 px
+
+// Openverse: свободные лицензии; у Flickr — его собственная маленькая копия (быстрее, чем у Openverse)
 function openverse(q, page) {
-  const res = get(`${OV()}/v1/images/?q=${encodeURIComponent(q)}&license=cc0,pdm,by,by-sa&page_size=20&page=${page}&mature=false&aspect_ratio=wide`)
+  const res = get(`${OV()}/v1/images/?q=${encodeURIComponent(q)}&license=cc0,pdm,by,by-sa&page_size=20&page=${page}&mature=false`)
   if (!res || res.statusCode !== 200) return null
-  return ((res.json || {}).results || []).filter((x) => (x.width || 0) >= 900).map((x) => ({
-    source: "ov", id: x.id, title: clean(x.title), author: clean(x.creator) || "автор не указан", authorUrl: x.creator_url || "",
-    page: x.foreign_landing_url || "", license: (LICENSES[x.license] || ("CC " + String(x.license || "").toUpperCase())) + (x.license_version && x.license !== "pdm" ? " " + x.license_version : ""),
-    licenseUrl: x.license_url || "", thumb: x.thumbnail || `${OV()}/v1/images/${x.id}/thumb/`, url: x.url, provider: x.provider || "", width: x.width,
-  }))
+  return ((res.json || {}).results || []).filter((x) => okSize(x.width, x.height)).map((x) => {
+    const own = `${OV()}/v1/images/${x.id}/thumb/`
+    const flickr = /^https:\/\/(live|farm\d+)\.staticflickr\.com\/.+_[a-z]\.jpg$/.test(x.url || "") ? x.url.replace(/_[a-z]\.jpg$/, "_n.jpg") : ""
+    return { source: "ov", id: x.id, title: clean(x.title), author: clean(x.creator) || "автор не указан",
+      license: (LICENSES[x.license] || ("CC " + String(x.license || "").toUpperCase())) + (x.license_version && x.license !== "pdm" ? " " + x.license_version : ""),
+      thumb: flickr ? thumbVia(flickr, own) : thumbVia(own) }
+  })
 }
-// Wikimedia Commons: запасной путь, если Openverse молчит
+// Wikimedia Commons: отвечает за секунду, ищет и по описаниям и категориям
 function commons(q, page) {
-  const res = get(`${WM()}/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=20&gsroffset=${(page - 1) * 20}` +
-    `&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1600`)
+  const res = get(`${WM()}/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=30&gsroffset=${(page - 1) * 30}` +
+    `&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=480`)
   if (!res || res.statusCode !== 200) return null
-  const pages = Object.values(((res.json || {}).query || {}).pages || {})
+  const pages = Object.values(((res.json || {}).query || {}).pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0))
   return pages.map((p) => {
     const ii = (p.imageinfo || [])[0] || {}, m = ii.extmetadata || {}, lic = clean((m.LicenseShortName || {}).value)
-    if (!/^(cc0|public domain|cc by(-sa)? \d)/i.test(lic) || (ii.width || 0) < 900 || ii.width < ii.height) return null
-    return { source: "wm", id: String(p.pageid), title: clean(p.title).replace(/^File:/, "").replace(/\.[a-z]+$/i, ""), author: clean((m.Artist || {}).value).slice(0, 80) || "автор не указан",
-      authorUrl: "", page: ii.descriptionurl || "", license: lic, licenseUrl: clean((m.LicenseUrl || {}).value), thumb: ii.thumburl ? ii.thumburl.replace(/\/\d+px-/, "/480px-") : ii.url, url: ii.thumburl || ii.url, width: ii.width }
+    if (!/^(cc0|public domain|cc by(-sa)? \d)/i.test(lic) || !okSize(ii.width, ii.height) || !THUMB_HOSTS.test(ii.thumburl || "")) return null
+    return { source: "wm", id: String(p.pageid), title: clean(p.title).replace(/^File:/, "").replace(/\.[a-z]+$/i, ""),
+      author: clean((m.Artist || {}).value).slice(0, 80) || "автор не указан", license: lic, thumb: thumbVia(ii.thumburl) }
   }).filter(Boolean)
 }
 
+// поиск: сначала Commons (быстро), потом Openverse; если по всем словам мало — укорачиваем запрос по словам
 function search(app, userId, draftId, q, page) {
   if (!staff(app, userId)) return { ok: false, message: "Только для команды сайта" }
   page = Math.max(1, Math.min(10, page | 0 || 1))
@@ -60,10 +69,36 @@ function search(app, userId, draftId, q, page) {
   if (!topic && draftId) try { const d = app.findRecordById("drafts", draftId); topic = d.getString("title") } catch (e) {}
   if (!topic) return { ok: false, message: "Напишите, что должно быть на фото" }
   const en = englishQuery(app, topic) || topic
-  let list = openverse(en, page), from = "Openverse"
-  if (!list || !list.length) { const w = commons(en, page); if (w && w.length) { list = w; from = "Wikimedia Commons" } }
-  if (!list) return { ok: false, query: en, message: "Сервис фото сейчас не отвечает — попробуйте через минуту" }
-  return { ok: true, query: en, from, items: list.slice(0, 9) }
+  const words = en.split(/\s+/).filter(Boolean), tries = [en]
+  for (let n = words.length - 1; n >= 2; n--) tries.push(words.slice(0, n).join(" "))
+  const out = [], seen = {}, from = {}, started = Date.now()
+  let answered = false
+  const add = (list, name) => { if (!list) return; answered = true; for (const x of list) if (!seen[x.source + x.id]) { seen[x.source + x.id] = 1; out.push(x); from[name] = 1 } }
+  for (const t of tries) { if (out.length >= 9 || Date.now() - started > 8000) break; add(commons(t, page), "Wikimedia Commons") }
+  // Openverse отвечает медленно (до 10 с) и находит только фото, где есть все слова, — спрашиваем его 3 и 2 первыми словами
+  const short = words.length <= 2 ? [en] : [...new Set([words.slice(0, 3).join(" "), words.slice(0, 2).join(" ")])]
+  for (const t of short) { if (out.length >= 9 || Date.now() - started > 25000) break; add(openverse(t, page), "Openverse") }
+  if (!answered) return { ok: false, query: en, message: "Сервисы фото сейчас не отвечают — попробуйте через минуту" }
+  return { ok: true, query: en, from: Object.keys(from).join(" и ") || "—", items: out.slice(0, 9) }
+}
+
+// миниатюра через наш сервер: только разрешённые хосты, только картинки, запоминаем последние 120
+function thumb(app, u, f) {
+  const store = app.store(), cache = store.get("photopick_thumbs") || { keys: [], map: {} }
+  for (const url of [u, f]) {
+    if (!url || !THUMB_HOSTS.test(url) && url.indexOf(OV() + "/") !== 0) continue
+    if (cache.map[url]) return cache.map[url]
+    const res = get(url)
+    const type = res && res.headers ? String(((res.headers["Content-Type"] || res.headers["content-type"] || [])[0]) || "") : ""
+    if (res && res.statusCode === 200 && res.body && res.body.length > 500 && res.body.length < 3000000 && /^image\//.test(type || "image/jpeg")) {
+      const hit = { type: type || "image/jpeg", body: res.body }
+      cache.map[url] = hit; cache.keys.push(url)
+      while (cache.keys.length > 120) delete cache.map[cache.keys.shift()]
+      store.set("photopick_thumbs", cache)
+      return hit
+    }
+  }
+  return null
 }
 
 // скачать выбранное к себе: адрес файла берём у самого сервиса по номеру фото (не из браузера), большая копия до 1600 px
@@ -106,4 +141,4 @@ function take(app, userId, item) {
   return { ok: true, url: `/api/files/photos/${rec.id}/${rec.getString("file")}`, credit: r.credit }
 }
 
-module.exports = { search, take }
+module.exports = { search, take, thumb }

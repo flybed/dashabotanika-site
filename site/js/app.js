@@ -4973,7 +4973,7 @@ function paintDrafts(el){
       const qIn = h('input',{type:'search',value:q||ppQ,placeholder:'Что должно быть на фото',maxlength:'120','aria-label':'Что должно быть на фото'});
       const head = h('form',{class:'pp-head',onsubmit:e=>{ e.preventDefault(); ppQ = qIn.value.trim(); photoPick(true, ppQ); }}, qIn, h('button',{type:'submit',class:'btn ghost small'},'Найти'),
         h('button',{type:'button',class:'btn ghost small','aria-label':'Закрыть подбор фото',onclick:()=>{ picker.hidden = true; }},'✕'));
-      picker.replaceChildren(head, h('p',{class:'hint'},'Ищу свободные фото по теме статьи…'));
+      picker.replaceChildren(head, h('p',{class:'hint'},'Ищу свободные фото по теме статьи… Это может занять до 20 секунд.'));
       let r;
       try{ r = await fetch('/api/photopick/search?draft='+encodeURIComponent(d.id)+'&q='+encodeURIComponent(q||ppQ||'')+'&page='+ppPage, {headers:{Authorization:pb.authStore.token}}).then(x=>x.json()); }
       catch(e){ r = {ok:false, message:'Нет связи с сайтом — попробуйте ещё раз'}; }

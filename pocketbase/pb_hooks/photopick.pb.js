@@ -8,3 +8,11 @@ routerAdd("POST", "/api/photopick/take", (e) => {
   const body = e.requestInfo().body || {}
   return e.json(200, require(`${__hooks}/photopick.js`).take(e.app, e.auth.id, { source: body.source, id: body.id }))
 }, $apis.requireAuth("users"))
+// миниатюры для окна подбора (картинка в <img> не умеет отправлять вход — поэтому без входа, но только с разрешённых хостов)
+routerAdd("GET", "/api/photopick/thumb", (e) => {
+  const q = e.request.url.query()
+  const t = require(`${__hooks}/photopick.js`).thumb(e.app, String(q.get("u") || ""), String(q.get("f") || ""))
+  if (!t) return e.string(404, "")
+  e.response.header().set("Cache-Control", "public, max-age=86400")
+  return e.blob(200, t.type, t.body)
+})

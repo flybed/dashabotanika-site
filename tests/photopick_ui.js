@@ -1,6 +1,7 @@
 // Черновики статей: «✨ Подобрать другое фото» — варианты свободных фото по теме, нажатие ставит фото на обложку,
 // сайт сам скачивает его к себе и переписывает строку «Фото на обложке: автор, лицензия». Только для команды сайта.
-// Openverse подменён маленьким сервером здесь же (порт 8097): PocketBase нужно запустить с PHOTOPICK_OPENVERSE=http://127.0.0.1:8097.
+// Openverse и Wikimedia Commons подменены маленьким сервером здесь же (порт 8097): PocketBase нужно запустить с
+// PHOTOPICK_OPENVERSE=http://127.0.0.1:8097 PHOTOPICK_COMMONS=http://127.0.0.1:8097.
 //   BASE=http://localhost:8088 SU_EMAIL=... SU_PASS=... node tests/photopick_ui.js
 const { chromium, devices } = require('playwright');
 const http = require('http'), zlib = require('zlib');
@@ -20,10 +21,12 @@ const IDS = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-22
 const OV = 'http://127.0.0.1:8097';
 const item = (id, i) => ({ id, title: 'Reusable cup ' + i, creator: 'Автор ' + i, creator_url: 'https://www.flickr.com/people/a' + i, foreign_landing_url: 'https://www.flickr.com/photos/a' + i + '/1(2)',
   license: i === 1 ? 'by' : 'by-sa', license_version: '2.0', license_url: 'https://creativecommons.org/licenses/by/2.0/', width: 1600, height: 1000, provider: 'flickr', url: 'http://example.invalid/x.jpg', thumbnail: OV + '/v1/images/' + id + '/thumb/' });
-let searched = [];
+let searched = [], commonsAsked = 0;
 const mock = http.createServer((req, res) => {
   const u = new URL(req.url, OV);
-  if (u.pathname === '/v1/images/') { searched.push(u.searchParams.get('q')); res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ results: IDS.map((id, i) => item(id, i + 1)) })); }
+  // like the real one: a query of many words finds nothing, two words find photos
+  if (u.pathname === '/v1/images/') { const q = u.searchParams.get('q'); searched.push(q); res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ results: q.split(' ').length > 2 ? [] : IDS.map((id, i) => item(id, i + 1)) })); }
+  if (u.pathname === '/w/api.php') { commonsAsked++; res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ query: { pages: {} } })); }
   const m = u.pathname.match(/^\/v1\/images\/([0-9a-f-]{36})\/(thumb\/)?$/);
   if (m && m[2]) { res.setHeader('content-type', 'image/png'); return res.end(png(m[1] === IDS[1] ? 320 : 160, m[1] === IDS[1] ? 200 : 100, [IDS.indexOf(m[1]) * 80, 120, 60])); }
   if (m) { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify(item(m[1], IDS.indexOf(m[1]) + 1))); }
@@ -52,8 +55,8 @@ const mock = http.createServer((req, res) => {
     await p.locator('.draft', { hasText: 'Кофе с собой в свою кружку' }).getByText('Читать и править').click();
     await p.click('button:has-text("Подобрать другое фото")');
     await p.waitForSelector('.pp-item'); await p.waitForTimeout(500);
-    const g = await p.evaluate(() => ({ n: document.querySelectorAll('.pp-item').length, caps: [...document.querySelectorAll('.pp-cap')].map((x) => x.textContent), imgs: [...document.querySelectorAll('.pp-item img')].every((i) => i.complete && i.naturalWidth > 0), hs: document.documentElement.scrollWidth > innerWidth, fit: (() => { const pp = document.querySelector('.pp').getBoundingClientRect(), card = document.querySelector('.draft-ed').getBoundingClientRect(), x = document.querySelector('.pp-head button:last-child').getBoundingClientRect(); return pp.right <= card.right + 1 && x.right <= card.right + 1; })() }));
-    check(`the picker shows the found photos with author and licence (${g.caps.join(' | ')}), searched by the draft's title; the picker fits the card on a phone`, g.n === 3 && g.caps[0] === 'Автор 1 · CC BY 2.0' && g.imgs && searched[0] === 'Кофе с собой в свою кружку' && !g.hs && g.fit);
+    const g = await p.evaluate(() => ({ n: document.querySelectorAll('.pp-item').length, caps: [...document.querySelectorAll('.pp-cap')].map((x) => x.textContent), imgs: [...document.querySelectorAll('.pp-item img')].every((i) => i.complete && i.naturalWidth > 0), via: [...document.querySelectorAll('.pp-item img')].every((i) => i.getAttribute('src').startsWith('/api/photopick/thumb?')), hs: document.documentElement.scrollWidth > innerWidth, fit: (() => { const pp = document.querySelector('.pp').getBoundingClientRect(), card = document.querySelector('.draft-ed').getBoundingClientRect(), x = document.querySelector('.pp-head button:last-child').getBoundingClientRect(); return pp.right <= card.right + 1 && x.right <= card.right + 1; })() }));
+    check(`the picker shows the found photos with author and licence (${g.caps.join(' | ')}), searched by the draft's title (Commons first, then a shorter query); previews load through the site; the picker fits a phone`, g.n === 3 && g.caps[0] === 'Автор 1 · CC BY 2.0' && g.imgs && g.via &&  searched.includes('Кофе с') && commonsAsked >= 4 && !g.hs && g.fit);
     await p.screenshot({ path: `${process.env.OUT || '/tmp'}/photopick.png` });
     await p.click('.pp-item >> nth=1'); await p.waitForTimeout(2500);
     const after = await p.evaluate(() => ({ img: (document.querySelector('.draft-cover img') || {}).getAttribute ? document.querySelector('.draft-cover img').getAttribute('src') : '', body: document.querySelector('.draft-ed .md-tools + textarea').value,
@@ -69,6 +72,8 @@ const mock = http.createServer((req, res) => {
     await p.click('button:has-text("Подобрать другое фото")'); await p.waitForSelector('.pp-item');
     await p.fill('.pp-head input', 'coffee cup'); await p.click('.pp-head button[type=submit]'); await p.waitForTimeout(800);
     check('one\'s own words are searched («coffee cup»)', searched[searched.length - 1] === 'coffee cup');
+    await p.fill('.pp-head input', 'berry puree ice tray'); await p.click('.pp-head button[type=submit]'); await p.waitForSelector('.pp-item'); await p.waitForTimeout(500);
+    check('a long query that finds nothing is shortened by words until photos are found', searched.includes('berry puree') && commonsAsked >= 3 && (await p.locator('.pp-item').count()) === 3);
     check('no script errors', !errs.length);
     await c.close();
   } finally {
