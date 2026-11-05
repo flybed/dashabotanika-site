@@ -22,7 +22,7 @@ const IDS = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-22
 const OV = 'http://127.0.0.1:8097';
 const item = (id, i) => ({ id, title: 'Reusable cup ' + i, creator: 'Автор ' + i, creator_url: 'https://www.flickr.com/people/a' + i, foreign_landing_url: 'https://www.flickr.com/photos/a' + i + '/1(2)',
   license: i === 1 ? 'by' : 'by-sa', license_version: '2.0', license_url: 'https://creativecommons.org/licenses/by/2.0/', width: 1600, height: 1000, provider: 'flickr', url: 'http://example.invalid/x.jpg', thumbnail: OV + '/v1/images/' + id + '/thumb/' });
-let searched = [], commonsAsked = 0, pexelsAsked = [];
+let searched = [], commonsAsked = 0, pexelsAsked = [], pixabayAsked = [];
 const mock = http.createServer((req, res) => {
   const u = new URL(req.url, OV);
   // like the real one: a query of many words finds nothing, two words find photos
@@ -34,6 +34,13 @@ const mock = http.createServer((req, res) => {
   const px = u.pathname.match(/^\/v1\/photos\/(\d+)$/);
   if (px) { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ id: +px[1], photographer: 'Фотограф ' + px[1], photographer_url: 'https://www.pexels.com/@ph' + px[1], url: 'https://www.pexels.com/photo/' + px[1] + '/', src: { large2x: OV + '/px/big' + px[1] + '.png' } })); }
   if (/^\/px\//.test(u.pathname)) { res.setHeader('content-type', 'image/png'); return res.end(png(/big/.test(u.pathname) ? 320 : 160, /big/.test(u.pathname) ? 200 : 100, [200, 60, 90])); }
+  // Pixabay: the key comes in the query; ?id= gives one photo with its big copy
+  if (u.pathname === '/api/') { pixabayAsked.push(u.searchParams.get('key') || ''); res.setHeader('content-type', 'application/json');
+    if (u.searchParams.get('key') !== 'test-key') { res.statusCode = 400; return res.end('[ERROR 400] Invalid or missing API key'); }
+    const one = u.searchParams.get('id'), ids = one ? [+one] : [41, 42];
+    return res.end(JSON.stringify({ totalHits: ids.length, hits: ids.map((n) => ({ id: n, pageURL: 'https://pixabay.com/photos/x-' + n + '/', tags: 'frozen, berries', user: 'Пиксабей ' + n, user_id: 900 + n, imageWidth: 4000, imageHeight: 2600,
+      webformatURL: OV + '/pbimg/' + n + '.png', largeImageURL: OV + '/pbimg/big' + n + '.png' })) })); }
+  if (/^\/pbimg\//.test(u.pathname)) { res.setHeader('content-type', 'image/png'); return res.end(png(/big/.test(u.pathname) ? 320 : 160, /big/.test(u.pathname) ? 200 : 100, [90, 160, 60])); }
   if (u.pathname === '/w/api.php') { commonsAsked++; res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ query: { pages: {} } })); }
   const m = u.pathname.match(/^\/v1\/images\/([0-9a-f-]{36})\/(thumb\/)?$/);
   if (m && m[2]) { res.setHeader('content-type', 'image/png'); return res.end(png(m[1] === IDS[1] ? 320 : 160, m[1] === IDS[1] ? 200 : 100, [IDS.indexOf(m[1]) * 80, 120, 60])); }
@@ -91,6 +98,16 @@ const mock = http.createServer((req, res) => {
         r.ok && /^Pexels/.test(r.from) && r.items[0].source === 'px' && r.items[0].license === 'Pexels' && pexelsAsked[0] === 'test-key' && th.status === 200);
       const tk = await (await fetch(B + '/api/photopick/take', { method: 'POST', headers: { authorization: at, 'content-type': 'application/json' }, body: JSON.stringify({ source: 'px', id: '7' }) })).json();
       check('a Pexels photo is taken to the site with «Pexels» and the photographer in the credit', tk.ok && /^\/api\/files\/photos\//.test(tk.url) && tk.credit.license === 'Pexels' && tk.credit.author === 'Фотограф 7' && /pexels\.com\/license/.test(tk.credit.licenseUrl));
+    }
+    // Pixabay (when the site has its key): asked first, previews through the site, a photo taken with «Pixabay» in the credit
+    if (process.env.PIXABAY_TEST) {
+      const at = (await api('POST', '/collections/users/auth-with-password', { identity: 'pp-admin@test.local', password: 'Passw0rd123' })).token;
+      const r = await (await fetch(B + '/api/photopick/search?q=frozen%20berries', { headers: { authorization: at } })).json();
+      const th = r.items && r.items[0] ? await fetch(B + r.items[0].thumb) : { status: 0 };
+      check(`Pixabay first, with the key (${r.from}): ${(r.items || []).slice(0, 2).map((i) => i.author + ' · ' + i.license).join(' | ')}; preview ${th.status}`,
+        r.ok && /^Pixabay/.test(r.from) && r.items[0].source === 'pb' && r.items[0].license === 'Pixabay' && pixabayAsked[0] === 'test-key' && th.status === 200);
+      const tk = await (await fetch(B + '/api/photopick/take', { method: 'POST', headers: { authorization: at, 'content-type': 'application/json' }, body: JSON.stringify({ source: 'pb', id: '41' }) })).json();
+      check('a Pixabay photo is taken to the site with «Pixabay» and the author in the credit', tk.ok && /^\/api\/files\/photos\//.test(tk.url) && tk.credit.license === 'Pixabay' && tk.credit.author === 'Пиксабей 41' && /pixabay\.com\/service\/license/.test(tk.credit.licenseUrl) && /pixabay\.com\/users\//.test(tk.credit.authorUrl));
     }
     check('no script errors', !errs.length);
     await c.close();
