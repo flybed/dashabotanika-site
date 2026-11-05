@@ -2345,50 +2345,69 @@ function daromInset(){
     h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'}, h('a',{class:'btn small',href:'/darom',onclick:()=>goal('darom_article_find')},'Смотреть вещи рядом'),
       h('a',{class:'btn ghost small',href:accState()==='member' ? '/kabinet?tab=things&do=give#cabinet-tabs' : '/kabinet?tab=register&next=things',onclick:()=>goal('darom_article_give')},'Отдать свою вещь')));
 }
+/* «Вещи даром» on the home page: three real things that can be taken now — approved, active (not reserved, lent or
+   given away), from a visible member. The freshest first; among the fresh ones (the newest 8, at most a week older than the
+   newest) different categories are preferred. pb_hooks/seo.js picks the same three for the server HTML. */
+const HOME_FRESH = 8, HOME_WEEK = 7*86400000;
+function homeAvailable(){
+  const known = Object.keys(COM.members).length > 0; // until the members arrive, nobody is filtered out
+  return COM.listings.filter(l=>l.status==='active' && mkState(l)==='approved' && (!known || COM.members[l.seller])).sort((a,b)=>b.ts-a.ts);
+}
+function homePicks(all, n){
+  if (!all.length) return [];
+  const fresh = all.slice(0, HOME_FRESH).filter((it, i)=>i < n || all[0].ts - it.ts <= HOME_WEEK), picks = [], cats = new Set();
+  for (const it of fresh) if (picks.length < n && !cats.has(it.category||'—')){ picks.push(it); cats.add(it.category||'—'); }
+  for (const it of all) if (picks.length < n && !picks.includes(it)) picks.push(it);
+  return picks.sort((a,b)=>b.ts-a.ts);
+}
+// a card: the real photo (one size, cropped by CSS — the file stays as it is), «Бесплатно», the title, the place if given
+function homeCard(it, goalName){
+  const where = [it.city, it.district].filter(Boolean).join(', ');
+  return h('a',{class:'hc',href:daromUrl(it),onclick:()=>goal(goalName)},
+    h('span',{class:'hc-ph'}, it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',decoding:'async',width:'600',height:'450'}) : h('span',{class:'hc-ic','aria-hidden':'true'},catIcon(it.category)),
+      h('span',{class:'hc-free'},'Бесплатно')),
+    h('b',{class:'hc-t'}, it.title), where ? h('span',{class:'hc-w'}, '📍 '+where) : null);
+}
+// «Уже N вещей ищут новых хозяев» — only once the catalogue has at least 20 things
+const homeCount = n => n >= 20 ? 'Уже '+n+' '+plural(n,'вещь ищет','вещи ищут','вещей ищут')+' новых хозяев' : '';
 // where «Отдать вещь» leads: a member straight to the form, a guest to sign-up and then back to the form
 const giveHref = () => accState()==='member' ? '/kabinet?tab=things&do=give#cabinet-tabs' : '/kabinet?tab=register&next=things';
 /* phones: one short but noticeable «Вещи даром» announcement under the first screen (the big block below is hidden there) */
 function daromStrip(){
-  const give = h('span',{style:'display:contents'}), items = h('div',{class:'dst-items'});
+  const give = h('span',{style:'display:contents'}), items = h('div',{class:'dst-items'}), count = h('p',{class:'hc-count'}), all = h('a',{class:'hc-all',href:'/darom',onclick:()=>goal('darom_find_home')},'Смотреть все вещи →');
   live(()=>{
     // while the catalogue is young, giving is the main action; finding is a quiet link next to it
     give.replaceChildren(h('a',{class:'btn',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать вещь'));
-    // the newest things being given away, when there are any — the same as in the big block
-    const list = publicListings().slice().sort((a,b)=>b.ts-a.ts).slice(0,3);
-    items.hidden = !list.length;
-    items.replaceChildren(...list.map(it=>h('a',{class:'dst-item',href:'/darom'},
-      it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',decoding:'async'}) : h('span',{class:'ds-ph','aria-hidden':'true'},catIcon(it.category)), h('span',null,it.title))));
+    const avail = homeAvailable(), list = homePicks(avail, 3);
+    count.textContent = homeCount(avail.length); count.hidden = !count.textContent;
+    items.hidden = all.hidden = !list.length;
+    items.replaceChildren(...list.map(it=>homeCard(it, 'darom_item_home')));
   });
   return h('section',{class:'darom-strip',id:'darom-strip','aria-label':'Вещи даром'}, h('div',{class:'wrap'}, h('div',{class:'dst'},
     h('img',{class:'dst-art',src:'/img/darom-things.svg',alt:'',width:'110',height:'80',loading:'lazy',decoding:'async'}),
     h('div',{class:'dst-text'}, h('h2',{class:'dst-t'},'🎁 Вещи даром'), h('p',null,'Отдавайте хорошие вещи бесплатно и находите нужное рядом с собой.')),
     h('div',{class:'dst-cta'}, give, h('a',{class:'dst-find',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь')),
-    items)));
+    count, items, all)));
 }
 /* «Вещи даром» on the home page (wider screens): what is being given away now (nearest first) and two doors */
 function daromSpotlight(){
-  const grid = h('div',{class:'ds-items'}), sub = h('p',{class:'lead',style:'margin:0'});
+  const grid = h('div',{class:'ds-items'}), sub = h('p',{class:'lead',style:'margin:0'}), count = h('p',{class:'hc-count'}), all = h('a',{class:'hc-all',href:'/darom',onclick:()=>goal('darom_find_home')},'Смотреть все вещи →');
   live(()=>{
-    const all = publicListings();
-    loadDaromStats([]);
-    if (accState()==='member' && !PROFILE.loaded) loadProfile();
-    const near = PROFILE.rec && (PROFILE.rec.lat || PROFILE.rec.district);
-    const list = all.slice().sort((a,b)=> near ? ((sameDistrict(b)-sameDistrict(a)) || ((kmTo(a)??1e9)-(kmTo(b)??1e9)) || (b.ts-a.ts)) : b.ts-a.ts).slice(0,4);
-    sub.textContent = (near ? 'Вот что соседи отдают рядом с тобой. ' : 'Одежда, детские вещи, книги, техника — соседи отдают их бесплатно, без продажи и торга. ')+'Так вещи получают новую жизнь, а на свалку попадает меньше.';
-    // no counters here for now (owner's decision, 27.10.2026): while there are few things, zeros look sad
-    grid.replaceChildren(...(list.length ? list.map(it=>h('a',{class:'ds-item',href:'/darom'},
-      it.photo ? h('img',{src:it.photo,alt:it.title,loading:'lazy',decoding:'async'}) : h('div',{class:'ds-ph','aria-hidden':'true'},catIcon(it.category)),
-      h('b',null,it.title), h('span',{class:'hint'}, nearLabel(it) || [it.city, it.district].filter(Boolean).join(', ') || (it.category||'')))) : [h('p',{class:'hint'},'Стань одним из первых участников — размести вещь бесплатно.')]));
+    const avail = homeAvailable(), list = homePicks(avail, 3);
+    sub.textContent = 'Одежда, детские вещи, книги, техника — соседи отдают их бесплатно, без продажи и торга. '+'Так вещи получают новую жизнь, а на свалку попадает меньше.';
+    count.textContent = homeCount(avail.length); count.hidden = !count.textContent;
+    all.hidden = !list.length;
+    grid.replaceChildren(...(list.length ? list.map(it=>homeCard(it, 'darom_item_home')) : [h('p',{class:'hint'},'Стань одним из первых участников — размести вещь бесплатно.')]));
   });
   const give = h('span');
-  live(()=>{ give.replaceChildren(h('a',{class:'btn ghost',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать свою вещь')); });
+  live(()=>{ give.replaceChildren(h('a',{class:'btn',href:giveHref(),onclick:()=>goal('darom_give_home')},'Отдать вещь')); });
   return h('section',{class:'band darom-spot',id:'darom-spot'}, h('div',{class:'wrap'},
     h('div',{class:'ds-head'},
       h('div',{style:'display:grid;gap:10px;align-content:center'}, h('div',{class:'eyebrow'},'🎁 Вещи даром'), h('h2',null,'Отдай то, что тебе больше не нужно. Найди то, что пригодится тебе. Бесплатно'), sub,
-        h('div',{class:'ds-cta'}, h('a',{class:'btn',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь рядом'), give)),
+        h('div',{class:'ds-cta'}, give, h('a',{class:'btn ghost',href:'/darom',onclick:()=>goal('darom_find_home')},'Найти вещь'))),
       // a drawing of things that get a second life: a crib, a bike, a pan, a phone, books
       h('img',{class:'ds-art',src:'/img/darom-things.svg',alt:'',width:'440',height:'320',loading:'lazy',decoding:'async'})),
-    grid));
+    count, grid, all));
 }
 function feedbackTeaser(){
   return h('section',{class:'band',id:'say'}, h('div',{class:'wrap'}, h('div',{class:'teaser'},

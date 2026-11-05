@@ -473,11 +473,35 @@ function guideHtml(g, all, art) {
 }
 const faqLd = (g) => (g.faq && g.faq.length ? [{ "@type": "FAQPage", mainEntity: g.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) }] : [])
 
-function homeHtml(d, k) {
+// «Вещи даром» на главной — те же три вещи, что выбирает скрипт сайта (site/js/app.js, homePicks): одобренные и активные
+// (не забронированы, не выданы и не отданы), от видимого участника; свежие первыми, среди свежих (8 новейших, не старше
+// недели от самой новой) — по возможности из разных категорий. Ссылки ведут на страницы самих вещей.
+const HOME_AVAILABLE = "moderation = 'approved' && status = 'active' && seller.hidden != true"
+function homeDarom(app) {
+  if (!app) return { picks: [], total: 0 }
+  const all = find(app, HOME_AVAILABLE, "-created", 60)
+  const picks = [], cats = {}
+  const fresh = all.slice(0, 8).filter((it, i) => i < 3 || ts(all[0].created) - ts(it.created) <= 7 * DAY)
+  for (const it of fresh) if (picks.length < 3 && !cats[it.category || "—"]) { picks.push(it); cats[it.category || "—"] = 1 }
+  for (const it of all) if (picks.length < 3 && picks.indexOf(it) < 0) picks.push(it)
+  picks.sort((a, b) => ts(b.created) - ts(a.created))
+  let total = all.length
+  if (total >= 60) { try { total = app.findRecordsByFilter("listings", HOME_AVAILABLE, "", 0, 0).length } catch (err) {} }
+  return { picks, total }
+}
+function homeDaromHtml(app) {
+  const { picks, total } = homeDarom(app)
+  const many = (n) => { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? "вещей ищут" : b === 1 ? "вещь ищет" : b >= 2 && b <= 4 ? "вещи ищут" : "вещей ищут" }
+  return `<p><a href="/kabinet?tab=register&amp;next=things">Отдать вещь</a> · <a href="/darom">Найти вещь</a></p>` +
+    (total >= 20 ? `<p>Уже ${total} ${many(total)} новых хозяев</p>` : "") +
+    (picks.length ? `<ul>${picks.map((it) => { const where = [it.city, it.district].filter(Boolean).join(", ")
+      return `<li><a href="/darom/v/${esc(it.id)}">${esc(it.title)}</a> — бесплатно${where ? ", " + esc(where) : ""}</li>` }).join("")}</ul><p><a href="/darom">Смотреть все вещи →</a></p>` : "")
+}
+function homeHtml(d, k, app) {
   const arts = d.articles || []
   return [
     `<section id="top"><div class="wrap"><h1>Меньше лишнего. Больше жизни.</h1><p>Вещи даром, разумные покупки, простые экопривычки и полезные идеи для жизни. Без фанатизма и лишних затрат.</p><p><a href="/#start">Я здесь впервые</a> · <a href="/#interests">Все разделы</a></p></div></section>`,
-    sec("darom-strip", "Вещи даром", "Вещи даром", "Отдавайте хорошие вещи бесплатно и находите нужное рядом с собой.", `<p><a href="/darom">Найти вещь</a> · <a href="/kabinet?tab=register&amp;next=things">Отдать вещь</a></p>`),
+    sec("darom-strip", "Вещи даром", "Вещи даром", "Отдавайте хорошие вещи бесплатно и находите нужное рядом с собой.", homeDaromHtml(app)),
     sec("interests", "Что есть на сайте", "Что тебе интересно", "",
       `<ul>${Object.keys(SECTION_PAGES).map((u) => `<li><a href="${u}">${esc(SECTION_PAGES[u].name)}</a> — ${esc(SECTION_PAGES[u].description)}</li>`).join("")}<li><a href="/servisy">Полезные сервисы</a></li><li><a href="/tovary">Товары</a></li><li><a href="/darom">Вещи даром</a></li><li><a href="/eko-test">Эко-тест</a></li></ul>`),
     sec("myths-teaser", "Мифы и факты", "Экология — дорого, сложно и бессмысленно?", "Так думают многие. Разбираем популярные мифы с фактами, цифрами и без нравоучений.", `<p><a href="/mify">Развеять мифы</a></p>`),
@@ -492,7 +516,7 @@ function homeHtml(d, k) {
 function page(path, d, k, app) {
   const arts = d.articles || []
   const base = { title: "DashaBotanika — меньше лишнего, больше жизни", description: null, image: null, type: "website", crumbs: null, ld: [] }
-  if (path === "/") return Object.assign(base, { body: homeHtml(d, k) })
+  if (path === "/") return Object.assign(base, { body: homeHtml(d, k, app) })
   if (path === "/tovary") {
     return Object.assign(base, {
       title: "Товары, которые делают мир чище — DashaBotanika",
