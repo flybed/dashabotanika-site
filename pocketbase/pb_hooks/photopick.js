@@ -27,7 +27,8 @@ let LOG = []
 function get(url, headers) {
   const t0 = Date.now()
   try { const res = $http.send({ url, method: "GET", timeout: 15, headers: Object.assign({ "user-agent": UA }, headers || {}) }); LOG.push(url.replace(/\?.*$/, "") + " → " + res.statusCode + " " + (Date.now() - t0) + "ms"); return res }
-  catch (e) { LOG.push(url.replace(/\?.*$/, "") + " → " + String(e).slice(0, 80)); return null }
+  // the request address is never written down (it may carry a key): only the host and the reason
+  catch (e) { LOG.push(url.replace(/\?.*$/, "") + " → " + String(e).replace(/"https?:\/\/[^"]*"/g, "<адрес>").replace(/key=[^&\s"]+/g, "key=***").slice(0, 240)); return null }
 }
 const clean = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()
 
