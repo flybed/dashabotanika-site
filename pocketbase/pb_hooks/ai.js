@@ -134,7 +134,7 @@ function translateForSearch(text) {
     const res = $http.send({ url: apiUrl(), method: "POST", timeout: 20,
       headers: { "content-type": "application/json", "authorization": "Api-Key " + env("YC_API_KEY"), "x-folder-id": env("YC_FOLDER") },
       body: JSON.stringify({ model: `gpt://${env("YC_FOLDER")}/yandexgpt-lite/latest`, temperature: 0.2, max_tokens: 40, messages: [
-        { role: "system", content: "Ты подбираешь запрос для поиска фотографии на фотостоке. По теме статьи напиши 2–5 простых английских слов: что должно быть на фото (предметы, место). Только слова через пробел, без кавычек, точек и пояснений." },
+        { role: "system", content: "Ты подбираешь запрос для поиска фотографии на фотостоке. По теме статьи напиши 2–3 простых английских слова — главный предмет, который должен быть на фото крупным планом (например: reusable coffee cup, compost bin, glass jars). Без людей, городов и событий. Только слова через пробел, без кавычек, точек и пояснений." },
         { role: "user", content: String(text).slice(0, 300) }] }) })
     const q = String(((((res.json || {}).choices || [])[0] || {}).message || {}).content || "").replace(/[^a-zA-Z0-9 -]/g, " ").replace(/\s+/g, " ").trim().toLowerCase()
     return res.statusCode === 200 ? q.split(" ").slice(0, 6).join(" ") : ""
