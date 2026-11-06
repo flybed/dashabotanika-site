@@ -624,10 +624,17 @@ function mythsTeaser(){
       MYTH_BITS.map((t,i)=>h('span',{class:'mt-bit b'+i,'aria-hidden':'true'},'«'+t+'»')))));
 }
 /* a peek at the community world: who lives there, and a door to the whole map */
+// the world's animations (clouds, waterfall, windmill) run only while that picture is on the screen:
+// off screen they cost a slow phone a third of its processor
+function playWhenVisible(el){
+  if (!('IntersectionObserver' in window)){ el.classList.add('w-play'); return el; }
+  new IntersectionObserver(es=>es.forEach(x=>x.target.classList.toggle('w-play', x.isIntersecting)), {rootMargin:'100px'}).observe(el);
+  return el;
+}
 function worldTeaser(){
   const row = h('div',{class:'wt-row'}), count = h('p',{class:'muted'}), cta = h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
   // a miniature of the world itself: the same meadow, the same places — a door to /mir
-  const mini = h('div',{class:'world wt-mini'});
+  const mini = playWhenVisible(h('div',{class:'world wt-mini'}));
   live(()=>{
     const ids = Object.keys(COM.members).filter(id=>COM.members[id].character).sort((a,b)=>COM.members[b].joined-COM.members[a].joined);
     row.replaceChildren(...ids.slice(0,14).map(id=>h('span',{class:'wt-em',title:COM.members[id].nick}, emojiOf(id))));
@@ -768,12 +775,13 @@ function uploadBtn(label, onDone, extraClass){
 function heroFace(){
   const id = STATE.photos.hero;
   if (!id) return null;
-  return h('div',{class:'hero-face'}, photoImg(id, STATE.about.name||'Даша', '', {eager:true}), STATE.about.name ? h('span',{'aria-hidden':'true'},STATE.about.name) : null);
+  return h('div',{class:'hero-face'}, photoImg(id, STATE.about.name||'Даша', '', {eager:true, sizes:'112px'}), STATE.about.name ? h('span',{'aria-hidden':'true'},STATE.about.name) : null);
 }
 function heroArt(){
   const id = STATE.photos.hero;
   return h('div',{class:'hero-art'},
-    h('div',{class:'pebble'}, id ? photoImg(id, STATE.about.name||'Фото', CAIRN_SCENE, {eager:true}) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
+    // hidden on phones (the small round photo stands by the headline there): «1px» keeps the phone on the light copy
+    h('div',{class:'pebble'}, id ? photoImg(id, STATE.about.name||'Фото', CAIRN_SCENE, {eager:true, sizes:'(max-width: 640px) 1px, 380px'}) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
     h('div',{html:SPRIG,style:'display:contents'}),
     id && STATE.about.name ? h('span',{class:'caption'},STATE.about.name) : null,
     uploadBtn(id ? 'Заменить фото' : 'Загрузить фото Даши', nid=>{ STATE.photos.hero = nid; }, 'upl')
@@ -1168,7 +1176,7 @@ const exMark = it => it.example ? h('span',{class:'ex'},'пример') : null;
 function photoFig(key, alt, cls, caption){
   const id = STATE.photos[key];
   return h('figure',{class:'ph '+cls},
-    h('div',{class:'frame'}, id ? photoImg(id, alt, CAIRN_SCENE) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
+    h('div',{class:'frame'}, id ? photoImg(id, alt, CAIRN_SCENE, {sizes:'(max-width: 640px) 220px, 420px'}) : h('div',{html:CAIRN_SCENE,style:'width:100%;height:100%'})),
     caption ? h('figcaption',null,caption) : null,
     uploadBtn(id ? 'Заменить фото' : 'Добавить фото', nid=>{ STATE.photos[key] = nid; })
   );
@@ -1973,7 +1981,7 @@ function articlesFor(topics, n){
 // one card size for every article: a cover (or a quiet placeholder), at most two badges, title and lead cut to three lines
 function articleCard(it, why){
   return h('article',{class:'card acard'},
-    h('a',{class:'art-thumb'+(it.image ? '' : ' empty'),href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, it.image ? photoImg(it.image, coverAlt(it)) : h('span',{html:CAIRN_ICON})),
+    h('a',{class:'art-thumb'+(it.image ? '' : ' empty'),href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, it.image ? photoImg(it.image, coverAlt(it), '', {sizes:'(max-width: 640px) 340px, (max-width: 900px) 50vw, 380px'}) : h('span',{html:CAIRN_ICON})),
     h('div',{class:'acard-meta'}, h('span',{class:'tag'},it.cat||'Статья'), why && why.length ? h('span',{class:'tag why'},'🎯 '+why[0].toLowerCase()) : null, h('span',{class:'date'},fmtDate(it.date))),
     h('h3',{class:'acard-t'}, h('a',{class:'art-link',href:articleUrl(it),title:it.title},it.title)),
     h('p',{class:'acard-lead'},it.lead));
@@ -2019,7 +2027,7 @@ function journalSection(preview){
       const more = h('a',{class:'linkish',href:articleUrl(it)},'Читать полностью');
       return h('article',{class:'card'},
         delBtn('articles',it.id),
-        it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, coverAlt(it))) : null,
+        it.image ? h('a',{class:'art-thumb',href:articleUrl(it),tabindex:'-1','aria-hidden':'true'}, photoImg(it.image, coverAlt(it), '', {sizes:'(max-width: 640px) 340px, (max-width: 900px) 50vw, 380px'})) : null,
         h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), h('span',{class:'date'},fmtDate(it.date))),
         h('h3',{style:'font-size:22px'}, h('a',{class:'art-link',href:articleUrl(it)},it.title)),
         h('p',{class:'muted',style:'font-size:15px'},it.lead),
@@ -4073,7 +4081,7 @@ async function openDM(userId){
 const isDM = t => String(t.key||'').startsWith('D_');
 
 function worldSection(){
-  const box = h('div',{class:'world'});
+  const box = playWhenVisible(h('div',{class:'world'}));
   const count = h('p',{class:'muted',style:'margin-top:12px'});
   const cta = h('div',{style:'margin-top:14px'});
   let lastKey = null;
@@ -6087,6 +6095,7 @@ function eleTips(){
   if (art && !(member && COM.reads[art.id])) tips.push({id:'a:'+art.id, title:'Свежая статья в журнале', text:/^«/.test(art.title) ? art.title : '«'+art.title+'»', cta:'Читать', href:articleUrl(art)});
   const week = Math.floor(Date.now()/(7*86400000));
   if (!member) tips.push({id:'join:'+week, title:'Поселитесь в «Счастливом мире»', text:'Регистрация — минута: выберите животное или растение, и оно будет расти вместе с вашими эко-привычками.', cta:'Присоединиться', href:'/kabinet?tab=register'});
+  if (!tourDone()) tips.push({id:'tour', title:'Показать, что где на сайте?', text:'Короткая экскурсия на полминуты: меню, разделы и кабинет.', cta:'Показать', href:'#tour'});
   if (!eleFlag('db-myths-seen')) tips.push({id:'myths', title:'15 мифов об экологии', text:'«Экологично — дорого», «всё равно всё смешивают», «я один ничего не изменю»… Честно и с фактами — за пару минут.', cta:'Развеять мифы', href:'/mify'});
   if (member && !eleFlag('db-ai-used')) tips.push({id:'ai', title:'Новое: ИИ по фото', text:'Сфотографируйте тарелку или упаковку — помощник подскажет, как сделать блюдо полезнее и куда сдать упаковку.', cta:'Попробовать', href:'/eda#helper'});
   if (member && !challenges().length) tips.push({id:'challenge', title:'Эко-челлендж на 7 дней', text:'Выберите 3–5 простых привычек и отмечайте их каждый день — персонаж будет расти.', cta:'Начать', href:'/kabinet?tab=challenges#cabinet-tabs'});
@@ -6107,7 +6116,7 @@ function showElephant(tip){
     h('div',{class:'ele-bubble'}, close, h('b',{class:'ele-t'},tip.title), tip.text ? h('p',null,tip.text) : null,
       h('div',{class:'ele-btns'}, go_, h('button',{type:'button',class:'btn ghost small',onclick:closeElephant},'Не сейчас'))));
   close.addEventListener('click', closeElephant);
-  go_.addEventListener('click', ()=>setTimeout(closeElephant, 50));
+  go_.addEventListener('click', e=>{ if (tip.href === '#tour'){ e.preventDefault(); closeElephant(); startTour(); return; } setTimeout(closeElephant, 50); });
   if (document.querySelector('.reader-bar')) el.classList.add('lift');
   document.body.append(el); ELE_EL = el;
 }
@@ -6233,8 +6242,10 @@ function startTour(){
   rememberTour(); // shown once: a reload in the middle does not start it again
   setTimeout(()=>{ if (TOUR_EL === box) show(); }, 120);
 }
-// first visit to the home page: after the splash screen is gone
+// the tour does not start by itself any more (owner's decision, 6.11.2026: the dimmed screen gets in the way);
+// it is offered by the elephant once and stays in the footer («Показать подсказки»)
 function maybeTour(){
+  return;
   if (tourDone() || currentPath() !== '/') return;
   if (accState()==='member' && COM.me && Date.now() - COM.me.joined > 86400000){ rememberTour(); return; }
   let n = 0;
