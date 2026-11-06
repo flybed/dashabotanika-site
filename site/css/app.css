@@ -303,11 +303,13 @@ body.editing .ex{display:none}
 /* the magic wand: bottom left, always at hand */
 .wand{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:44;display:flex;align-items:center;gap:8px;border:0;cursor:pointer;
   padding:10px 16px 10px 12px;border-radius:999px;background:var(--moss);color:var(--on-moss);font:inherit;font-weight:800;font-size:14px;
-  box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 0 color-mix(in srgb,var(--sun) 60%,transparent);animation:wand-glow 3s ease-in-out infinite}
+  box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}
+.wand::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 6px color-mix(in srgb,var(--sun) 55%,transparent);opacity:0;pointer-events:none;
+  animation:wand-glow 3s ease-in-out 1s 3;will-change:transform,opacity}
 .wand:hover{filter:brightness(1.08)}
 .wand-ic{font-size:20px;line-height:1}
-@keyframes wand-glow{0%,100%{box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 0 color-mix(in srgb,var(--sun) 55%,transparent)}50%{box-shadow:0 10px 24px -10px rgba(0,0,0,.5),0 0 0 8px color-mix(in srgb,var(--sun) 0%,transparent)}}
-@media (prefers-reduced-motion:reduce){.wand{animation:none}}
+@keyframes wand-glow{0%{opacity:.9;transform:scale(.92)}70%,100%{opacity:0;transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.wand::after{animation:none}}
 @media (max-width:640px){.wand{padding:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}.wand-t{display:none}}
 body.editing .wand{display:none}
 body:has(.reader-bar) .wand{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
@@ -592,23 +594,25 @@ button.chip{cursor:pointer;font:inherit;font-weight:700;font-size:14px}
 .way-t{display:grid;gap:2px}
 .way-pts{font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--moss)}
 @media (max-width:640px){.way{grid-template-columns:32px 1fr auto}.way .btn,.way .status{grid-column:2/-1;justify-self:start}}
-.dweller .em{animation:bob 4s ease-in-out infinite}
+.w-play .dweller .em{animation:bob 4s ease-in-out infinite}
 .dweller:nth-child(2n) .em{animation-delay:-1.3s}.dweller:nth-child(3n) .em{animation-delay:-2.6s}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media (prefers-reduced-motion: reduce){.grow-em,.dweller .em{animation:none}}
 
 /* ---------- живой эко-мир ---------- */
-.w-cloud{animation:drift 70s linear infinite}
-.w-cloud2{animation-duration:95s;animation-delay:-40s}
-.w-cloud3{animation-duration:120s;animation-delay:-70s}
+.w-play .w-cloud{animation:drift 70s linear infinite}
+.w-play .w-cloud2{animation-duration:95s;animation-delay:-40s}
+.w-play .w-cloud3{animation-duration:120s;animation-delay:-70s}
 @keyframes drift{from{transform:translateX(-260px)}to{transform:translateX(1100px)}}
-.w-fall{stroke-dasharray:7 9;animation:fall .5s linear infinite}
+.w-fall{stroke-dasharray:7 9}
+.w-play .w-fall{animation:fall .5s linear infinite}
 @keyframes fall{to{stroke-dashoffset:-16}}
-.w-splash{animation:splash 1.2s ease-in-out infinite}
+.w-play .w-splash{animation:splash 1.2s ease-in-out infinite}
 @keyframes splash{0%,100%{transform:translateY(0);opacity:.8}50%{transform:translateY(-4px);opacity:.4}}
-.w-blades{transform-box:fill-box;transform-origin:center;animation:mill 9s linear infinite}
+.w-blades{transform-box:fill-box;transform-origin:center}
+.w-play .w-blades{animation:mill 9s linear infinite}
 @keyframes mill{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion: reduce){.w-cloud,.w-fall,.w-splash,.w-blades{animation:none}}
+@media (prefers-reduced-motion: reduce){.w-play .w-cloud,.w-play .w-fall,.w-play .w-splash,.w-play .w-blades{animation:none}}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .world svg{filter:brightness(.72) saturate(.9)}}
 :root[data-theme="dark"] .world svg{filter:brightness(.72) saturate(.9)}
 /* size by level: newcomers are small, every level is about a quarter bigger, so growth is plain to see

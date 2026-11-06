@@ -33,11 +33,13 @@ const api = async (m, p, b, t, raw, ct) => (await fetch(B+'/api'+p, {method:m, h
     const attrs = await p.$eval('.art-cover img', x=>({loading:x.loading, prio:x.getAttribute('fetchpriority'), srcset:x.getAttribute('srcset'), sizes:x.getAttribute('sizes')}));
     check('site script: the cover loads at once (eager, high priority)', attrs.loading === 'eager' && attrs.prio === 'high');
     check('site script: the same srcset and sizes as the server page', img.includes('srcset="'+attrs.srcset+'"') && img.includes('sizes="'+attrs.sizes+'"'));
-    // first visit: the tour starts; its tip must not shift the page
+    // the tour, started by hand: its tip must not shift the page
     const f = await b.newContext({viewport:{width:412,height:823}}); await f.addInitScript(()=>{ try{ sessionStorage.setItem('db-splash','1'); }catch(e){}
       window.__cls = 0; new PerformanceObserver(l=>{ for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({type:'layout-shift', buffered:true}); });
     const q = await f.newPage(); await q.route(/mc\.yandex|fonts\.g/, r=>r.abort());
-    await q.goto(B+'/'); await q.waitForSelector('.tour-tip.placed', {timeout:15000}); await q.waitForTimeout(1500);
+    // the tour no longer starts by itself (6.11.2026): it is started from the footer, «Показать подсказки»
+    await q.goto(B+'/'); await q.waitForTimeout(2500); await q.click('footer button:has-text("Показать подсказки")');
+    await q.waitForSelector('.tour-tip.placed', {timeout:15000}); await q.waitForTimeout(1500);
     const cls = await q.evaluate(()=>window.__cls);
     check('first visit with the tour: CLS '+cls.toFixed(3)+' (≤ 0.1)', cls <= 0.1);
     check('tour tip stands where it should (moved by transform)', /translate\(/.test(await q.$eval('.tour-tip', x=>x.style.transform)));

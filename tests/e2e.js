@@ -28,13 +28,16 @@ const T = '#cabinet-tabs ';
   const b = await chromium.launch(process.env.CHROMIUM ? {executablePath:process.env.CHROMIUM} : {});
   // splash screen: shown on the first visit, counts to 100% and goes away
   const z = await (await b.newContext({viewport:{width:390,height:844}})).newPage(); watchPage(z,'splash');
-  await z.goto(B+'/'); await z.waitForTimeout(700);
+  await z.goto(B+'/'); await z.waitForTimeout(150);
   check('splash shows planet, greeting and progress', !!(await z.$('#splash .globe')) && (await z.textContent('#splash')).includes('Добро пожаловать в ЭкоМир'));
   await z.screenshot({path:S+'/00-splash.png'});
   await z.waitForSelector('#splash', {state:'detached', timeout:5000});
-  // after the splash, a first-time visitor gets a short tour: the screen dims and a light shows where to tap
+  // the tour does not start by itself (owner's decision, 6.11.2026): it is in the footer and the elephant offers it
+  await z.waitForTimeout(1500);
+  check('no tour starts by itself — the screen is not dimmed', !(await z.$('.tour')));
+  await z.click('footer button:has-text("Показать подсказки")');
   await z.waitForSelector('.tour-tip h3', {timeout:8000});
-  check('tour starts after the splash and lights up the menu first', (await z.textContent('.tour-tip')).includes('1 из 4') && (await z.textContent('.tour-tip')).includes('меню'));
+  check('«Показать подсказки» starts the tour and lights up the menu first', (await z.textContent('.tour-tip')).includes('1 из 4') && (await z.textContent('.tour-tip')).includes('меню'));
   await z.screenshot({path:S+'/00b-tour-1.png'});
   await z.click('.tour-tip button:has-text("Далее")'); await z.waitForTimeout(500);
   const spot = await z.$eval('.tour-spot', e=>{ const r = e.getBoundingClientRect(); return [r.top, r.bottom]; });
