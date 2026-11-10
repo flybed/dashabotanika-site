@@ -94,13 +94,13 @@ function read(path) { return toString($os.readFile(path)) }
 function constants() {
   const src = read(`${SITE}/js/app.js`)
   const out = {}
-  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "NAV_FOOT", "DISHES", "RECYCLE_PAGES", "MYTHS", "MATERIALS", "SORT_STEPS"].forEach((name) => {
+  ;["FASHION_TIPS", "FABRICS", "RECIPES", "QUESTIONS", "ECO_LADDER", "NAV_GROUPS", "NAV_FOOT", "DISHES", "RECYCLE_PAGES", "MYTHS", "MATERIALS", "SORT_STEPS", "GUIDE_MORE", "PAGE_ABOUT", "MARK_HUB", "MARK_FAQ", "NOINDEX_ARTICLES"].forEach((name) => {
     // DISHES — массив, который дальше превращается в объекты через .map
     const m = src.match(new RegExp(name === "DISHES" ? `const DISHES = (\\[[\\s\\S]*?\\n\\])\\.map` : `const ${name} = (\\[[\\s\\S]*?\\n?\\]);`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : [] } catch (err) { out[name] = [] }
   })
   // объекты-справочники (одной строкой: const X = {…};)
-  ;["MAT_WHERE"].forEach((name) => {
+  ;["MAT_WHERE", "MOVED_ARTICLES"].forEach((name) => {
     const m = src.match(new RegExp(`const ${name} = (\\{[\\s\\S]*?\\});`))
     try { out[name] = m ? new Function(`return ${m[1]}`)() : {} } catch (err) { out[name] = {} }
   })
@@ -363,6 +363,22 @@ function sec(id, eyebrow, title, lead, body, h1) {
   return `<section id="${id}"><div class="wrap"><p class="eyebrow">${esc(eyebrow)}</p><${t}>${esc(title)}</${t}>${lead ? `<p class="lead">${esc(lead)}</p>` : ""}\n${body || ""}</div></section>\n`
 }
 const productsHtml = (list) => list.map((p) => `<article><h3>${esc(p.title)}</h3>${p.replaces ? `<p>Вместо: ${esc(p.replaces)}</p>` : ""}<p>${esc(p.why)}</p></article>`).join("\n")
+// статьи, видимые на сайте: без объединённых со страницей сайта (MOVED_ARTICLES в site/js/app.js)
+const liveArticles = (d, k) => (d.articles || []).filter((a) => !((k && k.MOVED_ARTICLES) || {})[a.id])
+// «Читайте также»: соседние статьи журнала и самые свежие — так на каждую статью ведут ссылки (то же правило в app.js)
+function relatedArticles(list, it) {
+  const i = list.indexOf(it)
+  return [list[i - 1], list[i + 1]].concat(list).filter((a, j, all) => a && a !== it && all.indexOf(a) === j).slice(0, 4)
+}
+// разделы, которые рисует скрипт (воздух, игра, мир): текст о том, как они устроены (PAGE_ABOUT в site/js/app.js)
+function aboutHtml(k, path) {
+  const x = (k.PAGE_ABOUT || []).find((p) => p[0] === path)
+  return x ? `<section id="how"><div class="wrap">${x[1].map(([t, ...ps]) => `<h2>${esc(t)}</h2>${ps.map((p) => `<p>${esc(p)}</p>`).join("")}`).join("")}</div></section>` : ""
+}
+// город в «Куда сдать» показываем поисковикам, когда в нём есть хотя бы столько своих пунктов: иначе страница
+// почти целиком повторяет /servisy (там те же сервисы «Вся Россия»)
+const CITY_MIN_SERVICES = 3
+const cityIndexable = (app, city) => approvedServices(app).filter((r) => r.getString("city") === city).length >= CITY_MIN_SERVICES
 const articleLink = (a) => `<article><h3><a href="/zhurnal/${esc(articleSlug(a))}">${esc(a.title)}</a></h3><p>${esc(a.lead)}</p></article>`
 
 // Разделы, которые раньше были блоками главной, теперь — отдельные страницы со своим текстом для поиска.
@@ -407,13 +423,13 @@ const SECTION_PAGES = {
     title: "Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika",
     description: "Индекс качества воздуха в вашем городе прямо сейчас и прогноз на сутки: когда лучше гулять и проветривать.",
     name: "Чистота воздуха",
-    body: () => sec("air", "Чистота воздуха", "Чем дышит ваш город?", "Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки.", "", true),
+    body: (d, k) => sec("air", "Чистота воздуха", "Чем дышит ваш город?", "Введите город — покажем, насколько чистый воздух прямо сейчас, и прогноз на сутки.", "", true) + aboutHtml(k, "/vozduh"),
   },
   "/igra": {
     title: "Игра «Эко-уборка»: сортируй мусор на скорость — DashaBotanika",
     description: "Бесплатная онлайн-игра про сортировку отходов: собирайте мусор в парке и относите в нужный контейнер. Подходит детям и взрослым.",
     name: "Игра «Эко-уборка»",
-    body: () => sec("game", "Игра", "Эко-уборка", "Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер. Чем быстрее и точнее, тем больше очков.", `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true),
+    body: (d, k) => sec("game", "Игра", "Эко-уборка", "Помогите навести порядок в парке: собирайте мусор и относите его в нужный контейнер. Чем быстрее и точнее, тем больше очков.", `<p><a href="/eko-test">Пройти эко-тест</a></p>`, true) + aboutHtml(k, "/igra"),
   },
   "/mify": {
     title: "Мифы о переработке и экологии: что правда, а что нет — DashaBotanika",
@@ -426,13 +442,13 @@ const SECTION_PAGES = {
     title: "Счастливый мир участников DashaBotanika",
     description: "Сообщество DashaBotanika: каждый участник — животное или растение, которое растёт вместе с его эко-привычками.",
     name: "Счастливый мир",
-    body: () => sec("world", "Счастливый мир", "Наш эко-мир", "Каждый участник — животное или растение. Чем больше нас, тем живее мир.", `<p><a href="/kabinet?tab=register">Поселиться в мире</a></p>`, true),
+    body: (d, k) => sec("world", "Счастливый мир", "Наш эко-мир", "Каждый участник — животное или растение. Чем больше нас, тем живее мир.", `<p><a href="/kabinet?tab=register">Поселиться в мире</a></p>`, true) + aboutHtml(k, "/mir"),
   },
   "/zhurnal": {
     title: "Журнал: статьи и новости об экологичной жизни — DashaBotanika",
     description: "Статьи Даши об экологичной жизни: сортировка, еда, мода и быт — практично и без занудства.",
     name: "Журнал",
-    body: (d) => sec("journal", "Журнал", "Новости и статьи", "Заметки об экологичной жизни.", (d.articles || []).map(articleLink).join("\n"), true),
+    body: (d, k) => sec("journal", "Журнал", "Новости и статьи", "Заметки об экологичной жизни.", liveArticles(d, k).map(articleLink).join("\n"), true),
   },
   "/o-proekte": {
     title: "О проекте DashaBotanika: Даша, контакты и обратная связь — DashaBotanika",
@@ -449,8 +465,8 @@ const guideUrl = (g) => (g.kind === "mark" ? "/markirovka/" + g.s.replace("marki
 const ul = (list) => `<ul>${(list || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
 // практическая статья о маркировке (та же, что MARK_ARTICLE в site/js/app.js); адрес — по её текущему slug
 const MARK_ARTICLE = "ah338y2n"
-function markArticle(d) {
-  const a = (d.articles || []).find((x) => x.id === MARK_ARTICLE)
+function markArticle(d, k) {
+  const a = liveArticles(d, k).find((x) => x.id === MARK_ARTICLE)
   return a ? { url: "/zhurnal/" + articleSlug(a), title: a.title } : null
 }
 // страница кода: соседние коды и статья о том, что принимают на самом деле
@@ -460,14 +476,22 @@ function markNav(g, all, art) {
   return `<p>${prev ? link(prev, "← " + prev.code + " " + prev.ab.split(" ")[0]) + " · " : ""}<a href="/markirovka">Все коды 1–7</a>${next ? " · " + link(next, next.code + " " + next.ab.split(" ")[0] + " →") : ""}</p>` +
     (art ? `<p>Какой пластик принимают на самом деле и что делать, если цифры нет, — в статье <a href="${art.url}">«${esc(art.title)}»</a>.</p>` : "")
 }
-function guideHtml(g, all, art) {
+// вторая половина страницы «Куда сдать» (GUIDE_MORE в app.js): что происходит дальше, частые ошибки, статьи журнала
+function guideMore(g, d, k) {
+  const m = (k.GUIDE_MORE || []).find((x) => x[0] === g.s)
+  if (!m || g.kind === "mark") return ""
+  const arts = m[1].map((id) => liveArticles(d, k).find((a) => a.id === id)).filter(Boolean)
+  return `<h2>Что происходит дальше</h2><p>${esc(m[2])}</p><h2>Частые ошибки</h2>${ul(m[3])}` +
+    (arts.length ? `<h2>Подробно в журнале</h2><ul>${arts.map((a) => `<li><a href="/zhurnal/${esc(articleSlug(a))}">${esc(a.title)}</a></li>`).join("")}</ul>` : "")
+}
+function guideHtml(g, all, art, more) {
   const mark = g.kind === "mark"
   const rel = (g.rel || []).map((r) => (r === "markirovka" ? ["/markirovka", "Маркировка пластика"] : (x => x && [guideUrl(x), x.name])(all.find((x) => x.s === r)))).filter(Boolean)
   return `<section id="guide"><div class="wrap"><p><a href="${mark ? "/markirovka" : "/sortirovka"}">${mark ? "Маркировка пластика" : "Сортировка"}</a></p><h1>${esc(g.h1)}</h1><p class="lead">${esc(g.intro)}</p>\n` +
     (mark ? `<h2>Где встречается</h2>${ul(g.where_found)}<h2>Принимают ли в переработку</h2><p>${esc(g.accept)}. Зависит от пункта приёма — уточняйте на месте.</p>`
       : `<h2>Что принимают</h2>${ul(g.yes)}<h2>Что не принимают</h2>${ul(g.no)}`) +
     `<h2>Как подготовить</h2><ol>${g.prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` +
-    (g.where ? `<h2>Где сдать</h2>${ul(g.where)}` : "") + `<p><a href="/servisy">Пункты приёма в вашем городе</a></p>` +
+    (g.where ? `<h2>Где сдать</h2>${ul(g.where)}` : "") + `<p><a href="/servisy">Пункты приёма в вашем городе</a></p>` + (more || "") +
     (g.faq && g.faq.length ? `<h2>Частые вопросы</h2>${g.faq.map(([q, a]) => `<h3>${esc(q)}</h3><p>${esc(a)}</p>`).join("")}` : "") +
     (rel.length ? `<p>Ещё по теме: ${rel.map(([u, n]) => `<a href="${u}">${esc(n)}</a>`).join(" · ")}</p>` : "") + (mark ? markNav(g, all, art) : "") + `</div></section>`
 }
@@ -498,7 +522,7 @@ function homeDaromHtml(app) {
       return `<li><a href="/darom/v/${esc(it.id)}">${esc(it.title)}</a> — бесплатно${where ? ", " + esc(where) : ""}</li>` }).join("")}</ul><p><a href="/darom">Смотреть все вещи →</a></p>` : "")
 }
 function homeHtml(d, k, app) {
-  const arts = d.articles || []
+  const arts = liveArticles(d, k)
   return [
     `<section id="top"><div class="wrap"><h1>Меньше лишнего. Больше жизни.</h1><p>Вещи даром, разумные покупки, простые экопривычки и полезные идеи для жизни. Без фанатизма и лишних затрат.</p><p><a href="/#start">Я здесь впервые</a> · <a href="/#interests">Все разделы</a></p></div></section>`,
     sec("darom-strip", "Вещи даром", "Вещи даром", "Отдавайте хорошие вещи бесплатно и находите нужное рядом с собой.", homeDaromHtml(app)),
@@ -514,7 +538,7 @@ function homeHtml(d, k, app) {
 
 // Описание каждой страницы: заголовок, описание, текст, хлебные крошки. null — такой страницы нет.
 function page(path, d, k, app) {
-  const arts = d.articles || []
+  const arts = liveArticles(d, k)
   const base = { title: "DashaBotanika — меньше лишнего, больше жизни", description: null, image: null, type: "website", crumbs: null, ld: [] }
   if (path === "/") return Object.assign(base, { body: homeHtml(d, k, app) })
   if (path === "/tovary") {
@@ -586,7 +610,9 @@ function page(path, d, k, app) {
       crumbs: [["Полезные сервисы", "/servisy"]],
       body: sec("services", "Куда сдать", "Полезные сервисы для экологии", "Компании и проекты, которые принимают вторсырьё, батарейки, технику и вещи.",
         (cities.length ? `<p>Города: ${cities.map((c) => `<a href="/kuda-sdat/${slugify(c)}">${esc(c)}</a>`).join(", ")}</p>` : "") +
-        items.map((r) => `<article><h3>${esc(r.getString("name"))}</h3><p>${esc(r.getString("category"))} · ${esc(r.getString("city"))}</p>${r.getString("accepts") ? `<p>Принимают: ${esc(r.getString("accepts"))}</p>` : ""}${r.getString("note") ? `<p>${esc(r.getString("note"))}</p>` : ""}</article>`).join("\n"), true),
+        items.map((r) => `<article><h3>${esc(r.getString("name"))}</h3><p>${esc(r.getString("category"))} · ${esc(r.getString("city"))}</p>${r.getString("accepts") ? `<p>Принимают: ${esc(r.getString("accepts"))}</p>` : ""}${r.getString("note") ? `<p>${esc(r.getString("note"))}</p>` : ""}</article>`).join("\n"), true) +
+        // справочник по видам отходов — тот же, что под сервисами на сайте (guideIndex('mat') в app.js)
+        `<section id="kuda-sdat"><div class="wrap"><h2>Куда сдать: по видам отходов</h2><ul>${k.RECYCLE_PAGES.filter((g) => g.kind === "mat").map((g) => `<li><a href="${guideUrl(g)}">${esc(g.h1)}</a></li>`).join("")}</ul></div></section>`,
     })
   }
   const mc = path.match(/^\/kuda-sdat\/([a-z0-9-]+)$/)
@@ -596,7 +622,7 @@ function page(path, d, k, app) {
     const items = approvedServices(app).filter((r) => r.getString("city") === city || r.getString("city") === "Вся Россия")
       .sort((a, b) => (a.getString("city") === "Вся Россия") - (b.getString("city") === "Вся Россия"))
     const local = items.filter((r) => r.getString("city") === city).map((r) => r.getString("name"))
-    return Object.assign(base, {
+    return Object.assign(base, { noindex: !cityIndexable(app, city), robots: "noindex, follow",
       title: `Куда сдать вторсырьё, батарейки и технику ${inCity(city)} — DashaBotanika`,
       description: `Куда сдать вторсырьё, батарейки, технику и вещи ${inCity(city)}: ${local.slice(0, 3).join(", ")} и сервисы, которые работают по всей России.`,
       crumbs: [["Полезные сервисы", "/servisy"], [city, path]],
@@ -621,10 +647,13 @@ function page(path, d, k, app) {
     return Object.assign(base, {
       title: "Маркировка пластика 1–7: расшифровка цифр в треугольнике",
       description: "Что значат цифры 1–7 в треугольнике на упаковке: PET, HDPE, PVC, LDPE, PP, PS и OTHER. Где встречается каждый пластик и от чего зависит, примут ли его в переработку.",
-      crumbs: [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"]],
+      crumbs: [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"]], ld: faqLd({ faq: k.MARK_FAQ }),
       body: `<section><div class="wrap"><h1>Маркировка пластика: что значат цифры 1–7 в треугольнике</h1><p class="lead">Цифра в треугольнике — это код материала, а не обещание, что упаковку переработают.</p>
 <table><tr><th>Код</th><th>Материал</th><th>Где встречается</th><th>Принимают</th></tr>${marks.map((g) => `<tr><td><a href="${guideUrl(g)}">${g.code}</a></td><td>${esc(g.ab)}</td><td>${esc(g.where_found.slice(0, 2).join(", "))}</td><td>${esc(g.accept)}</td></tr>`).join("")}</table>` +
-        ((art) => art ? `<p>Не нашли цифру на упаковке или хотите понять, что из этого действительно сдаётся, — читайте статью <a href="${art.url}">«${esc(art.title)}»</a>.</p>` : "")(markArticle(d)) +
+        ((art) => art ? `<p>Не нашли цифру на упаковке или хотите понять, что из этого действительно сдаётся, — читайте статью <a href="${art.url}">«${esc(art.title)}»</a>.</p>` : "")(markArticle(d, k)) +
+        // что сдаётся на самом деле и что делать без цифры (сюда перенесена статья о маркировке; MARK_HUB в app.js)
+        k.MARK_HUB.map(([t, ps]) => `<h2>${esc(t)}</h2>${ps.map((x) => `<p>${esc(x)}</p>`).join("")}`).join("") +
+        `<h2>Частые вопросы</h2>${k.MARK_FAQ.map(([q, a]) => `<h3>${esc(q)}</h3><p>${esc(a)}</p>`).join("")}` +
         // общий блок для всех кодов (тот же текст, что в markingHub в site/js/app.js)
         `<h2>Синие контейнеры в Москве</h2><p>В Москве вторсырьё собирают в синие контейнеры. Что именно в них можно класть, определяют правила городской системы раздельного сбора и вашего оператора. Цифра маркировки сама по себе не гарантирует, что упаковку примут.</p>` +
         `</div></section>`,
@@ -636,7 +665,7 @@ function page(path, d, k, app) {
     if (!g) return null
     return Object.assign(base, { title: g.title, description: g.desc, ld: faqLd(g),
       crumbs: g.kind === "mark" ? [["Сортировка", "/sortirovka"], ["Маркировка пластика", "/markirovka"], [g.name, path]] : [["Сортировка", "/sortirovka"], [g.name, path]],
-      body: guideHtml(g, k.RECYCLE_PAGES, markArticle(d)) })
+      body: guideHtml(g, k.RECYCLE_PAGES, markArticle(d, k), guideMore(g, d, k)) })
   }
   if (path === "/kabinet") return Object.assign(base, { title: "Личный кабинет — DashaBotanika", noindex: true, crumbs: [["Личный кабинет", "/kabinet"]], body: "<h1>Личный кабинет</h1>" })
   const m = path.match(/^\/zhurnal\/([^/]+)$/)
@@ -652,12 +681,15 @@ function page(path, d, k, app) {
     const about = d.about || {}, bio = String(about.text || "").split(/\n{2,}/)[0].replace(/\s*\(Этот текст.*$/, "").trim()
     return Object.assign(base, {
       title: a.seo_title || `${a.title} — DashaBotanika`, description: desc, type: "article", canonical: url, image,
+      noindex: (k.NOINDEX_ARTICLES || []).indexOf(a.id) >= 0, robots: "noindex, follow",
       crumbs: [["Журнал", "/zhurnal"], [a.title, url]],
       ld: [{ "@type": "Article", headline: a.seo_title || a.title, description: desc, abstract: a.answer || undefined, datePublished: a.date || undefined,
         dateModified: a.updated || a.date || undefined, inLanguage: "ru", image: image || undefined,
         author: { "@type": "Person", name: about.name || "Даша", url: ORIGIN + "/o-proekte", description: bio || undefined }, publisher: { "@id": ORIGIN + "/#org" }, mainEntityOfPage: ORIGIN + url }]
         .concat(faq.length ? [{ "@type": "FAQPage", mainEntity: faq.map(([q, x]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: x } })) }] : []),
-      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? coverImg(a.image, (a.image_alt || "").trim() || a.title) : ""}<p class="lead">${esc(a.lead)}</p>\n${a.answer ? `<section class="answer"><h2>Коротко</h2><p>${mdInline(a.answer)}</p></section>\n` : ""}${mdHtml(a.body)}\n<aside class="author"><p>Автор — <a href="/o-proekte">${esc(about.name || "Даша")}</a>, DashaBotanika.${bio ? " " + esc(cut(bio, 220)) : ""}</p>${a.updated && a.updated > (a.date || "") ? `<p>Обновлено: <time datetime="${esc(a.updated)}">${esc(a.updated)}</time></p>` : ""}</aside></div></article>`,
+      body: `<article class="band"><div class="wrap"><p><a href="/zhurnal">Журнал</a></p><h1>${esc(a.title)}</h1>${a.date ? `<p><time datetime="${esc(a.date)}">${esc(a.date)}</time></p>` : ""}${a.image ? coverImg(a.image, (a.image_alt || "").trim() || a.title) : ""}<p class="lead">${esc(a.lead)}</p>\n${a.answer ? `<section class="answer"><h2>Коротко</h2><p>${mdInline(a.answer)}</p></section>\n` : ""}${mdHtml(a.body)}\n<aside class="author"><p>Автор — <a href="/o-proekte">${esc(about.name || "Даша")}</a>, DashaBotanika.${bio ? " " + esc(cut(bio, 220)) : ""}</p>${a.updated && a.updated > (a.date || "") ? `<p>Обновлено: <time datetime="${esc(a.updated)}">${esc(a.updated)}</time></p>` : ""}</aside>` +
+        ((rel) => rel.length ? `<nav class="art-more"><h2>Читайте также</h2><ul>${rel.map((x) => `<li><a href="/zhurnal/${esc(articleSlug(x))}">${esc(x.title)}</a></li>`).join("")}</ul></nav>` : "")(relatedArticles(arts, a)) +
+        `</div></article>`,
     })
   }
   return null
@@ -756,15 +788,16 @@ function listingUrls(app, limit, offset) {
 function pageUrls(app) {
   const tpl = read(`${SITE}/index.html`)
   const d = content(app, tpl)
+  const k = constants()
   const urls = [["/", "weekly", "1.0"], ["/zhurnal", "daily", "0.9"], ["/eda", "monthly", "0.8"], ["/sortirovka", "monthly", "0.8"], ["/servisy", "weekly", "0.8"], ["/moda", "monthly", "0.7"],
     ["/tovary", "monthly", "0.8"], ["/darom", "daily", "0.8"], ["/eko-test", "monthly", "0.7"], ["/igra", "monthly", "0.6"], ["/mify", "monthly", "0.7"], ["/vozduh", "monthly", "0.6"], ["/mir", "weekly", "0.5"], ["/o-proekte", "monthly", "0.5"]]
     .map(([u, f, p]) => `  <url><loc>${ORIGIN}${u}</loc><changefreq>${f}</changefreq><priority>${p}</priority></url>`)
   urls.push(`  <url><loc>${ORIGIN}/markirovka</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`)
-  constants().RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
+  k.RECYCLE_PAGES.forEach((g) => urls.push(`  <url><loc>${ORIGIN}${guideUrl(g)}</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>`))
   // «Вещи даром»: только города, которые можно индексировать (см. daromCities); сами вещи — listingUrls
   daromCities(app).filter((c) => c.indexable).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/darom/${slugify(c.city)}</loc>${lastmod(c.last)}<changefreq>daily</changefreq><priority>0.7</priority></url>`))
-  serviceCities(app).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
-  ;(d.articles || []).forEach((a) => {
+  serviceCities(app).filter((c) => cityIndexable(app, c)).forEach((c) => urls.push(`  <url><loc>${ORIGIN}/kuda-sdat/${slugify(c)}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`))
+  liveArticles(d, k).filter((a) => (k.NOINDEX_ARTICLES || []).indexOf(a.id) < 0).forEach((a) => {
     // lastmod — когда статью последний раз меняли (updated ставит сайт при правке текста), иначе дата публикации
     const mod = [a.updated, a.date].find((x) => /^\d{4}-\d\d-\d\d$/.test(x || ""))
     urls.push(`  <url><loc>${ORIGIN}/zhurnal/${esc(articleSlug(a))}</loc>${lastmod(mod)}<changefreq>monthly</changefreq><priority>0.6</priority></url>`)
@@ -795,6 +828,10 @@ function articleMoved(app, path) {
   if (!m) return null
   const key = decodeURIComponent(m[1])
   const arts = content(app, read(`${SITE}/index.html`)).articles || []
+  // статья объединена со страницей сайта (MOVED_ARTICLES в app.js): любой её адрес — навсегда туда
+  const moved = constants().MOVED_ARTICLES || {}
+  const merged = arts.find((x) => moved[x.id] && (articleSlug(x) === key || String(x.id) === key || (x.old_slugs || []).indexOf(key) >= 0))
+  if (merged) return moved[merged.id]
   if (arts.some((a) => articleSlug(a) === key)) return null
   const a = arts.find((x) => String(x.id) === key || (x.old_slugs || []).indexOf(key) >= 0)
   return a ? "/zhurnal/" + articleSlug(a) : null
