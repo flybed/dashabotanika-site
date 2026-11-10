@@ -1,4 +1,5 @@
-// Маркировка пластика: заголовок в браузере = серверный, соседние коды, ссылка на статью и раздел, без переполнения.
+// Маркировка пластика: заголовок в браузере = серверный, соседние коды, раздел, без переполнения. Статья о маркировке
+// перенесена в справочник (10.11.2026): её адрес ведёт на /markirovka, ссылок на неё больше нет, её текст — на /markirovka.
 //   BASE=http://localhost:8088 node tests/markirovka_ui.js
 const { chromium } = require('playwright');
 const B = process.env.BASE || 'http://localhost:8088';
@@ -19,12 +20,12 @@ const ssr = async (path) => { const h = await (await fetch(B + '/api/seo/page?p=
         await p.goto(B + path); await p.waitForSelector('.mark-nav'); await p.waitForTimeout(300);
         const s = await ssr(path);
         const r = await p.evaluate(() => ({ title: document.title, h1: document.querySelector('h1').innerText.trim(), nav: document.querySelector('.mark-nav').innerText,
-          art: [...document.querySelectorAll('.mark-nav a')].some((a) => a.getAttribute('href').startsWith('/zhurnal/')), over: document.documentElement.scrollWidth > innerWidth,
+          art: [...document.querySelectorAll('main a')].some((a) => a.getAttribute('href').startsWith('/zhurnal/markirovka')), over: document.documentElement.scrollWidth > innerWidth,
           small: [...document.querySelectorAll('.mark-nav-row a')].filter((a) => a.offsetHeight < 44).length }));
         const t = `[${w}] ${path}`;
         check(`${t}: title = server title`, r.title === s.title && !/DashaBotanika$/.test(r.title));
         check(`${t}: H1 unchanged and = server H1`, r.h1 === s.h1);
-        check(`${t}: neighbours, all codes, the article`, (!prev || r.nav.includes('← ' + prev)) && (!next || r.nav.includes(next + ' →')) && r.nav.includes('Все коды 1–7') && r.art);
+        check(`${t}: neighbours, all codes, no link to the merged article`, (!prev || r.nav.includes('← ' + prev)) && (!next || r.nav.includes(next + ' →')) && r.nav.includes('Все коды 1–7') && !r.art);
         check(`${t}: no overflow, links ≥ 44 px`, !r.over && r.small === 0);
       }
       // the blue-container question: only on 1, 2 and 5; one common note on /markirovka instead
@@ -37,7 +38,13 @@ const ssr = async (path) => { const h = await (await fetch(B + '/api/seo/page?p=
       check(`[${w}] /markirovka: one common note on blue containers (page and server)`, (await p.locator('.mark-msk').count()) === 1 && (await (await fetch(B + '/api/seo/page?p=/markirovka')).text()).includes('Синие контейнеры в Москве'));
       const s = await ssr('/markirovka');
       check(`[${w}] /markirovka: title = server title`, (await p.title()) === s.title);
-      check(`[${w}] /markirovka: links to the article`, await p.evaluate(() => [...document.querySelectorAll('main a')].some((a) => a.getAttribute('href').startsWith('/zhurnal/markirovka'))));
+      check(`[${w}] /markirovka: no link to the merged article`, !(await p.evaluate(() => [...document.querySelectorAll('main a')].some((a) => a.getAttribute('href').startsWith('/zhurnal/markirovka')))));
+      const hub = await p.innerText('main'), hubSsr = await (await fetch(B + '/api/seo/page?p=/markirovka')).text();
+      check(`[${w}] /markirovka: the article's text is here (page and server)`, ['Какой пластик действительно сдаётся', 'Что делать, если цифры нет', 'Частые вопросы'].every((x) => hub.includes(x) && hubSsr.includes(x)) && hubSsr.includes('FAQPage'));
+      // the article's addresses lead here: the server answers 301
+      const has = ((await (await fetch(B + "/api/collections/content/records?filter=(key='site')")).json()).items[0].data.articles || []).some((x) => x.id === 'ah338y2n');
+      const red = await fetch(B + '/zhurnal/ah338y2n', { redirect: 'manual' });
+      if (has) check(`[${w}] the merged article's address → 301 /markirovka`, red.status === 301 && /\/markirovka$/.test(red.headers.get('location') || ''));
       if (w === 390 && process.env.SHOT) await p.goto(B + '/markirovka/6-ps').then(() => p.waitForSelector('.mark-nav')).then(() => p.locator('.mark-nav').screenshot({ path: process.env.SHOT + '/mark_nav_390.png' }));
       await c.close();
     }

@@ -315,6 +315,77 @@ const RECYCLE_PAGES = [
         ['Что значат буквы PC или PLA рядом с цифрой 7?','Это уточнение материала: PC — поликарбонат, PLA — биопластик из полимолочной кислоты. Даже с уточнением такие изделия принимают редко — проверьте правила своего пункта.']],
    rel:['markirovka-6-ps','plastik']}
 ];
+// «Куда сдать», вторая половина страницы: что происходит со сданным, частые ошибки и статьи журнала по теме.
+// [адрес справочника, id статей журнала, «что дальше», частые ошибки]. Те же тексты на странице сервера (pb_hooks/seo.js).
+const GUIDE_MORE = [
+  ['batareyki', ['akx7cplf'],
+   'Батарейки из боксов отвозят на специализированные предприятия. Там корпуса вскрывают и разделяют, извлекая металлы: цинк, марганец, сталь, никель, литий. Из этих металлов снова делают сырьё для промышленности. Чем больше батареек попадает в бокс, а не в ведро, тем меньше тяжёлых металлов уходит на полигон.',
+   ['Копить батарейки в одной банке с монетами и ключами: металл может замкнуть контакты.','Выбрасывать «только одну» в обычный мусор — именно так они и оказываются на свалке.','Сдавать вздутый аккумулятор в обычный бокс: его нужно отдать отдельно, в экоцентр или в пункт приёма, который берёт такие.','Забывать про батарейки внутри техники: перед сдачей пульта или игрушки выньте их.']],
+  ['bumaga', [],
+   'Макулатуру распускают в воде до волокна, очищают от скоб, скотча и краски, а потом снова отливают картон, упаковку, бумагу для гофрокоробов и санитарно-гигиенические изделия. Волокно не бесконечное: с каждым кругом оно становится короче, поэтому особенно важно, чтобы бумага попадала в переработку чистой и сухой.',
+   ['Класть в бумагу кассовые чеки, бумажные стаканчики и ламинированную упаковку — их не переработают вместе с обычной бумагой.','Сдавать мокрую или жирную бумагу: такая портит партию.','Не разбирать коробки: место в контейнере заканчивается в разы быстрее.','Путать тетрапак с картоном: у него свой путь, смотрите страницу про тетрапак.']],
+  ['plastikovye-butylki', ['ah338y2n'],
+   'Бутылки из ПЭТ сортируют по цвету, измельчают во флекс, моют и плавят. Из этого сырья делают новые бутылки и упаковку, полиэфирное волокно для одежды и наполнителей, плёнку и ленту. Прозрачный ПЭТ ценится выше цветного: из него можно получить больше разных изделий.',
+   ['Сдавать бутылки с остатками напитка или масла.','Не сплющивать бутылки — в мешок и контейнер влезает втрое меньше.','Выбрасывать крышки вместе с бутылкой там, где пункт просит сдавать их отдельно.','Считать, что любая прозрачная упаковка — это ПЭТ: проверьте цифру в треугольнике.']],
+  ['plastik', ['adpqolww'],
+   'Пластиковую упаковку на сортировке делят по видам: флаконы ♴ 2, контейнеры ♷ 5, плёнку ♶ 4 и так далее. Каждый вид перерабатывают отдельно: его измельчают, моют и превращают в гранулы, из которых делают трубы, ящики, флаконы и плёнку. Упаковка без маркировки и многослойная упаковка обычно уходит в отходы, поэтому цифра на дне так важна.',
+   ['Ориентироваться на сам треугольник: он означает тип пластика, а не обещание переработки.','Сдавать упаковку с остатками еды и жира.','Класть в контейнер для пластика пакеты, если ваш пункт плёнку не берёт.','Выбрасывать мелкую упаковку, не проверив код: многие пункты берут ♷ 5 и ♴ 2.']],
+  ['steklo', ['a6zk1okb'],
+   'Стеклянную тару сортируют по цвету, очищают от крышек и примесей и дробят в стеклобой. Его переплавляют вместе с сырьём для новых банок и бутылок. Стекло можно переплавлять снова и снова, но только если в него не попали керамика, зеркала, посуда или жаропрочное стекло: у них другая температура плавления, и такие кусочки портят новую партию.',
+   ['Класть в контейнер для стекла посуду, бокалы, зеркала и оконное стекло.','Сдавать банки с металлическими крышками: крышки сдают отдельно, как металл.','Бросать в стекло лампочки и керамику.','Сдавать разбитое стекло без упаковки — его нужно завернуть, чтобы никто не поранился.']],
+  ['metall', ['adpqolww'],
+   'Алюминиевые и стальные банки на сортировке разделяют магнитом и вихретоковым сепаратором, прессуют в кипы и отправляют на переплавку. Алюминий и сталь можно переплавлять много раз, а переплавка алюминия требует намного меньше энергии, чем выплавка нового металла из руды.',
+   ['Сдавать банки с остатками еды.','Выбрасывать металлические крышки от стеклянных банок вместе со стеклом.','Сдавать аэрозольные баллончики, не убедившись, что пункт их принимает и что они пустые.','Считать, что фольгу берут везде: уточняйте в своём пункте.']],
+  ['odezhda', ['abgrqu23', 'ahv7po4s', 'a0v0wqsv'],
+   'Целые вещи из благотворительных контейнеров сортируют: часть раздают нуждающимся, часть продают в благотворительных магазинах, а изношенное отправляют на переработку. Там текстиль разбирают на ветошь, нетканые материалы и утеплитель. Поэтому самое ценное, что можно сделать с хорошей вещью, — отдать её тому, кто будет носить.',
+   ['Отдавать в благотворительность грязные и рваные вещи: их приходится выбрасывать.','Нести в переработку вещь, которая ещё может послужить другому человеку.','Сдавать вещи мокрыми: в мешке появится плесень.','Складывать всё вместе: пункты часто просят отделить обувь, бельё и вещи для переработки.']],
+  ['tekhnika', ['a2xib8vj'],
+   'Технику на предприятиях разбирают: отделяют пластик, металлы, стекло и платы. Из плат извлекают медь и драгоценные металлы, а опасные части — аккумуляторы, ртутные лампы подсветки в старых мониторах, хладагент холодильников — обезвреживают отдельно. Поэтому старый телефон в ящике стола — это сырьё, которое просто лежит без дела.',
+   ['Сдавать телефон или ноутбук, не удалив данные и не выйдя из аккаунтов.','Выбрасывать мелкую технику и зарядки в обычный мусор.','Оставлять батарейки в пультах и игрушках.','Хранить «на всякий случай» то, что уже никогда не включится: лучше сдать, пока это ещё легко.']],
+  ['lampochki', ['a9gd52p3'],
+   'Люминесцентные лампы и градусники перерабатывают на специальных предприятиях: ртуть извлекают и обезвреживают, а стекло и металл цоколя отправляют во вторсырьё. Главное до сдачи — сохранить колбу целой: пока она не разбилась, ртуть внутри и никому не вредит.',
+   ['Выбрасывать энергосберегающую лампу в мусоропровод или контейнер.','Пытаться разобрать лампу или градусник самому.','Пылесосить ртуть от разбитого градусника: так она разносится по комнате.','Путать светодиодную лампу с люминесцентной: светодиодная ртути не содержит, её сдают как электронику.']],
+  ['tetrapak', ['asunifmf'],
+   'Тетрапак перерабатывают на заводах, где есть гидроразбиватели: коробку долго размешивают в воде, картонные волокна отделяются от слоёв пластика и алюминия. Из волокна делают картон и бумагу, а смесь пластика и алюминия идёт на другие изделия. Таких производств немного, поэтому тетрапак и принимают отдельно, а не вместе с макулатурой.',
+   ['Класть тетрапак в контейнер для бумаги.','Сдавать коробки с остатками молока или сока: они быстро начинают пахнуть.','Не сплющивать коробки — они занимают много места.','Оставлять пластиковую крышечку: её сдают отдельно, вместе с пластиком.']],
+  ['kryshechki', ['ah338y2n'],
+   'Собранные крышки сортируют по виду пластика, моют, дробят и превращают в гранулы. Из них делают ящики, вёдра, горшки и другие изделия из ♷ 5 и ♴ 2. Крышки маленькие, поэтому на обычной сортировке их часто теряют, а собранные отдельно, в одном мешке, они почти наверняка доходят до переработки.',
+   ['Оставлять крышку закрученной на бутылке, если пункт просит сдавать их отдельно.','Сдавать крышки с металлическими вставками или остатками продукта.','Выбрасывать крышки, потому что «они слишком маленькие».','Не проверять условия благотворительной акции: некоторые берут только крышки от напитков.']],
+];
+// разделы, где всё показывает скрипт (воздух, игра, мир): текст о том, как это устроено, — и людям, и поисковикам.
+// [адрес, [[подзаголовок, абзац, абзац…], …]]. Тот же текст на странице сервера (pb_hooks/seo.js).
+const PAGE_ABOUT = [
+  ['/vozduh', [
+    ['Откуда эти данные', 'Мы берём индекс качества воздуха из открытого сервиса Open-Meteo. Он считает его по данным европейской службы мониторинга атмосферы Copernicus (CAMS): это модель, которая оценивает загрязнение воздуха по всему миру, в том числе в городах России. Прогноз показан по часам на сутки вперёд.', 'Это модельная оценка для города в целом, а не показания датчика у вашего дома. Рядом с большой дорогой или стройкой воздух может быть хуже, в парке — лучше.'],
+    ['Что значит индекс', 'Это европейский индекс качества воздуха: он сводит в одно число несколько загрязнителей — мелкую пыль PM2.5 и PM10, диоксид азота (в городах это в основном выхлопы машин) и озон. Чем ниже число, тем чище воздух. До 20 — отлично, 20–40 — хорошо, 40–60 — умеренно, 60–80 — плохо, 80–100 — очень плохо, от 100 — опасно.'],
+    ['Когда гулять и проветривать', 'Посмотрите прогноз на сутки: загрязнение меняется в течение дня, а утром и поздно вечером у дорог часто бывает хуже. Проветривайте и гуляйте в часы, когда индекс ниже. Людям с астмой, детям и пожилым стоит особенно внимательно смотреть на дни с умеренным и плохим воздухом.'],
+  ]],
+  ['/igra', [
+    ['Как играть', 'В парке разбросан мусор: бутылки, газеты, банки, батарейки. Подберите вещь и отнесите в нужный контейнер — пластик, бумага, стекло, металл или батарейки. На всё 60 секунд. За верный контейнер — очки, за ошибку — минус очки. Шишки, листья и цветы оставьте в покое: они часть парка, за них очки снимаются.', 'На компьютере герой ходит стрелками или клавишами W, A, S, D, а взять или положить вещь можно пробелом. На телефоне нажмите на место, куда идти, или на предмет, чтобы его взять.'],
+    ['Чему учит игра', 'Это тренажёр раздельного сбора: за минуту становится понятно, что флакон от шампуня — это пластик, консервная банка — металл, а батарейку нельзя бросать в общий контейнер. Подходит детям и взрослым, можно играть всей семьёй и сравнивать рекорды.', 'Лучший результат зарегистрированных участников попадает в рейтинг игроков, а за игру ваш житель в «Счастливом мире» получает очки роста.'],
+  ]],
+  ['/mir', [
+    ['Как устроен мир', 'Каждый участник DashaBotanika поселяется в мире: выбирает себе животное или растение и придумывает имя. Житель растёт вместе с вашими эко-привычками: за челленджи, эко-тест, игру, прочитанные статьи и отданные вещи он получает очки роста и переходит на новые уровни.', 'Чем больше участников, тем живее мир: в нём появляются новые жители, а каждого можно найти и посмотреть, как далеко он вырос.'],
+    ['Зачем это нужно', 'Менять привычки проще, когда видишь, что ты не один. В мире видно, сколько людей рядом делают то же самое, и можно написать соседу: спросить, куда он сдаёт батарейки, или договориться о вещи из «Вещей даром».', 'Поселиться можно бесплатно, регистрация занимает минуту.'],
+  ]],
+];
+// справочник «Маркировка пластика»: что сдаётся на самом деле и что делать без цифры (сюда перенесена статья о маркировке)
+const MARK_HUB = [
+  ['Какой пластик действительно сдаётся', ['Единого списка на всю страну нет: всё решает конкретный пункт приёма. Надёжнее всего принимают ♳ 1 (PET) и ♴ 2 (HDPE). Дальше идут ♷ 5 (PP) и ♶ 4 (LDPE) — в зависимости от города и пункта. ♸ 6 (PS) берут редко, ♵ 3 (PVC) и ♹ 7 — почти нигде.', 'Проверить свой пункт проще всего на карте RecycleMap (recyclemap.ru): у каждого пункта указано, какие виды пластика он принимает. Бывает, что пункт берёт «пластик 1, 2, 5», а мягкую плёнку не берёт.']],
+  ['Что делать, если цифры нет', ['Сначала поищите маркировку: на дне, на крышке, на этикетке, иногда — на шве упаковки. Код могут указать цифрой в треугольнике или буквами: PET, PP, PE-LD и так далее. Если маркировки нет совсем, уточните у своего пункта приёма, берёт ли он такую упаковку.', 'Многослойную упаковку (пачки чипсов, пакеты от кофе, некоторые пакеты для заморозки) помечают буквами через дробь, например C/PP или C/LDPE. Это композит: несколько слоёв склеены вместе, и разделить их трудно. Принимают такое лишь в некоторых пунктах.']],
+  ['Как подготовить пластик к сдаче', ['Опустошите и ополосните — до блеска мыть не нужно. Этикетки снимите, если они снимаются легко. Про крышки уточните в своём пункте: где-то их просят отдельно, где-то вместе с бутылкой. Бутылки сомните, а мягкую плёнку и пакеты складывайте отдельно и сдавайте туда, где их принимают.']],
+  ['Три мифа о маркировке', ['«Есть треугольник — значит, переработают». Нет, треугольник показывает только тип пластика, и многие производители ставят его по привычке.', '«Чем меньше цифра, тем экологичнее». Тоже нет: цифра говорит о типе материала, а не о его экологичности.', '«Одна неправильная бутылка испортит всю партию». Не всегда, но чем чище раздельный сбор, тем больше сырья в итоге перерабатывают.']],
+];
+const MARK_FAQ = [
+  ['Что значит цифра в треугольнике на пластике?', 'Тип пластика, из которого сделана вещь: например, 1 — PET, 2 — HDPE, 5 — PP. Это не знак того, что упаковку обязательно примут.'],
+  ['Какой пластик принимают чаще всего?', '1 (PET) и 2 (HDPE). Пластик 4 и 5 — в зависимости от города и пункта, 6 берут редко, 3 и 7 почти нигде.'],
+  ['Значит ли треугольник, что пластик перерабатывается?', 'Нет. Треугольник показывает только тип пластика, многие компании ставят его по привычке.'],
+  ['Что делать, если на упаковке нет цифры?', 'Поищите буквенный код на дне, крышке или этикетке. Если маркировки нет совсем, уточните в своём пункте приёма, берёт ли он такую упаковку.'],
+];
+// статьи, которые объединены со страницей сайта: адрес статьи навсегда (301) ведёт туда, в журнале её не видно
+const MOVED_ARTICLES = {'ah338y2n':'/markirovka'};
+// статьи, которые не нужно показывать поисковикам (короткие новости о сайте): на сайте остаются
+const NOINDEX_ARTICLES = ['a3'];
 const guideUrl = g => g.kind==='mark' ? '/markirovka/'+g.s.replace('markirovka-','') : '/sortirovka/'+g.s;
 const GUIDE_RE = /^\/(sortirovka|markirovka)\/[a-z0-9-]+$/;
 const guideOf = path => RECYCLE_PAGES.find(g=>guideUrl(g)===path);
@@ -1723,6 +1794,23 @@ function guideRel(g){
   return refs.length ? h('div',{class:'g-rel'}, h('span',{class:'hint'},'Ещё по теме:'), refs.map(r=>h('a',{class:'chip',href:r.url}, r.ic+' '+r.name))) : null;
 }
 const gList = (items, cls) => h('ul',{class:'g-list '+(cls||'')}, items.map(t=>h('li',null,t)));
+// articles shown on the site: without those merged into a site page (MOVED_ARTICLES); STATE keeps them all, so saving loses nothing
+const liveArticles = () => STATE.articles.filter(a=>!MOVED_ARTICLES[a.id]);
+// the second half of a «where to hand in» page (GUIDE_MORE): what happens next, common mistakes, the journal on the topic
+function guideMoreBlock(g){
+  const m = GUIDE_MORE.find(x=>x[0]===g.s); if (!m) return null;
+  const arts = m[1].map(id=>liveArticles().find(a=>a.id===id)).filter(Boolean);
+  return h('div',{class:'g-grid'},
+    h('div',{class:'card'}, h('h2',null,'Что происходит дальше'), h('p',null,m[2])),
+    h('div',{class:'card'}, h('h2',null,'Частые ошибки'), gList(m[3])),
+    arts.length ? h('div',{class:'card'}, h('h2',null,'Подробно в журнале'), gList(arts.map(a=>h('a',{href:articleUrl(a)},a.title)))) : null);
+}
+// sections drawn by the script (air, game, world): how they work — for people and for search engines (PAGE_ABOUT)
+function aboutBlock(path){
+  const x = PAGE_ABOUT.find(p=>p[0]===path); if (!x) return null;
+  return h('section',{class:'band guide',id:'how'}, h('div',{class:'wrap'}, h('div',{class:'g-grid'},
+    x[1].map(([t, ...ps])=>h('div',{class:'card'}, h('h2',null,t), ps.map(p=>h('p',null,p)))))));
+}
 function guidePage(path){
   const g = guideOf(path);
   if (!g) return {title:'Страница не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'}, h('h1',null,'Страница не найдена'), h('a',{class:'btn',href:'/sortirovka'},'Как сортировать')))]};
@@ -1749,7 +1837,7 @@ function guidePage(path){
             h('a',{class:'btn small',href:'/servisy'},'📍 Пункты в вашем городе'),
             h('a',{class:'btn ghost small',href:'https://recyclemap.ru',target:'_blank',rel:'noopener'},'Карта RecycleMap'),
             g.mat ? h('a',{class:'btn ghost small',href:'/sortirovka#calc'},'Посчитать пользу') : null))),
-      guideFaq(g.faq), guideRel(g), mark ? markNav(g) : null,
+      mark ? null : guideMoreBlock(g), guideFaq(g.faq), guideRel(g), mark ? markNav(g) : null,
       h('p',{class:'hint'},'Правила приёма в разных городах отличаются. Нашли ошибку или знаете пункт рядом — ', h('a',{href:'/o-proekte#feedback'},'напишите Даше'),'.')))];
   }};
 }
@@ -1765,7 +1853,7 @@ function guideIndex(kind){
 }
 // the practical article about plastic codes (the same as in pb_hooks/seo.js, MARK_ARTICLE): its address follows the slug
 const MARK_ARTICLE = 'ah338y2n';
-const markArticle = () => (a => a && {url:'/zhurnal/'+articleSlug(a), title:a.title})(STATE.articles.find(a=>a.id===MARK_ARTICLE));
+const markArticle = () => (a => a && {url:'/zhurnal/'+articleSlug(a), title:a.title})(liveArticles().find(a=>a.id===MARK_ARTICLE));
 // a code page: the codes before and after it, and the article about what is really accepted
 function markNav(g){
   const marks = RECYCLE_PAGES.filter(x=>x.kind==='mark'), i = marks.indexOf(g), prev = marks[i-1], next = marks[i+1], art = markArticle();
@@ -1788,6 +1876,9 @@ function markingHub(){
         h('td',null, h('a',{href:guideUrl(g),class:'mark-code'}, g.ic+' '+g.code)), h('td',null, h('a',{href:guideUrl(g)}, g.ab)),
         h('td',null, g.where_found.slice(0,2).join(', ')), h('td',null, g.accept)))))),
     (art => art ? h('p',null,'Не нашли цифру на упаковке или хотите понять, что из этого действительно сдаётся, — читайте статью ', h('a',{href:art.url},'«'+art.title+'»'),'.') : null)(markArticle()),
+    // what is really accepted and what to do without a number (the article about plastic codes was merged here, MOVED_ARTICLES)
+    h('div',{class:'g-grid'}, MARK_HUB.map(([t, ps])=>h('div',{class:'card'}, h('h2',null,t), ps.map(p=>h('p',null,p))))),
+    guideFaq(MARK_FAQ),
     // one note for all codes instead of the same answer on every code page (the same text as in pb_hooks/seo.js)
     h('div',{class:'card mark-msk'}, h('h2',null,'Синие контейнеры в Москве'), h('p',{style:'margin:0'},'В Москве вторсырьё собирают в синие контейнеры. Что именно в них можно класть, определяют правила городской системы раздельного сбора и вашего оператора. Цифра маркировки сама по себе не гарантирует, что упаковку примут.'))
   )), guideIndex('mark')];
@@ -1829,7 +1920,7 @@ function endCta(it){
       h('a',{class:'chip',href:'https://wa.me/?text='+enc(it.title+' '+url),target:'_blank',rel:'noopener',onclick:()=>goal('article_share')},'WhatsApp'),
       h('a',{class:'chip',href:'https://vk.com/share.php?url='+enc(url)+'&title='+enc(it.title),target:'_blank',rel:'noopener',onclick:()=>goal('article_share')},'ВКонтакте'));
     if (accState()==='member'){
-      const next = articlesFor(myInterests().length ? myInterests() : [articleTopic(it)].filter(Boolean), 4).map(x=>x.a).filter(a=>a!==it)[0] || STATE.articles.find(a=>a!==it);
+      const next = articlesFor(myInterests().length ? myInterests() : [articleTopic(it)].filter(Boolean), 4).map(x=>x.a).filter(a=>a!==it)[0] || liveArticles().find(a=>a!==it);
       box.className = 'art-join member';
       box.replaceChildren(
         next ? h('div',null, h('div',{class:'eyebrow'},'Читайте дальше'), h('a',{class:'art-next',href:articleUrl(next),onclick:()=>goal('article_next')}, next.title,' →')) : null,
@@ -1869,11 +1960,18 @@ function readerBar(){
   PAGE_UNSUBS.push(close);
 }
 
+// «read also»: the articles just before and after this one in the journal, then the newest — so every article is linked
+// from its neighbours (the same rule as relatedArticles in pb_hooks/seo.js)
+function relatedArticles(it){
+  const list = liveArticles(), i = list.indexOf(it);
+  return [list[i-1], list[i+1]].concat(list).filter((a,j,all)=>a && a!==it && all.indexOf(a)===j).slice(0,4);
+}
 function articlePage(path){
   const key = decodeURIComponent(path.split('/')[2]||'');
   // old addresses keep working after the address is changed (old_slugs)
   const it = STATE.articles.find(a=>articleSlug(a)===key || String(a.id)===key || (a.old_slugs||[]).includes(key));
   // the server answers an old address with 301; inside the site — just show the main address
+  if (it && MOVED_ARTICLES[it.id]){ history.replaceState(null,'',MOVED_ARTICLES[it.id]+location.search+location.hash); return pageOf(MOVED_ARTICLES[it.id]); }
   if (it && articleSlug(it)!==key) history.replaceState(null,'','/zhurnal/'+articleSlug(it)+location.search+location.hash);
   if (!it) return {title:'Статья не найдена — DashaBotanika', render:()=>[h('section',{class:'band'}, h('div',{class:'wrap'},
     h('h1',null,'Статья не найдена'), h('p',{class:'lead'},'Возможно, её переименовали или убрали. Загляните в журнал — там все статьи.'),
@@ -1882,7 +1980,7 @@ function articlePage(path){
   return {title:it.seo_title || it.title+' — DashaBotanika', render:()=>{
     live(()=>{ if (COM.uid) markRead(it.id); });
     setTimeout(readerBar);
-    const others = STATE.articles.filter(a=>a!==it).slice(0,3);
+    const others = relatedArticles(it);
     return [h('article',{class:'band art-page',id:'article'}, h('div',{class:'wrap narrow'},
       h('nav',{class:'crumbs','aria-label':'Навигация'}, h('a',{href:'/'},'Главная'),' › ',h('a',{href:'/zhurnal'},'Журнал')),
       h('div',{style:'display:flex;gap:10px;align-items:center;flex-wrap:wrap'}, h('span',{class:'tag'},it.cat||'Статья'), it.date ? h('time',{class:'date',datetime:it.date},fmtDate(it.date)) : null,
@@ -1976,7 +2074,7 @@ function articleScore(a, topics){
   return {score, why};
 }
 function articlesFor(topics, n){
-  return STATE.articles.map((a,i)=>Object.assign({a, i}, articleScore(a, topics))).filter(x=>x.score >= 2).sort((x,y)=>y.score-x.score || x.i-y.i).slice(0, n||3);
+  return liveArticles().map((a,i)=>Object.assign({a, i}, articleScore(a, topics))).filter(x=>x.score >= 2).sort((x,y)=>y.score-x.score || x.i-y.i).slice(0, n||3);
 }
 // one card size for every article: a cover (or a quiet placeholder), at most two badges, title and lead cut to three lines
 function articleCard(it, why){
@@ -2005,13 +2103,13 @@ function forYouBlock(){
 }
 
 function journalSection(preview){
-  const items = preview ? STATE.articles.slice(0,3) : STATE.articles;
+  const items = preview ? liveArticles().slice(0,3) : liveArticles();
   // on the home page: articles for your interests when they are known, otherwise the freshest
   if (preview){
     const box = h('div');
     live(()=>{
       const topics = myInterests(), picks = topics.length ? articlesFor(topics, 3) : [];
-      const list = picks.map(x=>[x.a, x.why]).concat(STATE.articles.filter(a=>!picks.some(x=>x.a===a)).map(a=>[a, null])).slice(0,3);
+      const list = picks.map(x=>[x.a, x.why]).concat(liveArticles().filter(a=>!picks.some(x=>x.a===a)).map(a=>[a, null])).slice(0,3);
       box.replaceChildren(sectionHead('Журнал', picks.length ? 'Для вас в журнале' : 'Свежее в журнале'),
         list.length ? h('div',{class:'grid g3'}, list.map(([a,why])=>articleCard(a, why))) : h('div',{class:'empty'},'Статьи скоро появятся.'),
         h('div',{class:'more-row'}, h('span'), h('a',{class:'btn',href:'/zhurnal'},'Все статьи')));
@@ -2256,15 +2354,15 @@ const PAGES = {
   '/darom': {title:'Вещи даром: отдать ненужное тем, кому пригодится — DashaBotanika', render:()=>{ SEC_H1 = true; DAROM.filter.city = ''; return [marketSection()]; }},
   '/eko-test': {title:'Эко-экзамен с сертификатом — DashaBotanika', render:()=>{ SEC_H1 = true; return [examSection()]; }},
   '/politika': {title:'Политика конфиденциальности — DashaBotanika', render:()=>[privacyPage()]},
-  '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection()]; }},
+  '/servisy': {title:'Полезные сервисы для экологии: куда сдать вторсырьё — DashaBotanika', render:()=>{ SEC_H1 = true; return [servicesSection(), guideIndex('mat')]; }},
   '/eda': {title:'Эко-еда: сезонные продукты, рецепты без отходов и меню на неделю — DashaBotanika', render:()=>{ SEC_H1 = true; return [foodSection(), menuSection(), cafesSection(), helperSection(['food','pack'])]; }},
   '/sortirovka': {title:'Как сортировать мусор дома: что куда сдавать и калькулятор пользы — DashaBotanika', render:()=>{ SEC_H1 = true; return [sortGuide(), guideIndex('mat'), calcSection(), helperSection(['pack','services'])]; }},
   '/markirovka': {title:'Маркировка пластика 1–7: расшифровка цифр в треугольнике', render:()=>markingHub()},
   '/moda': {title:'Эко-мода: капсульный гардероб, ткани и вторая жизнь вещей — DashaBotanika', render:()=>{ SEC_H1 = true; return [fashionSection(), marketTeaser(), goodsSection(true)]; }},
-  '/vozduh': {title:'Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika', render:()=>{ SEC_H1 = true; return [airSection()]; }},
+  '/vozduh': {title:'Чистота воздуха в вашем городе сейчас и прогноз — DashaBotanika', render:()=>{ SEC_H1 = true; return [airSection(), aboutBlock('/vozduh')]; }},
   '/mify': {title:'Мифы о переработке и экологии: что правда, а что нет — DashaBotanika', render:()=>{ SEC_H1 = true; return [mythsSection(), examTeaser()]; }},
-  '/igra': {title:'Игра «Эко-уборка»: сортируй мусор на скорость — DashaBotanika', render:()=>{ SEC_H1 = true; return [gameSection(), examTeaser()]; }},
-  '/mir': {title:'Счастливый мир участников DashaBotanika', render:()=>{ SEC_H1 = true; return [worldSection()]; }},
+  '/igra': {title:'Игра «Эко-уборка»: сортируй мусор на скорость — DashaBotanika', render:()=>{ SEC_H1 = true; return [gameSection(), aboutBlock('/igra'), examTeaser()]; }},
+  '/mir': {title:'Счастливый мир участников DashaBotanika', render:()=>{ SEC_H1 = true; return [worldSection(), aboutBlock('/mir')]; }},
   '/zhurnal': {title:'Журнал: статьи и новости об экологичной жизни — DashaBotanika', render:()=>{ SEC_H1 = true; return [journalSection()]; }},
   '/o-proekte': {title:'О проекте DashaBotanika: Даша, контакты и обратная связь — DashaBotanika', render:()=>[aboutSection(true), feedbackSection(), contactsSection()]},
 };
@@ -6091,7 +6189,7 @@ function eleTips(){
   const member = accState()==='member', today = iso(new Date()), tips = [];
   (STATE.promos||[]).filter(p=>p && p.title && safeHref(p.href) && (!p.until || p.until >= today) && (!p.who || p.who==='all' || (p.who==='member')===member))
     .forEach(p=>tips.push({id:'p:'+p.id, title:p.title, text:p.text, cta:p.cta||'Посмотреть', href:p.href}));
-  const art = (STATE.articles||[]).find(a=>a && a.date && Date.now() - Date.parse(a.date) < 4*86400000);
+  const art = liveArticles().find(a=>a && a.date && Date.now() - Date.parse(a.date) < 4*86400000);
   if (art && !(member && COM.reads[art.id])) tips.push({id:'a:'+art.id, title:'Свежая статья в журнале', text:/^«/.test(art.title) ? art.title : '«'+art.title+'»', cta:'Читать', href:articleUrl(art)});
   const week = Math.floor(Date.now()/(7*86400000));
   if (!member) tips.push({id:'join:'+week, title:'Поселитесь в «Счастливом мире»', text:'Регистрация — минута: выберите животное или растение, и оно будет расти вместе с вашими эко-привычками.', cta:'Присоединиться', href:'/kabinet?tab=register'});
