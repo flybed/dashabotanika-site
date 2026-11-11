@@ -1427,18 +1427,22 @@ function markRead(articleId){
 // Likes react at once (optimistic): the heart changes on tap, the server catches up in the background.
 // If the server says no, the like goes back and a message explains why.
 const LIKE_PENDING = {};
-function likeBtn(target){
-  const b = h('button',{type:'button',class:'like'});
+function likeBtn(target, big){
+  const b = h('button',{type:'button',class:'like'+(big ? ' like-big' : '')});
   live(()=>{
     const pend = LIKE_PENDING[target];
     let all = COM.likes.filter(l=>l.target===target), mine = all.find(l=>l.user===COM.uid);
     if (pend==='add' && !mine){ mine = {id:null, user:COM.uid, target}; all = all.concat(mine); }
     if (pend==='del' && mine){ all = all.filter(l=>l!==mine); mine = null; }
-    b.replaceChildren(mine ? '♥' : '♡', ' ', all.length || '');
+    // big: the like at the end of an article — a heart, words and the count, impossible to miss
+    if (big) b.replaceChildren(h('span',{class:'lb-heart','aria-hidden':'true'}, mine ? '♥' : '♡'), h('span',{class:'lb-t'}, mine ? 'Вам понравилось' : 'Нравится'), all.length ? h('span',{class:'lb-n'}, all.length) : null);
+    else b.replaceChildren(mine ? '♥' : '♡', ' ', all.length || '');
     b.setAttribute('aria-pressed', String(!!mine));
     b.setAttribute('aria-label', (mine ? 'Убрать лайк' : 'Нравится')+(all.length ? ', лайков: '+all.length : ''));
     b.onclick = ()=>{
-      if (accState()!=='member'){ toast('Лайки ставят участники — войдите или зарегистрируйтесь'); return; }
+      if (accState()!=='member'){ const join = big && b.closest('.art-like') && b.closest('.art-like').querySelector('.art-like-join');
+        if (join){ join.hidden = false; return; } // at the end of an article: an invitation right here, the reader stays on the page
+        toast('Лайки ставят участники — войдите или зарегистрируйтесь'); return; }
       if (LIKE_PENDING[target]) return; // one tap at a time
       const adding = !mine, real = COM.likes.find(l=>l.target===target && l.user===COM.uid);
       LIKE_PENDING[target] = adding ? 'add' : 'del'; b.classList.remove('pop'); void b.offsetWidth; if (adding) b.classList.add('pop'); refresh();
@@ -1995,10 +1999,15 @@ function articlePage(path){
       it.answer ? h('div',{class:'art-answer'}, h('div',{class:'art-answer-t'},'Коротко'), h('p',null, mdInline(it.answer))) : null,
       ...articleBody(it.body, midCta(it)),
       h('div',{class:'art-end',role:'separator','aria-hidden':'true'},'❦ ❦ ❦'),
+      // the like comes right where reading ends, before everything else
+      h('div',{class:'art-like'}, h('p',{class:'art-like-q'},'Понравилась статья?'), likeBtn('articles:'+it.id, true),
+        h('p',{class:'hint'},'Так Даша узнаёт, о чём писать дальше'),
+        h('div',{class:'art-like-join',hidden:''}, h('p',null,'Лайки ставят участники сайта. Регистрация — минута и бесплатно.'),
+          h('div',{class:'art-like-acts'}, h('button',{type:'button',class:'btn small',onclick:()=>openAccount('register')},'Зарегистрироваться'), h('button',{type:'button',class:'btn ghost small',onclick:()=>openAccount('login')},'Войти')))),
       authorCard(),
       endCta(it),
       articleEditor(it),
-      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, likeBtn('articles:'+it.id), h('a',{class:'btn ghost small',href:'/zhurnal'},'← Все статьи')),
+      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'}, h('a',{class:'btn ghost small',href:'/zhurnal'},'← Все статьи')),
       commentsBlock('articles:'+it.id),
       others.length ? h('div',{class:'art-more'}, h('h2',null,'Читайте также'), h('ul',null, others.map(a=>h('li',null, h('a',{href:articleUrl(a)},a.title))))) : null
     ))];
