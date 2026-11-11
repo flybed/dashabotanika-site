@@ -25,7 +25,8 @@ const check = (n, ok) => { console.log((ok ? 'PASS ' : 'FAIL ') + n); if (!ok) f
       check(`[${w}] one like, right after the text, before the author, comments and «read also»`, r.likes === 1 && r.right && r.before);
       check(`[${w}] the like is big and says what it is (${Math.round(r.w)}×${Math.round(r.h)})`, r.h >= 52 && r.w >= 150 && r.text.includes('Понравилась статья?') && r.text.includes('Нравится'));
       check(`[${w}] no horizontal scroll`, !r.over);
-      // a guest: the like opens the registration
+      // a guest, after reading (the page has loaded the full article and drawn itself again): an invitation under the like
+      await p.waitForLoadState('networkidle'); await p.waitForTimeout(1500);
       await p.click('.like-big'); await p.waitForTimeout(500);
       check(`[${w}] guest: an invitation to join under the like, the reader stays on the article`, new URL(p.url()).pathname.startsWith('/zhurnal/') && await p.isVisible('.art-like-join') && await p.isVisible('.art-like-join button:has-text("Зарегистрироваться")'));
       if (process.env.SHOT) { await p.locator('.art-like').scrollIntoViewIfNeeded(); await p.evaluate(() => scrollBy(0, -260)); await p.screenshot({ path: `${process.env.SHOT}/like_${w}.png` }); }
