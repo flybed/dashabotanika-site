@@ -11,7 +11,7 @@ const check = (name, ok) => { console.log((ok ? 'PASS ' : 'FAIL ') + name); if (
 const src = fs.readFileSync(__dirname + '/../site/js/app.js', 'utf8');
 const cut = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
 // the converters and the article renderer are plain functions inside app.js: take them as they are
-const code = 'const MD_LINK = /^(https?:\\/\\/|\\/)[^\\s()]+$/;\n' + cut('const VE_BULLET', 'function mdTools(') + '\nwindow.VE = {veFromMd, veToMd};';
+const code = 'const MD_LINK = /^(https?:\\/\\/|\\/)[^\\s()]+$/;\n' + cut('// tables in an article', 'function mdBlocks(') + cut('const VE_BULLET', 'function mdTools(') + '\nwindow.VE = {veFromMd, veToMd};';
 (async () => {
   const b = await chromium.launch(), p = await b.newPage();
   await p.goto(B + '/o-proekte', { waitUntil: 'networkidle' });

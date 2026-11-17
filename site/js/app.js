@@ -1486,6 +1486,17 @@ function mdInline(text){
   return out;
 }
 function mdHeadId(t, used){ let id = slugify(t) || 'chast'; while (used[id]) id += '-2'; used[id] = 1; return id; }
+// tables in an article: «| a | b |» lines, the second one «|---|---|» (Markdown). mdTable reads the block starting at
+// line i: {head, rows, end} or null when these are not table lines (the same rule in pb_hooks/seo.js and in the editor)
+const MD_TROW = /^\|.*\|$/, MD_TSEP = /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/;
+const mdCells = l => l.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(x=>x.trim());
+function mdTable(lines, i){
+  if (!MD_TROW.test((lines[i]||'').trim()) || !MD_TSEP.test((lines[i+1]||'').trim())) return null;
+  const head = mdCells(lines[i]), rows = [];
+  let j = i + 2;
+  while (j < lines.length && MD_TROW.test(lines[j].trim())){ const r = mdCells(lines[j]); while (r.length < head.length) r.push(''); rows.push(r.slice(0, head.length)); j++; }
+  return {head, rows, end:j-1};
+}
 function mdBlocks(src){
   const lines = String(src||'').replace(/\r/g,'').split('\n'), out = [], heads = [], used = {};
   let para = [], list = null, quote = null;
@@ -1503,6 +1514,9 @@ function mdBlocks(src){
     if ((m = line.match(/^(#{1,3})\s+(.+)$/))){ flush(); const lvl = m[1].length === 3 ? 'h3' : 'h2', id = mdHeadId(m[2], used);
       if (lvl==='h2') heads.push([id, m[2]]); out.push(h(lvl,{id}, mdInline(m[2]))); continue; }
     if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(line)){ flush(); out.push(h('div',{class:'art-divider',role:'separator','aria-hidden':'true'},'❦')); continue; }
+    { const t = mdTable(lines, i); if (t){ flush(); i = t.end;
+      out.push(h('div',{class:'art-table'}, h('table',null, h('thead',null, h('tr',null, t.head.map(c=>h('th',null, mdInline(c))))),
+        h('tbody',null, t.rows.map(r=>h('tr',null, r.map(c=>h('td',null, mdInline(c))))))))); continue; } }
     // «[[darom]]» on its own line: a live «Вещи даром» card inside an article (what is given away now + two buttons)
     if (/^\[\[darom\]\]$/i.test(line)){ flush(); out.push(daromInset()); continue; }
     if ((m = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)) && MD_LINK.test(m[2])){ flush();
@@ -1521,7 +1535,8 @@ function mdBlocks(src){
 }
 // the article without marks: for short descriptions and search snippets
 const mdPlain = s => String(s||'').replace(/^\s*\[\[darom\]\]\s*$/gim,'').replace(/!\[[^\]]*\]\([^)]*\)/g,'').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\*\*|(^|\s)_|_(\s|$)/g,'$1$2')
-  .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm,'').replace(/^\s*(-{3,}|❦+)\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm,'').replace(/^\s*(-{3,}|❦+)\s*$/gm,'')
+  .replace(/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/gm,'').replace(/^\s*\|(.*)\|\s*$/gm,(m,x)=>x.split('|').map(c=>c.trim()).join(' — ')).replace(/\n{3,}/g,'\n\n').trim();
 const readMinutes = s => Math.max(1, Math.round(mdPlain(s).split(/\s+/).length / 180));
 /* «Частые вопросы» at the end of an article: «## Частые вопросы», then «### вопрос» and the answer under it.
    The page shows them as usual; search engines also get them as FAQ markup (pb_hooks/seo.js does the same) */
@@ -1598,6 +1613,9 @@ function veFromMd(src){
       continue; }
     if ((m = line.match(/^(#{1,3})\s+(.+)$/))){ flush(); const t = m[1].length === 3 ? 'h3' : 'h2'; out.push('<'+t+'>'+veInlineHtml(m[2])+'</'+t+'>'); continue; }
     if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(line)){ flush(); out.push(veFixed('div')); continue; }
+    { const t = mdTable(lines, i); if (t){ flush(); i = t.end; // a table: each cell is typed in place
+      out.push('<div class="art-table"><table><thead><tr>'+t.head.map(c=>'<th>'+(veInlineHtml(c)||'<br>')+'</th>').join('')+'</tr></thead><tbody>'+
+        t.rows.map(r=>'<tr>'+r.map(c=>'<td>'+(veInlineHtml(c)||'<br>')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>'); continue; } }
     if (/^\[\[darom\]\]$/i.test(line)){ flush(); out.push(veFixed('darom')); continue; }
     if ((m = line.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/))){ flush(); out.push(veFixed('fig', {src:m[2], cap:m[1]})); continue; }
     if ((m = line.match(/^>\s?(.*)$/))){ flushPara(); flushList(); (quote = quote || []).push(m[1]); continue; }
@@ -1644,6 +1662,13 @@ function veToMd(root){
       while (rows.length && !rows[rows.length-1]) rows.pop();
       if (rows.some(Boolean)) blocks.push(rows.map(x=>x ? '> '+x : '>').join('\n')); continue; }
     if (t === 'HR'){ blocks.push('---'); continue; }
+    // a table (in its wrapper or on its own): back to «| a | b |» lines
+    const tbl = t === 'TABLE' ? n : (t === 'DIV' && n.querySelector('table'));
+    if (tbl){ const cell = c => line(veInlineMd(c)).replace(/\n/g,' ').replace(/\|/g,'/');
+      const rows = [...tbl.querySelectorAll('tr')].map(tr=>[...tr.children].map(cell)).filter(r=>r.length);
+      if (rows.length){ const w = Math.max(...rows.map(r=>r.length)), row = r => '| '+Array.from({length:w},(_,k)=>r[k]||'').join(' | ')+' |';
+        blocks.push([row(rows[0]), '|'+Array(w).fill('---').join('|')+'|'].concat(rows.slice(1).map(row)).join('\n')); }
+      continue; }
     const x = line(veInlineMd(n)); if (x) blocks.push(x);
   }
   flushLoose();
