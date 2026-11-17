@@ -35,6 +35,8 @@ function mdInline(t) {
   return esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[\s(«])_([^_]+)_/g, "$1<em>$2</em>")
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (all, x, u) => okUrl(u) ? `<a href="${u}">${x}</a>` : all).replace(/\n/g, "<br>")
 }
+const TROW = /^\|.*\|$/, TSEP = /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/
+const cells = (l) => l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((x) => x.trim())
 function mdHtml(src) {
   const out = []
   let para = [], list = null, quote = null
@@ -43,10 +45,21 @@ function mdHtml(src) {
     if (list) { out.push(`<${list.t}>${list.items.map((x) => `<li>${mdInline(x)}</li>`).join("")}</${list.t}>`); list = null }
     if (quote) { out.push(`<aside>${quote.map((x) => `<p>${mdInline(x)}</p>`).join("")}</aside>`); quote = null }
   }
-  for (const raw of String(src || "").replace(/\r/g, "").split("\n")) {
-    const l = raw.trim()
+  const lines = String(src || "").replace(/\r/g, "").split("\n")
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim()
     let m
     if (!l) { if (para.length || quote) flush(); continue }
+    // таблица: строки «| a | b |», вторая — «|---|---|» (то же правило, что mdTable в site/js/app.js)
+    if (TROW.test(l) && TSEP.test((lines[i + 1] || "").trim())) {
+      flush()
+      const head = cells(l), rows = []
+      let j = i + 2
+      while (j < lines.length && TROW.test(lines[j].trim())) { const r = cells(lines[j]); while (r.length < head.length) r.push(""); rows.push(r.slice(0, head.length)); j++ }
+      i = j - 1
+      out.push(`<table><thead><tr>${head.map((c) => `<th>${mdInline(c)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${mdInline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`)
+      continue
+    }
     if ((m = l.match(/^(#{1,3})\s+(.+)$/))) { flush(); const t = m[1].length === 3 ? "h3" : "h2"; out.push(`<${t}>${mdInline(m[2])}</${t}>`); continue }
     if (/^(-{3,}|\*{3,}|_{3,}|❦+)$/.test(l)) { flush(); out.push("<hr>"); continue }
     if (/^\[\[darom\]\]$/i.test(l)) { flush(); out.push('<aside><p><b>Вещи даром на DashaBotanika.</b> Отдайте ненужное бесплатно тем, кому оно пригодится, и заберите нужное рядом с домом: <a href="/darom">смотреть вещи даром</a>.</p></aside>'); continue }
@@ -60,7 +73,7 @@ function mdHtml(src) {
   flush()
   return out.join("\n")
 }
-const mdPlain = (s) => String(s || "").replace(/^\s*\[\[darom\]\]\s*$/gim, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
+const mdPlain = (s) => String(s || "").replace(/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/gm, "").replace(/^\s*\|(.*)\|\s*$/gm, (m, x) => x.split("|").map((c) => c.trim()).join(" — ")).replace(/^\s*\[\[darom\]\]\s*$/gim, "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*/g, "")
   .replace(/^\s*(#{1,3}|>|[-—–•*]|\d+[.)])\s+/gm, "").replace(/^\s*(-{3,}|❦+)\s*$/gm, "").trim()
 
 // Обложка статьи — с теми же адресами и размерами, что выберет скрипт сайта (photoSrc в site/js/app.js):

@@ -1948,3 +1948,12 @@ html.sm-lock body{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .form .md-field{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--muted)}
 .art-editor .md-field{gap:6px;font-weight:700;font-size:14px}
 .md-field .ve-ed,.md-field .md-tools{color:var(--ink)}
+
+/* tables in articles: a compact grid; on a narrow phone the table scrolls sideways inside its box, the page does not */
+.art-table{margin:18px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.art-table table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.4}
+.art-table th,.art-table td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+.art-table th{font-weight:800;background:color-mix(in srgb,var(--leaf, #3B8F55) 10%,transparent)}
+.art-table tr:last-child td{border-bottom:0}
+.art-table td:first-child{font-weight:600}
+@media (max-width:480px){.art-table table{font-size:14px}.art-table th,.art-table td{padding:8px 10px}}
