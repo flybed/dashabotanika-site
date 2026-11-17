@@ -33,6 +33,7 @@ const paras = (s) => String(s || "").split(/\n{2,}/).map((p) => p.trim()).filter
 const okUrl = (u) => /^(https?:\/\/|\/)[^\s()"<>]+$/.test(u)
 function mdInline(t) {
   return esc(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[\s(«])_([^_]+)_/g, "$1<em>$2</em>")
+    .replace(/(^|[\s(«"])\*([^*\s](?:[^*]*[^*\s])?)\*(?=$|[\s.,;:!?)»"])/g, "$1<em>$2</em>")
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (all, x, u) => okUrl(u) ? `<a href="${u}">${x}</a>` : all).replace(/\n/g, "<br>")
 }
 const TROW = /^\|.*\|$/, TSEP = /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/

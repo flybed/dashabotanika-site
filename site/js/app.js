@@ -1471,13 +1471,14 @@ const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleD
    - пункт · 1. пункт · ![подпись](адрес фото) на отдельной строке. Old plain-text articles keep working. */
 const MD_LINK = /^(https?:\/\/|\/)[^\s()]+$/;
 function mdInline(text){
-  const out = [], re = /\*\*([^*]+)\*\*|(?:^|(?<=[\s(«"]))_([^_]+)_|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  // italic: _так_ or *так* (one star on each side, right next to the word: «5 * 3» stays as it is)
+  const out = [], re = /\*\*([^*]+)\*\*|(?:^|(?<=[\s(«"]))_([^_]+)_|\[([^\]]+)\]\(([^)\s]+)\)|(?:^|(?<=[\s(«\"]))\*([^*\s](?:[^*]*[^*\s])?)\*(?=$|[\s.,;:!?)»\"])/g;
   let last = 0, m;
   const plain = t => t.split('\n').forEach((x,i)=>{ if (i) out.push(h('br')); if (x) out.push(x); });
   while ((m = re.exec(text))){
     plain(text.slice(last, m.index));
     if (m[1]) out.push(h('strong',null,m[1]));
-    else if (m[2]) out.push(h('em',null,m[2]));
+    else if (m[2] || m[5]) out.push(h('em',null,m[2] || m[5]));
     else if (MD_LINK.test(m[4])) out.push(h('a',{href:m[4], target:m[4][0]==='/' ? null : '_blank', rel:m[4][0]==='/' ? null : 'noopener'}, m[3]));
     else out.push(m[0]);
     last = re.lastIndex;
@@ -1496,6 +1497,47 @@ function mdTable(lines, i){
   let j = i + 2;
   while (j < lines.length && MD_TROW.test(lines[j].trim())){ const r = mdCells(lines[j]); while (r.length < head.length) r.push(''); rows.push(r.slice(0, head.length)); j++; }
   return {head, rows, end:j-1};
+}
+// Marks the site cannot show: on the page they would stay as plain «|», «####», «~~», «<b>»… Returns
+// [{n: line number, text, why}]. One function for everything: the draft and article editors warn Dasha, the server
+// (pb_hooks/drafts.pb.js, it reads this very function from here) does not accept such a draft from the helper.
+// Self-contained on purpose (no outside names): the server runs it on its own.
+function mdLeftovers(src){
+  const lines = String(src||'').replace(/\r/g,'').split('\n'), out = [];
+  const ROW = /^\|.*\|$/, SEP = /^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$/, URL_OK = /^(https?:\/\/|\/)[^\s()"<>]+$/;
+  const add = (n, why) => out.push({n:n+1, text:lines[n].trim().slice(0,80), why});
+  let fence = false;
+  for (let i = 0; i < lines.length; i++){
+    const l = lines[i].trim();
+    if (!l) continue;
+    if (/^(```|~~~)/.test(l)){ fence = !fence; add(i, 'блок кода (```) — сайт его не показывает, пишите обычным текстом'); continue; }
+    // a table: valid when the second line is «|---|---|»; then all its rows are fine
+    if (ROW.test(l) && SEP.test((lines[i+1]||'').trim())){ i++; while (i+1 < lines.length && ROW.test(lines[i+1].trim())) i++; continue; }
+    if (ROW.test(l) || (SEP.test(l) && l.indexOf('|') >= 0)){ add(i, 'строка таблицы без строки «|---|---|» под шапкой (или с пустой строкой внутри таблицы)'); continue; }
+    if (/^#{4,}\s/.test(l)){ add(i, 'заголовок с 4 и больше «#»: сайт понимает «## » и «### »'); continue; }
+    if (/^#{1,3}[^#\s]/.test(l)){ add(i, 'после «#» нужен пробел: «## Заголовок»'); continue; }
+    // a photo on its own line is right; inside a sentence it would stay as text
+    const img = l.match(/^!\[[^\]]*\]\(([^)\s]+)\)$/);
+    if (img){ if (!URL_OK.test(img[1])) add(i, 'у фото неверный адрес'); continue; }
+    if (/!\[[^\]]*\]\([^)]*\)/.test(l)){ add(i, 'фото внутри текста: фото ставится отдельной строкой'); continue; }
+    if (/<\/?[a-zA-Z][a-zA-Z0-9]*(\s[^<>]*)?\/?>/.test(l)){ add(i, 'HTML-тег — сайт покажет его как текст'); continue; }
+    if (/~~[^~]+~~/.test(l)){ add(i, 'зачёркивание ~~…~~ сайт не показывает'); continue; }
+    if (/__[^_]+__/.test(l)){ add(i, '__жирный__ сайт не понимает: пишите **жирный**'); continue; }
+    if (/\*\*\*/.test(l)){ add(i, 'три звёздочки подряд: жирный — **так**, курсив — _так_'); continue; }
+    if (((l.replace(/^[-*]\s+/, '').match(/\*\*/g)) || []).length % 2){ add(i, 'незакрытый **жирный**: у каждого «**» нужна пара'); continue; }
+    if (/\[\^[^\]]+\]/.test(l)){ add(i, 'сноски [^1] сайт не показывает: ссылку на источник — прямо в тексте'); continue; }
+    const bad = (l.match(/\[[^\]]+\]\(([^)]*)\)/g) || []).map(x=>x.replace(/^.*\]\(|\)$/g,'')).find(u=>!URL_OK.test(u));
+    if (bad !== undefined){ add(i, 'ссылка с неверным адресом «'+bad.slice(0,40)+'»: нужен полный адрес https://… или /раздел'); continue; }
+  }
+  return out;
+}
+// a warning under an editor: what the site will not show, line by line (empty when all is well)
+function mdWarn(box, src){
+  const bad = mdLeftovers(src);
+  box.hidden = !bad.length;
+  box.replaceChildren(...(bad.length ? [h('b',null,'⚠️ Сайт не покажет эту разметку — поправьте перед публикацией:'),
+    h('ul',null, bad.slice(0,8).map(x=>h('li',null, 'строка '+x.n+': «'+x.text+'» — '+x.why))), bad.length > 8 ? h('p',null,'…и ещё '+(bad.length-8)) : null] : []));
+  return bad;
 }
 function mdBlocks(src){
   const lines = String(src||'').replace(/\r/g,'').split('\n'), out = [], heads = [], used = {};
@@ -1579,12 +1621,12 @@ const VE_BULLET = /^[-—–•*]\s+/, VE_NUM = /^\d+[.)]\s+/;
 function veInlineHtml(text){
   const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   let out = '', last = 0, m;
-  const re = /\*\*([^*]+)\*\*|(?:^|(?<=[\s(«"]))_([^_]+)_|\[([^\]]+)\]\(([^)\s]+)\)/g;
+  const re = /\*\*([^*]+)\*\*|(?:^|(?<=[\s(«"]))_([^_]+)_|\[([^\]]+)\]\(([^)\s]+)\)|(?:^|(?<=[\s(«\"]))\*([^*\s](?:[^*]*[^*\s])?)\*(?=$|[\s.,;:!?)»\"])/g;
   const plain = t => esc(t).replace(/\n/g,'<br>');
   while ((m = re.exec(text))){
     out += plain(text.slice(last, m.index));
     if (m[1]) out += '<strong>'+plain(m[1])+'</strong>';
-    else if (m[2]) out += '<em>'+plain(m[2])+'</em>';
+    else if (m[2] || m[5]) out += '<em>'+plain(m[2] || m[5])+'</em>';
     else out += '<a href="'+esc(m[4]).replace(/"/g,'&quot;')+'">'+plain(m[3])+'</a>';
     last = re.lastIndex;
   }
@@ -2062,13 +2104,16 @@ function articleEditor(it){
   const slugWas = articleSlug(it);
   const bodyField = field('body','Текст',{area:true,h:320});
   bodyField.insertBefore(mdTools(bodyField.querySelector('textarea')), bodyField.querySelector('textarea'));
+  // what the site will not show: a warning right under the text, updated as Dasha types
+  const bodyWarn = h('div',{class:'md-warn',role:'status',hidden:''}); mdWarn(bodyWarn, it.body);
+  bodyField.querySelector('textarea').addEventListener('input', e=>mdWarn(bodyWarn, e.target.value));
   const slugField = field('slug','Адрес страницы',{ph:slugWas, hint:'Латиницей, через дефис. Старый адрес продолжит открывать статью.'});
   slugField.querySelector('input').addEventListener('change', ()=>{ const now = articleSlug(it); if (now !== slugWas){ it.old_slugs = [...new Set([...(it.old_slugs||[]), slugWas])].filter(x=>x!==now); markDirty(); } });
   return h('div',{class:'form edit-only art-editor'},
     h('h3',null,'✏️ Редактировать статью'),
     field('title','Заголовок'), field('lead','Короткое описание',{area:true,h:70}),
     field('answer','Коротко: прямой ответ',{area:true,h:80,max:400, hint:'2–3 предложения, которые сразу отвечают на вопрос из заголовка. Их показывают поисковики и ИИ-ответы. Частые вопросы — в конце текста: «## Частые вопросы», под ним «### Вопрос?» и ответ.'}),
-    bodyField,
+    bodyField, bodyWarn,
     h('h3',{style:'margin-top:10px'},'🔎 Для поиска и ссылок'),
     h('p',{class:'hint'},'Если оставить пустым, сайт возьмёт заголовок и короткое описание статьи.'),
     field('seo_title','Заголовок в поиске',{max:60, ph:it.title+' — DashaBotanika', hint:'До 60 знаков, главный запрос — в начале. Например: «Куда сдать батарейки в Новосибирске: 5 мест».'}),
@@ -5177,12 +5222,14 @@ function paintDrafts(el){
       try{ await pb.collection('drafts').update(d.id, v, {requestKey:null}); savedJson = j; saveState.textContent = '✓ Сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
       catch(e){ saveState.textContent = '⚠️ Не сохранилось — проверьте интернет, попробую ещё раз'; saveTimer = setTimeout(autosave, 10000); }
       saving = false; };
-    const changed = ()=>{ saveState.textContent = 'Есть изменения…'; clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 2500); };
+    const changed = ()=>{ saveState.textContent = 'Есть изменения…'; clearTimeout(saveTimer); saveTimer = setTimeout(autosave, 2500); mdWarn(warn, f.body.value); };
+    const warn = h('div',{class:'md-warn',role:'status',hidden:''}); mdWarn(warn, f.body.value);
     box.addEventListener('input', changed); box.addEventListener('change', changed);
     box.append(head, h('div',{class:'form draft-ed'},
       h('label',null,'Заголовок',f.title), h('label',null,'Рубрика',f.cat), h('label',null,'Короткое описание (видно в журнале и в поиске)',f.lead),
       h('div',null, h('div',{class:'ae-l'},'Картинка превью'), cover), h('label',null,'Что на картинке (alt)',alt), h('label',null,'Коротко: прямой ответ (видно над текстом и в поиске)',answer),
       h('label',null,'Текст статьи',mdTools(f.body),f.body),
+      warn,
       d.sources ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Источники для проверки: '), d.sources) : null,
       d.note ? h('div',{class:'hint',style:'white-space:pre-line'}, h('b',null,'Заметка помощника: '), d.note) : null,
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
@@ -5196,6 +5243,8 @@ function paintDrafts(el){
 }
 async function publishDraft(d, v, btn){
   if (!v.title || !v.body){ toast('Нужны заголовок и текст'); return; }
+  const bad = mdLeftovers(v.body);
+  if (bad.length && !confirm('В тексте есть разметка, которую сайт не покажет (строк: '+bad.length+'), — она видна под текстом. Опубликовать всё равно?')) return;
   if (EDIT.on && EDIT.dirty){ toast('Сначала сохраните или отмените правки сайта'); return; }
   btn.disabled = true; btn.textContent = 'Публикую…';
   try{
