@@ -1957,3 +1957,8 @@ html.sm-lock body{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 .art-table tr:last-child td{border-bottom:0}
 .art-table td:first-child{font-weight:600}
 @media (max-width:480px){.art-table table{font-size:14px}.art-table th,.art-table td{padding:8px 10px}}
+
+/* the editors: marks the site will not show */
+.md-warn{margin:6px 0 10px;padding:12px 14px;border:1px solid var(--clay);border-radius:12px;background:color-mix(in srgb,var(--clay) 8%,var(--surface));font-size:14px;line-height:1.45}
+.md-warn ul{margin:6px 0 0;padding-left:18px}
+.md-warn[hidden]{display:none}
