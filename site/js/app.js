@@ -2909,6 +2909,9 @@ function setMyItemStatus(id, status){
   return write('listings/'+id, ()=>pb.collection('listings').update(id,{status}))
     .then(r=>{ if (r && r.status==='gone') goalOnce('darom_given', id); return r; }).catch(writeErr);
 }
+// how long a listing stays in the feed: a month by default and on «Продлить» (owner's decision, 27.11.2026: with few
+// things on the site, 14 days sent them to the archive too soon); the same term in pb_hooks/darom.js (LISTING_DAYS)
+const LISTING_DAYS = 30;
 function listingOf(r){ return {id:r.id, seller:r.seller, title:r.title, kind:r.kind, price:r.price, condition:r.condition, city:r.city, note:r.note, category:r.category||'', pickup:r.pickup||'', until:r.until||'', district:r.district||'', lat:r.lat||0, lon:r.lon||0, reserved_until:r.reserved_until||'', lot:!!r.lot, items:r.items||'', more:(r.more_photos||[]).map(f=>'/api/files/'+r.collectionId+'/'+r.id+'/'+encodeURIComponent(f)+'?thumb=600x450'), chosen:r.chosen||'', claims:r.claims||0, lend_days:r.lend_days||0, return_by:r.return_by||'', photo:fileURL(r,'photo','600x450'), photoFull:fileURL(r,'photo'), status:r.status||'active', moderation:r.moderation||'', reason:r.reason||'', ts:tsOf(r)}; }
 
 // a thing at a glance: photo, what it is, can you still get it, condition and where, who gives, what to do next.
@@ -3582,7 +3585,7 @@ function thingsPanel(lists){
   const lendDays = h('input',{id:'mk-lend',type:'number',min:'1',max:'90',value:'14'});
   const lendBox = h('label',{for:'mk-lend',hidden:''},'На сколько дней одалживаете',lendDays);
   how.addEventListener('change', ()=>{ lendBox.hidden = how.value!=='Одолжу'; });
-  const days = h('select',{id:'mk-days'}, [['7','неделю'],['14','2 недели'],['30','месяц']].map(([v,t])=>h('option',{value:v,selected:v==='14'},t)));
+  const days = h('select',{id:'mk-days'}, [['7','неделю'],['14','2 недели'],['30','месяц']].map(([v,t])=>h('option',{value:v,selected:v===String(LISTING_DAYS)},t)));
   const note = h('textarea',{id:'mk-note',maxlength:'1500',placeholder:'Размер, бренд, особенности — то, что поможет решить, подходит ли вещь'});
   // the photo: a big friendly button instead of the browser's «Choose file»; the frame editor opens right after choosing
   const file = h('input',{id:'mk-photo',type:'file',accept:'image/jpeg,image/png,image/webp',class:'sr-only'});
@@ -3712,7 +3715,7 @@ function paintThings(el){
       ...claims.map(c=>h('div',{class:'claim'+(it.chosen===c.user?' on':'')}, h('div',null, nameSpan(c.user), trustLine(c.user), c.note ? h('div',{style:'white-space:pre-line;font-size:15px'},c.note) : null),
         it.chosen===c.user ? h('span',{class:'status accepted'},'✓ Выбран(а)') : it.status==='lent' ? null : h('button',{type:'button',class:'btn ghost small',onclick:()=>pick(c)}, lend ? 'Одолжить' : 'Отдать')))) : null;
     const left = it.until ? Math.ceil((Date.parse(String(it.until).replace(' ','T')) - Date.now())/86400000) : null;
-    const extend = (status) => write('listings/'+it.id, ()=>pb.collection('listings').update(it.id, Object.assign({until:plusDays(14)}, status ? {status} : {}))).then(()=>toast(status ? 'Вещь снова в ленте на 2 недели' : 'Продлено на 2 недели')).catch(writeErr);
+    const extend = (status) => write('listings/'+it.id, ()=>pb.collection('listings').update(it.id, Object.assign({until:plusDays(LISTING_DAYS)}, status ? {status} : {}))).then(()=>toast(status ? 'Вещь снова в ленте на месяц' : 'Продлено на месяц')).catch(writeErr);
     return h('div',{class:'li'},
       h('div',{class:'meta'}, h('span',{class:'status '+(ms==='approved'?'accepted':ms==='rejected'?'declined':'')},stl), h('span',null,it.kind), h('span',null,priceLabel(it)), h('span',null,dt(it.ts))),
       h('b',null,it.title),
@@ -3725,7 +3728,7 @@ function paintThings(el){
       h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
         lend && it.chosen && it.status!=='lent' && it.status!=='gone' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'lent').then(()=>toast('Отмечено: вещь на руках. Напомним о возврате'))},'Одолжено') : null,
         it.status==='lent' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'active').then(()=>toast('Вещь снова в ленте'))},'Вернули') : null,
-        it.status!=='gone' && it.status!=='archived' && it.status!=='lent' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend()},'Продлить на 2 недели') : null,
+        it.status!=='gone' && it.status!=='archived' && it.status!=='lent' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend()},'Продлить на месяц') : null,
         it.status==='archived' ? h('button',{type:'button',class:'btn ghost small',onclick:()=>extend('active')},'Вернуть в ленту') : null,
         it.status!=='gone' && !lend ? h('button',{type:'button',class:'btn ghost small',onclick:()=>setMyItemStatus(it.id,'gone')},'Отдано') : null,
         h('button',{type:'button',class:'btn danger small',onclick:()=>delDoc('listings',it.id)},'Удалить')));

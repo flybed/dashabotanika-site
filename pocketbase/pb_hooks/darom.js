@@ -197,6 +197,9 @@ function flushOne(app, sub) {
   }
 }
 
+// срок объявления в ленте: месяц (решение владельца 27.11.2026; тот же LISTING_DAYS в site/js/app.js)
+const LISTING_DAYS = 30
+
 function expire(app) {
   const now = new Date(), nowS = now.toISOString().replace("T", " ")
   const site = "https://dashabotanika.ru"
@@ -206,7 +209,7 @@ function expire(app) {
     if (!r) {
       l.set("reminded", nowS); app.saveNoValidate(l); reminded++
       personal(app, l.getString("seller"), `«${l.getString("title")}» ещё актуально? — DashaBotanika`, "Вещь ещё ждёт хозяина?",
-        `<p>Объявлению «${l.getString("title").replace(/</g, "&lt;")}» пора обновиться. Если вещь ещё у вас — продлите его в кабинете на 14 дней. Если уже отдали — отметьте «Отдано».</p><p>Без ответа через 3 дня объявление уйдёт в архив, его можно будет вернуть одной кнопкой.</p>`,
+        `<p>Объявлению «${l.getString("title").replace(/</g, "&lt;")}» пора обновиться. Если вещь ещё у вас — продлите его в кабинете ещё на месяц. Если уже отдали — отметьте «Отдано».</p><p>Без ответа через 3 дня объявление уйдёт в архив, его можно будет вернуть одной кнопкой.</p>`,
         "Продлить или отметить", `${site}/kabinet?tab=things`)
     } else if (Date.parse(r.replace(" ", "T")) < now.getTime() - 3 * 86400000) {
       l.set("status", "archived"); app.saveNoValidate(l); archived++
@@ -266,7 +269,7 @@ function fromTelegram(app, msg) {
   const l = new Record(app.findCollectionByNameOrId("listings"))
   l.set("seller", userId); l.set("title", title); l.set("kind", "Отдам даром"); l.set("status", "active")
   l.set("note", lines.slice(1).join("\n").slice(0, 1500)); l.set("category", guessCat(raw))
-  l.set("until", new Date(Date.now() + 14 * 86400000).toISOString().replace("T", " "))
+  l.set("until", new Date(Date.now() + LISTING_DAYS * 86400000).toISOString().replace("T", " "))
   try {
     const p = app.findFirstRecordByFilter("profiles", "owner = {:u}", { u: userId })
     l.set("city", p.getString("city")); l.set("district", p.getString("district"))
